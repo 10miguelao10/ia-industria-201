@@ -74,20 +74,17 @@ El comando imprime una línea `OK m01-01: ...` cuando el paso cuadra.
 
 ## Requisitos del curso
 
-Medidos para que quepan en un puesto justo y en un Codespace pequeño. Los techos son los `mem_limit` del `docker-compose.yml`.
+El puesto se prepara antes de clase. El día del laboratorio no se instala nada en el equipo: solo se usan los contenedores.
 
-| | Mínimo para M01–M04 y M06–M08 | Para poder hacer también M05 |
-|--|-------------------------------|------------------------------|
-| CPU | 2 núcleos | 2 núcleos (mejor 4: la respuesta del modelo es por CPU) |
-| RAM libre | 4 GB | 8 GB |
-| Disco libre | 4 GB (imagen + datos) | + 1 GB para el GGUF (~470 MB) y la carga |
-| Docker | Engine 24+ y Compose v2 | igual |
-| Red | Solo el primer `docker compose build` y el `pull` de Mosquitto | Más la descarga del GGUF, una vez |
-| Puertos libres | 1883, 4840, 1502, 8501 | + 8088 y, desde M07, 8000 |
+El puesto de aula es Linux en el propio equipo. Hardware, software, red y la prueba de aceptación están en [PUESTO.md](PUESTO.md). Desde esta carpeta, `./comprobar-puesto.sh` tiene que imprimir `PUESTO_OK`.
 
-En un Codespace de 2 núcleos y 8 GB entra el curso si **no** dejas el panel y el modelo generativo arrancados a la vez. Para M05 para el panel (`docker compose stop panel`).
+Los techos de cada contenedor son los `mem_limit` del `docker-compose.yml`. Cuando corre el modelo generativo hacen falta 8 GB libres para Docker. Python en el host, GPU y webcam quedan fuera.
 
-Después de construir la imagen y, si toca M05, de tener el GGUF en disco, los laboratorios siguen sin internet: no llaman a una API externa.
+La imagen de la línea se construye o se baja al empezar. Mosquitto sale de Docker Hub. El fichero de Qwen (~470 MB) se baja de Hugging Face una vez, a `infra/modelos/`. Los laboratorios no llaman a una API de pago: el modelo corre en el contenedor `llm`.
+
+Cualquier otra herramienta del curso (visión, flujos, trazas del modelo) es otro contenedor que se baja de un registry. No se instala nada más en el puesto.
+
+En el M05, detén el panel (`docker compose stop panel`) antes de arrancar `llm`.
 
 ## Requisitos por laboratorio
 
