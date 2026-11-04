@@ -14,9 +14,11 @@ Una aplicación pide texto al servicio local por HTTP y, si el servicio no está
 
 - El contenedor `llm` en marcha y `/salud` en `ok` (M05-01).
 
-### En qué consiste
+### Qué está pasando
 
-Integrar es usar el contrato HTTP del servicio, no abrir el modelo. El servicio sigue el formato de chat habitual: `POST /v1/chat/completions` con una lista de mensajes.
+El técnico no va a abrir una terminal para hablar con el modelo: usará una **aplicación**, por ejemplo en la tablet del puesto o en la intranet de mantenimiento. Esa aplicación habla con el modelo por **HTTP**, mandando la pregunta y recibiendo la respuesta en JSON, igual que con cualquier otro servicio de la planta.
+
+También tiene que saber **fallar bien**. Si el servicio del modelo está caído, la aplicación debe decir «no hay servicio» y no quedarse colgada ni enseñar un texto inventado.
 
 ### 1 — Llamar al modelo como lo haría una aplicación
 

@@ -14,9 +14,13 @@ El agente lee la temperatura con una herramienta y se niega a escribir en el aut
 
 - `llm` y `sensor` en marcha: hace falta un estado vivo de la estación.
 
-### En qué consiste
+### Qué está pasando
 
-La herramienta `leer_estacion` lee `data/estado.json`. La orquestación la llama, guarda una traza y pide al modelo una frase con ese número, sin cambiarlo. No existe herramienta de escritura: pedir un cambio se rechaza antes de tocar el proceso.
+El supervisor pregunta: **«¿Cómo está la estación ahora?»**. Para contestar hace falta un dato vivo que el modelo no tiene. Un **agente** es un modelo al que se le dan **herramientas**: aquí, una sola, `leer_estacion`, que lee la temperatura actual de EST-01.
+
+El código llama a la herramienta, guarda una traza de qué se leyó y pide al modelo que redacte la respuesta con ese número, sin cambiarlo.
+
+Luego alguien le pide algo peligroso: escribir en el automatismo. El agente **no puede**, porque no tiene ninguna herramienta de escritura. La forma más segura de que un agente no toque el proceso es no darle con qué hacerlo.
 
 ### 1 — Pedir el valor y pedir un cambio
 

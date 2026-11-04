@@ -15,9 +15,18 @@ Entrenas un clasificador que relaciona las señales de proceso con un defecto ya
 - `infra/data/limpio.csv` (sale de M02-03). Si falta, este comando lo regenera.
 - RAM del entrenamiento: ~0,5 GB. CPU, sin GPU.
 
-### En qué consiste
+### Qué está pasando
 
-Las piezas van ordenadas por identificador, que aquí hace de tiempo. El 70 % primero entrena y el 30 % último solo se evalúa. El modelo es una regresión logística con las clases equilibradas. La etiqueta `defecto` imita un control de calidad posterior: no está entre las entradas del modelo.
+**Calidad** inspecciona las carcasas después de que salgan de EST-01 y marca las defectuosas. Cuando aparece una mala, la pregunta de siempre es: ¿se podía haber visto venir con lo que medía la máquina?
+
+Eso es lo que vas a intentar. Un modelo mira las señales de cada carcasa (temperatura, vibración, corriente y presión) y aprende qué combinaciones acaban en defecto. Para que la prueba sea honesta, se entrena con el **pasado** (el 70 % de las piezas más antiguas) y se evalúa con el **futuro** (el 30 % más reciente), piezas que el modelo nunca ha visto.
+
+En planta lo que importa son dos números:
+
+- **Cuántos defectos encuentra.** Cada defecto que se escapa puede acabar en el cliente.
+- **Cuántas piezas buenas manda a revisar sin motivo.** Cada falsa alarma es una pieza que alguien revisa a mano para nada.
+
+El modelo no ve la columna `defecto` como entrada: esa información llega tarde, después de la inspección.
 
 ### 1 — Entrenar y evaluar con piezas nuevas
 

@@ -14,9 +14,13 @@ Comparas la tasa de avisos de un lote normal con la del mismo lote 8 °C más ca
 
 - El mismo `data/modelo_defecto.joblib`.
 
-### En qué consiste
+### Qué está pasando
 
-Es la misma función que sirve `api`, aplicada a un lote para ver la deriva. Subir la temperatura imita un proceso que ya no es el del entrenamiento: cambio de utillaje, otra refrigeración, verano. Si la tasa de `revisar` no se mueve, no estás viendo la degradación.
+Pasan las semanas. Se cambia el refrigerante, llega el verano o se cambia de utillaje, y el husillo pasa a trabajar **8 °C más caliente** que cuando se entrenó el modelo.
+
+El modelo no se rompe: sigue contestando como si nada. Pero la línea ya no se parece a la que aprendió, y sus dictámenes dejan de tener sentido. Esto se llama **deriva**, y la única forma de verla es **vigilar** cómo se comporta el modelo en operación.
+
+En este lab se mide la tasa de piezas que manda a revisión con los datos normales (la base) y con los mismos datos 8 °C más calientes. Sin la base, el segundo número no dice nada.
 
 ### 1 — Medir la base y el desplazamiento
 

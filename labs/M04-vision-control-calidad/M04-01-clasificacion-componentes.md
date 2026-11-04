@@ -15,9 +15,13 @@ Entrenas un clasificador que separa componente correcto y defectuoso, y lo prueb
 - Solo `lab`. Genera 80 PNG pequeñas en `infra/data/imagenes/`.
 - Sin cámara y sin GPU.
 
-### En qué consiste
+### Qué está pasando
 
-Las imágenes son sintéticas: una pieza gris y, en las malas, un rayón blanco. Hay 40 de cada. El 30 % final de cada clase no entra al entrenamiento. El modelo es una regresión logística sobre la imagen reducida a 16×16 píxeles.
+Al final de EST-01 hay un **puesto de inspección visual**: una cámara fotografía cada carcasa antes de que pase a la siguiente fase. El defecto que se busca es un **rayón** en la superficie.
+
+Para enseñar a un modelo a separar buenas de malas hacen falta fotos de las dos clases. Aquí hay 80, generadas por el laboratorio: 40 carcasas buenas y 40 con un rayón blanco. El modelo aprende con el 70 % de cada clase y se le examina con el 30 % restante, fotos que no ha visto.
+
+Para el modelo, una foto no es una imagen: es una lista de 256 números, el brillo de cada punto de la foto reducida a 16×16. Sin cámara real y sin GPU.
 
 ### 1 — Generar y entrenar
 

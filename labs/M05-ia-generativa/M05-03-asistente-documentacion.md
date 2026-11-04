@@ -15,9 +15,13 @@ El asistente contesta el par de apriete a partir del procedimiento, y no inventa
 - `llm` en marcha (M05-01).
 - El procedimiento está en `infra/linea/docs/procedimiento-est01.md`.
 
-### En qué consiste
+### Qué está pasando
 
-Primero se recupera: se parte el procedimiento en párrafos y se elige el que más palabras comparte con la pregunta. Después se genera: ese párrafo entra en el mensaje al modelo. El dato que tiene que salir es 12 N·m.
+Un técnico pregunta: **«¿A qué par se aprieta el tornillo de la brida?»**. El modelo no sabe nada de EST-01, y si contesta de memoria puede inventarse un número que suene bien. En planta, un par de apriete inventado es una pieza mal montada.
+
+La respuesta tiene que salir del **procedimiento de la estación**. Así que antes de preguntar al modelo se busca el párrafo del procedimiento que habla de eso, y se le da junto con la pregunta y la instrucción de usar solo ese texto. Es lo que se conoce como recuperar y luego generar (RAG).
+
+Y si el procedimiento no dice nada del tema, lo correcto es decir que no está, no inventarlo.
 
 ### 1 — Leer el documento
 

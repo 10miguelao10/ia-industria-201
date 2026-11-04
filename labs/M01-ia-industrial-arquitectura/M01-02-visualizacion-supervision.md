@@ -15,9 +15,18 @@ Lees la estación en indicadores (valor actual, serie y margen) y no en una list
 - M01-01 hecho: mosquitto, sensor y archivador en marcha.
 - RAM adicional del panel: hasta 512 MB. Puerto 8501 libre.
 
-### En qué consiste
+### Qué está pasando
 
-El panel es otro contenedor (`panel`, hecho con Streamlit). Lee el mismo SQLite que llena el archivador. El margen de 70 °C es una regla de operación, no un modelo.
+El jefe de turno no lee fichas una a una. Necesita mirar una pantalla y saber en dos segundos qué carcasa está saliendo, cómo va el husillo y si algo se ha salido de lo normal.
+
+Eso es el **panel**: la pantalla del puesto de supervisión. No escucha al broker; lee el **histórico** que llena el archivador y lo convierte en tres indicadores, un aviso y una gráfica de las últimas lecturas.
+
+El aviso usa un **margen fijo de 70 °C**, el que marca el procedimiento de la estación. Es una regla que escribió una persona, no un modelo: avisa cuando una señal pasa un número, y no ve combinaciones raras de varias señales. Eso llegará en M03.
+
+| En la realidad | En este laboratorio |
+|----------------|---------------------|
+| SCADA, HMI o un panel tipo Grafana sobre el histórico | Contenedor `panel` (Streamlit) sobre `historial.sqlite` |
+| Margen de operación del procedimiento | 70 °C fijos en el código del panel |
 
 ### 1 — Arrancar el panel
 

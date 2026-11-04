@@ -15,9 +15,13 @@ Das un dictamen con el modelo cargado desde el disco del puesto y mides el tiemp
 - `data/modelo_defecto.joblib` de M03-03.
 - Unos 0,4 GB. Este paso no usa el modelo generativo.
 
-### En qué consiste
+### Qué está pasando
 
-En este laboratorio el borde (edge) es el propio puesto: no hay URL ni nube. Se carga el `.joblib` y se predicen 20 piezas seguidas, para medir la pieza siguiente y no solo la primera, que incluye la carga.
+El modelo de defecto del M03-03 tiene que dar su dictamen de cada carcasa **antes de que salga la siguiente**, y en EST-01 sale una por segundo. Además, la línea no puede depender de que funcione la red de la oficina o internet.
+
+Por eso el modelo se ejecuta en el **equipo edge**, el ordenador que está junto a la máquina. En este laboratorio ese equipo es tu puesto: el modelo se carga desde un fichero del disco, sin ninguna dirección de red.
+
+Se dictaminan 20 piezas seguidas y se mide la media. La primera no cuenta, porque incluye el tiempo de cargar el modelo y no se repite en cada pieza.
 
 ### 1 — Liberar memoria
 

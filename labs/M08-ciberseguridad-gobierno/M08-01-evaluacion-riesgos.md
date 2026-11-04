@@ -15,9 +15,13 @@ Listas las superficies de la arquitectura y dejas una medida para el dato, otra 
 - `modbus` en marcha, para leer el registro de paro.
 - El inventario es el de [infra/README.md](../../infra/README.md).
 
-### En qué consiste
+### Qué está pasando
 
-Cada contenedor que publica un puerto es una superficie de ataque. El cruce con OT es el tema de dictámenes; el registro de paro no entra en ese cruce.
+Antes de llevar esta solución a la red de la planta, el responsable de **ciberseguridad** pregunta: ¿qué estáis exponiendo, qué puede salir mal y qué habéis hecho para evitarlo?
+
+Cada servicio que escucha en un puerto es una **superficie**: algo a lo que se puede llegar desde la red. Los más delicados son los que tocan la parte OT, como el esclavo Modbus que tiene el registro del paro de seguridad.
+
+En este lab haces el inventario de superficies y dejas escrita una medida para cada tipo de riesgo: el dato, el modelo y el acceso. Y compruebas si lo que está escrito se cumple de verdad.
 
 ### 1 — Ver qué está expuesto
 

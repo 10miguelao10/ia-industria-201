@@ -39,6 +39,9 @@ El modelo no sustituye el enclavamiento de seguridad. Informa a una persona o a 
 4. **Panel.** Convierte el registro en un indicador que operación entiende.
 5. **Acción.** Una alarma, una orden de inspección o una ayuda al técnico. Sale del indicador, no del modelo a solas.
 
+> [!NOTE]
+> **Dos viajes distintos.** La pieza física viaja por las estaciones de la línea (mecanizado → montaje → calidad). Su **registro** viaja por las piezas de la arquitectura (sensor → transporte → almacén → panel). En el laboratorio solo hay una estación, EST-01: cada mensaje es una pieza distinta que termina su ciclo allí, y lo que cruza es su registro.
+
 ### Ciclo de la solución
 
 Problema de planta → datos que de verdad se pueden capturar → modelo pequeño → puesta en marcha → vigilancia → corrección cuando la línea cambia. Si la línea cambia de utillaje y nadie reentrena, el modelo sigue contestando como si nada hubiera pasado.

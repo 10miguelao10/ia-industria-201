@@ -15,9 +15,21 @@ Lees la misma temperatura de EST-01 por OPC-UA y por Modbus, y compruebas que cu
 - mosquitto y sensor en marcha; en este lab se añaden `opcua` y `modbus`.
 - Puertos 4840 y 1502 libres. RAM conjunta ~0,7 GB.
 
-### En qué consiste
+### Qué está pasando
 
-No hay tres sensores. `opcua` y `modbus` leen el fichero `estado.json` que escribe `sensor`. Modbus guarda la temperatura en décimas en el registro 0: 614 significa 61,4 °C. El puerto del laboratorio es el 1502, no el 502 habitual en planta.
+En una planta, la misma máquina se lee de varias formas según quién pregunte. El SCADA moderno la lee por **OPC-UA**. Un PLC antiguo o un equipo de otro fabricante solo habla **Modbus**. La plataforma de datos recibe las fichas por **MQTT**. Integrar es conseguir que los tres cuenten lo mismo.
+
+Aquí los tres caminos exponen **la misma temperatura del husillo** de EST-01. Lo que cambia es cómo se pide y cuánto te cuenta cada uno:
+
+| Protocolo | Cómo se pide el dato | Qué te devuelve |
+|-----------|----------------------|-----------------|
+| MQTT | Te suscribes al tema `linea/est01/ciclo` | La ficha entera, en JSON, con nombres |
+| OPC-UA | Navegas hasta el nodo `Estacion` → `Temperatura` | El valor con su nombre y su tipo |
+| Modbus | Lees el registro número 0 | Un entero sin nombre ni unidad: 614 significa 61,4 °C |
+
+Con Modbus, el significado de cada registro y su escala vienen en el manual del equipo, no en el dato. En este laboratorio, el registro 0 es la temperatura en décimas y el **registro 10 es el paro de seguridad**, que nadie escribe.
+
+No hay tres sensores: `opcua` y `modbus` leen el mismo estado que escribe la estación. El puerto Modbus del laboratorio es el 1502, no el 502 habitual en planta.
 
 ### 1 — Abrir las otras dos puertas
 

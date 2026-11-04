@@ -15,9 +15,13 @@ Localizas el rayón en la imagen y compruebas que una pieza buena no dispara la 
 - Las imágenes de M04-01.
 - CPU. No hay red neuronal de detección.
 
-### En qué consiste
+### Qué está pasando
 
-La clasificación dice «mala». Este paso dice «dónde»: la fila más brillante de la imagen. El manifiesto guarda la fila real del rayón para medir el error. En una pieza buena no aparece una fila tan brillante.
+Saber que una carcasa está mala no basta. El operario de **retrabajo** necesita saber **dónde** está el rayón para repararlo o para decidir si la pieza se puede salvar.
+
+En estas fotos el rayón es una línea horizontal más clara que el resto. Para encontrarlo, se calcula el brillo medio de cada fila de la foto y se elige la más clara. El laboratorio sabe en qué fila está de verdad cada rayón, así que puede medir si acertó.
+
+También hay que comprobar lo contrario: en una carcasa buena no debe aparecer ninguna fila tan brillante. No hay red neuronal: es una regla sencilla, y por eso tiene límites que verás en el reto.
 
 ### 1 — Medir la zona
 

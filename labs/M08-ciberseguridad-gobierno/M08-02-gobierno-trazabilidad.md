@@ -15,9 +15,13 @@ Reconstruyes la entrada, el dictamen y la versión de una pieza, y compruebas qu
 - `api` en marcha (M07-01), arrancada después de existir `VERSION`.
 - No reinicies `api` durante el paso.
 
-### En qué consiste
+### Qué está pasando
 
-Se dictaminan AUD0007 y AUD0008. Entre las dos llamadas se cambia `VERSION` en disco a `defecto-0.2` sin reiniciar el servicio. Las dos líneas del registro tienen que seguir con la versión que el proceso cargó al arrancar. El comando restaura `VERSION` al terminar.
+Llega una **reclamación del cliente** por una carcasa. La pregunta es: ¿por qué se aceptó esa pieza? Para contestar hay que poder reconstruir **qué entró** al modelo, **qué dictaminó**, **con qué versión** y **cuándo**.
+
+Además, el registro tiene que ser fiable aunque alguien toque los ficheros. En este lab se dictaminan dos piezas, AUD0007 y AUD0008, y entre medias se cambia el fichero de versión en disco a `defecto-0.2` sin reiniciar el servicio. El rastro de las dos piezas tiene que seguir diciendo la versión que de verdad contestó.
+
+Por último, el uso queda clasificado: el sistema **asiste**, recomendando seguir o revisar; no decide por sí solo ni toca el paro. Es lo que se documenta al evaluar el uso frente al Reglamento europeo de IA.
 
 ### 1 — Reconstruir y no reescribir la historia
 

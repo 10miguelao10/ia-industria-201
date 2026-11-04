@@ -15,9 +15,13 @@ Consumes la telemetría de EST-01 como eventos y ves el hueco cuando el origen s
 - `mosquitto` y `sensor` en marcha. El panel puede estar parado: aquí no hace falta.
 - RAM de este paso: ~0,3 GB.
 
-### En qué consiste
+### Qué está pasando
 
-El sensor publica un JSON por segundo en el tema `linea/est01/ciclo`: pieza, hora, temperatura, vibración y corriente. Tú te suscribes. No se entrena nada.
+Hay sistemas que no pueden esperar a consultar el histórico: quieren enterarse de **cada carcasa en el momento en que termina**. Por ejemplo, un modelo que tiene que dar su dictamen antes de que salga la siguiente. Para eso se **suscriben** al broker y reciben cada ficha como un evento, sin tener que preguntar a la máquina.
+
+También hay que saber qué pasa cuando la máquina **para** (cambio de herramienta, avería, fin de turno). La estación deja de emitir y llega **silencio**. Un buen consumidor tiene que distinguir «no llega nada» de «llega una temperatura de 0 °C»: un hueco no se rellena con lecturas inventadas.
+
+En este lab te suscribes a las fichas, paras la estación para ver el hueco y la vuelves a arrancar.
 
 ### 1 — Consumir un ciclo
 

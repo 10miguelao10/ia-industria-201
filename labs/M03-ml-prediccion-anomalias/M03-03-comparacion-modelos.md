@@ -15,9 +15,14 @@ Comparas una regresión logística y un árbol poco profundo sobre el mismo cort
 - El `limpio.csv` de M02-03.
 - Deja `modelo_defecto.joblib` y `VERSION`. Es el modelo que usan M06, M07 y M08.
 
-### En qué consiste
+### Qué está pasando
 
-Los dos modelos ven el mismo 70/30. Gana el de mayor recall de defecto; si empatan, el de menos falsas alarmas. La versión queda escrita como `defecto-0.1`.
+Ingeniería tiene **dos modelos candidatos** para poner en la línea: la regresión logística del M03-01 y un árbol de decisión sencillo. Hay que elegir uno, y la regla se acuerda **antes** de ver los resultados para que nadie la ajuste a su favor:
+
+1. Gana el que encuentre más defectos.
+2. Si empatan, el que dé menos falsas alarmas.
+
+Los dos se entrenan y se evalúan con exactamente las mismas piezas. El ganador se guarda como `modelo_defecto.joblib` con la versión `defecto-0.1`. Es el modelo que usará la línea en M06, M07 y M08.
 
 ### 1 — Comparar con la misma vara
 

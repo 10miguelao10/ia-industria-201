@@ -15,9 +15,13 @@ Publicas el clasificador como servicio y cada respuesta dice qué versión del m
 - M03-03 hecho (`data/modelo_defecto.joblib` y `data/VERSION`).
 - Puerto 8000 libre. Techo del contenedor: 768 MB.
 
-### En qué consiste
+### Qué está pasando
 
-Al arrancar, `api` carga el `.joblib` y lee `VERSION` una sola vez. Cada `POST /predecir` guarda una línea en `predicciones.jsonl` con la entrada, el dictamen y esa versión. Una pieza sin señales se rechaza: el servicio no rellena huecos.
+El dictamen ya no lo quiere solo la línea. El **MES** lo quiere para la trazabilidad, **calidad** para su panel y **mantenimiento** para su tablet. Copiar el fichero del modelo en cada aplicación sería un caos: cada una acabaría con una versión distinta.
+
+La solución es publicar el modelo como un **servicio**: un único proceso que recibe las señales de una pieza y devuelve el dictamen. Todas las aplicaciones le preguntan a él.
+
+Cada respuesta dice **qué versión del modelo contestó**, y cada consulta queda apuntada en un registro con su entrada y su salida. Si una pieza llega sin señales, el servicio la rechaza: no se inventa los datos que faltan.
 
 ### 1 — Arrancar el servicio
 

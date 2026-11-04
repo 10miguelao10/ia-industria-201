@@ -15,9 +15,11 @@ Cierras el flujo de inspección: entra una carpeta de imágenes y sale un regist
 - `modelo_vision.joblib` de M04-01.
 - Escribe `data/lote_entrada/` y `data/lote_resultado.csv`.
 
-### En qué consiste
+### Qué está pasando
 
-Se copian 3 buenas y 3 malas a `lote_entrada`, como si llegaran de la cámara. Cada una recibe una probabilidad de defecto. Con 0,5 o más la decisión es `revisar`; por debajo, `aceptar`.
+Así trabaja un puesto de inspección en la línea: las fotos de las carcasas llegan a una **carpeta de entrada** y el sistema deja un **registro** con una decisión por cada una, `aceptar` o `revisar`.
+
+Llega un lote de 6 carcasas: 3 buenas y 3 con rayón. El modelo del M04-01 da a cada una una probabilidad de defecto. Con 0,5 o más va a revisión; por debajo se acepta. No se vuelve a entrenar nada: inspeccionar es usar el modelo que ya hay.
 
 ### 1 — Pasar el lote
 

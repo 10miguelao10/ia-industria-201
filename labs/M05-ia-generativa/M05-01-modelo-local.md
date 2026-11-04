@@ -15,9 +15,11 @@ Arrancas un modelo generativo en el puesto y compruebas que responde en local, s
 - El fichero `infra/modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf` (~470 MB). Lo deja la prueba del puesto; si falta, paso 1.
 - RAM: el contenedor `llm` tiene un techo de 2 GB. CPU, sin GPU.
 
-### En qué consiste
+### Qué está pasando
 
-El contenedor `llm` carga Qwen2.5 de 0,5B (500 millones de parámetros) cuantizado a 4 bits y escucha en el puerto 8088. No llama a ningún proveedor externo.
+Los **técnicos de mantenimiento** quieren un asistente al que preguntar cosas de la estación en lenguaje normal. La condición de la planta es clara: **ningún dato sale de la fábrica**. Nada de enviar preguntas ni procedimientos a un servicio de internet.
+
+La solución es un **modelo de lenguaje que se ejecuta en el propio puesto**. Es pequeño (Qwen2.5 de 0,5B, 500 millones de parámetros, comprimido a 4 bits), funciona en CPU y no necesita GPU. En este lab lo arrancas y mides lo que tarda en responder, que es lo que decide si el asistente es usable en planta.
 
 ### 1 — Tener el modelo en disco
 

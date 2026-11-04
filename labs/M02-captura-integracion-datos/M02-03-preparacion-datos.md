@@ -15,9 +15,21 @@ Pasas el histórico crudo a una fila por pieza, en grados, con los huecos contad
 - Solo el contenedor `lab`. No hace falta la línea en vivo.
 - Genera `infra/data/crudo.csv`, `limpio.csv` e `imposibles.csv` (pocos MB).
 
-### En qué consiste
+### Qué está pasando
 
-El crudo son 800 piezas sintéticas de EST-01. A una parte le falta la temperatura, otra viene en décimas (×10) y algunas valen 9999 (sensor clavado). Los modelos de M03 se entrenan solo con el limpio.
+Ingeniería de procesos quiere entrenar un modelo con **800 carcasas** del histórico de EST-01. Cada una tiene sus señales (temperatura, vibración, corriente y presión) y la columna `defecto`, que pone **calidad** después de inspeccionarla.
+
+Pero el histórico real nunca viene limpio. En este hay tres problemas típicos:
+
+| Problema | Qué pasó en la máquina | Cómo aparece en el fichero |
+|----------|------------------------|----------------------------|
+| Hueco | El sensor se desconectó en esa pieza | Temperatura vacía |
+| Unidad distinta | Un equipo reporta en décimas de grado | 614 en lugar de 61,4 |
+| Sensor clavado | El sensor falló y devuelve su valor de error | 9999 |
+
+Antes de entrenar hay que limpiar y, sobre todo, **contar lo que se descarta**. Un modelo entrenado con temperaturas de 9999 o de 614 °C aprende cosas que no existen en la máquina.
+
+Este paso no necesita la estación en marcha: trabaja sobre un histórico ya guardado.
 
 ### 1 — Generar y limpiar
 

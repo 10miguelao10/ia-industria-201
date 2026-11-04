@@ -15,9 +15,13 @@ Ajustas un detector solo con ciclos normales y cuentas cuántos de los ciclos ra
 - CPU. No usa la etiqueta de defecto para avisar.
 - Unos 0,5 GB en el `run`.
 
-### En qué consiste
+### Qué está pasando
 
-El ajuste usa solo piezas sin defecto. Cada señal se pone en su propia escala y el aviso sale de la distancia de Mahalanobis: cuánto se aleja el ciclo, en conjunto, de lo normal. Luego se puntúan 200 ciclos: 180 normales y 20 con la vibración subida a propósito. La marca `inyectada` no entra al modelo; solo sirve para comprobar si el aviso acertó.
+A veces no hay etiqueta que aprender. La máquina hace algo raro que no se había visto nunca: un rodamiento que empieza a fallar, una herramienta que se desgasta. Nadie ha marcado aún esas piezas como defectuosas, pero conviene enterarse **antes** de que lo sean.
+
+Un **detector de anomalías** no aprende qué es un defecto: aprende **cómo es un ciclo normal** y avisa cuando uno se sale de ahí. Lo que mide es cuánto se aleja el ciclo, mirando todas las señales a la vez, de lo que la estación hace habitualmente.
+
+Para comprobarlo se le pasan 200 ciclos: 180 normales y **20 con la vibración subida a propósito**, como si un rodamiento empezara a fallar. La marca de cuáles están alterados solo se usa al final, para contar cuántos avisó.
 
 ### 1 — Ajustar y avisar
 

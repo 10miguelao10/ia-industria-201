@@ -15,9 +15,15 @@ Publicas el dictamen como evento y compruebas que el registro de paro de segurid
 - mosquitto, sensor y modbus en marcha.
 - El modelo de M03-03.
 
-### En qué consiste
+### Qué está pasando
 
-Cada dictamen va al tema `linea/est01/dictamen` con la pieza, la decisión (`seguir` o `revisar`) y la probabilidad. El automatismo se entera por el evento. El registro Modbus 10 es el paro de seguridad, y este flujo no lo escribe. La presión no viaja en el ciclo vivo; el laboratorio usa la consigna nominal de 6 bar.
+Un dictamen que se queda en el equipo edge no sirve de nada. Tiene que llegar al **automatismo de la línea**, que es quien desvía la carcasa a revisión o la deja seguir.
+
+La forma de hacerlo es la misma que para las fichas: el dictamen se publica como **evento** en el broker, en el tema `linea/est01/dictamen`, y el automatismo está suscrito. Así el modelo no necesita conocer el PLC ni escribir en él.
+
+Hay una línea que no se cruza nunca: el **paro de seguridad** (registro Modbus 10) lo decide el automatismo con sus propias protecciones. El modelo recomienda; no para la máquina. En este lab se comprueba que el paro sigue en 0 después de publicar.
+
+La presión no viaja en la ficha en vivo, así que el dictamen usa la consigna nominal de 6 bar.
 
 ### 1 — Asegurar la línea
 
