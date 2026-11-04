@@ -37,6 +37,8 @@ Vas a entrenar con el pasado y evaluar con piezas que el modelo no ha visto. El 
 docker compose --profile lab run --rm --no-deps lab m03-01
 ```
 
+📋 Ficha del comando [`m03-01`](../comandos-lab.md#m03-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text

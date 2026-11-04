@@ -51,6 +51,8 @@ Cada `0.0.0.0:…` es un servicio accesible desde cualquier equipo que llegue a 
 docker compose --profile lab run --rm --no-deps lab m08-01
 ```
 
+📋 Ficha del comando [`m08-01`](../comandos-lab.md#m08-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 La medida de acceso dice «solo en localhost». Compárala con el paso 1: no se cumple.
 
 **3. El rastro de una pieza.**
@@ -59,6 +61,8 @@ La medida de acceso dice «solo en localhost». Compárala con el paso 1: no se 
 docker compose --profile lab run --rm --no-deps lab m08-02
 grep AUD0007 data/predicciones.jsonl
 ```
+
+📋 Ficha del comando [`m08-02`](../comandos-lab.md#m08-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 ```text
 {"pieza_id": "AUD0007", "version": "defecto-0.1", "entrada": {"pieza_id": "AUD0007", "temperatura_c": 63.19, "vibracion_mm_s": 0.246, "corriente_a": 3.88, "presion_bar": 6.1}, "dictamen": "seguir", "probabilidad": 0.0798, "ts": "…"}

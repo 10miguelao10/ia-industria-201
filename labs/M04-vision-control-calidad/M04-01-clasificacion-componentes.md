@@ -32,6 +32,8 @@ Vas a generar el juego de imágenes, entrenar con el 70 % y medir el acierto con
 docker compose --profile lab run --rm --no-deps lab m04-01
 ```
 
+📋 Ficha del comando [`m04-01`](../comandos-lab.md#m04-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text

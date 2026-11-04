@@ -16,6 +16,7 @@ y uno o varios **laboratorios** donde practicas tú (enlazados desde el README).
 | Requisito | Dónde |
 |-----------|--------|
 | Preparar el entorno | [infra/README.md](infra/README.md) — contenedores, datos y requisitos por laboratorio |
+| Qué hace cada comando `lab …` | [Fichas de los comandos](labs/comandos-lab.md) |
 | Primer caso | [M01](labs/M01-ia-industrial-arquitectura/README.md) |
 
 ## Módulos

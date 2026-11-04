@@ -32,6 +32,8 @@ Vas a enseñar al detector cómo es un ciclo normal y a pasarle ciclos nuevos. U
 docker compose --profile lab run --rm --no-deps lab m03-02
 ```
 
+📋 Ficha del comando [`m03-02`](../comandos-lab.md#m03-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text

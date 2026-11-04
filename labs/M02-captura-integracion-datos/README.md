@@ -56,6 +56,8 @@ docker compose up -d opcua modbus
 docker compose --profile lab run --rm --no-deps lab m02-02
 ```
 
+📋 Ficha del comando [`m02-02`](../comandos-lab.md#m02-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 ```text
 estado=63.22 opcua=63.22 modbus=63.2
 OK m02-02: MQTT, OPC-UA y Modbus leen la misma temperatura
@@ -70,6 +72,8 @@ docker compose --profile lab run --rm --no-deps lab m02-03
 head -3 data/crudo.csv
 head -3 data/imposibles.csv
 ```
+
+📋 Ficha del comando [`m02-03`](../comandos-lab.md#m02-03): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 ```text
 {"filas_crudo": 800, "filas_limpias": 768, "huecos": 32, "imposibles": 6, "piezas_unicas": 768}

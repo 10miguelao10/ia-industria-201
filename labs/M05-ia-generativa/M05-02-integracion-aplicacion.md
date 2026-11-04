@@ -51,6 +51,8 @@ Vas a ejecutar una aplicación mínima: pide texto al servicio y después llama 
 docker compose --profile lab run --rm --no-deps lab m05-02
 ```
 
+📋 Ficha del comando [`m05-02`](../comandos-lab.md#m05-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado** (la frase del modelo varía):
 
 ```text

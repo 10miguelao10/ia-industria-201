@@ -31,6 +31,8 @@ Vas a dictaminar dos piezas, cambiar el fichero de versión entre medias y leer 
 docker compose --profile lab run --rm --no-deps lab m08-02
 ```
 
+📋 Ficha del comando [`m08-02`](../comandos-lab.md#m08-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text

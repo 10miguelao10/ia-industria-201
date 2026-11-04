@@ -17,13 +17,13 @@ Lees la misma temperatura de EST-01 por OPC-UA y por Modbus, y compruebas que cu
 
 ### Qué está pasando
 
-En una planta, la misma máquina se lee de varias formas según quién pregunte. El SCADA moderno la lee por **OPC-UA**. Un PLC antiguo o un equipo de otro fabricante solo habla **Modbus**. La plataforma de datos recibe las fichas por **MQTT**. Integrar es conseguir que los tres cuenten lo mismo.
+En una planta, la misma máquina se lee de varias formas según quién pregunte. El SCADA moderno la lee por **OPC-UA**. Un PLC antiguo o un equipo de otro fabricante solo habla **Modbus**. La plataforma de datos recibe los registros por **MQTT**. Integrar es conseguir que los tres cuenten lo mismo.
 
 Aquí los tres caminos exponen **la misma temperatura del husillo** de EST-01. Lo que cambia es cómo se pide y cuánto te cuenta cada uno:
 
 | Protocolo | Cómo se pide el dato | Qué te devuelve |
 |-----------|----------------------|-----------------|
-| MQTT | Te suscribes al tema `linea/est01/ciclo` | La ficha entera, en JSON, con nombres |
+| MQTT | Te suscribes al tema `linea/est01/ciclo` | El registro entero, en JSON, con nombres |
 | OPC-UA | Navegas hasta el nodo `Estacion` → `Temperatura` | El valor con su nombre y su tipo |
 | Modbus | Lees el registro número 0 | Un entero sin nombre ni unidad: 614 significa 61,4 °C |
 
@@ -60,6 +60,8 @@ Vas a leer la temperatura por los tres caminos: el nodo OPC-UA `Estacion.Tempera
 ```bash
 docker compose --profile lab run --rm --no-deps lab m02-02
 ```
+
+📋 Ficha del comando [`m02-02`](../comandos-lab.md#m02-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 **Resultado esperado** (cambia la temperatura; los tres valores deben quedar a menos de 1,5 °C):
 

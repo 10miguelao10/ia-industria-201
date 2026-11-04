@@ -68,6 +68,8 @@ Vas a pedir una respuesta corta y medir cuánto tarda. Es la medida que importa 
 docker compose --profile lab run --rm --no-deps lab m05-01
 ```
 
+📋 Ficha del comando [`m05-01`](../comandos-lab.md#m05-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado** (el tiempo depende del puesto):
 
 ```text

@@ -30,6 +30,8 @@ Vas a puntuar las piezas de evaluación tal cual (la base) y otra vez con 8 °C 
 docker compose --profile lab run --rm --no-deps lab m07-02
 ```
 
+📋 Ficha del comando [`m07-02`](../comandos-lab.md#m07-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text

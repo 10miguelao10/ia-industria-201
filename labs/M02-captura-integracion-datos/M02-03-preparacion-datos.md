@@ -40,6 +40,8 @@ Vas a generar el histórico crudo y limpiarlo. Antes de fiarte de un modelo tien
 docker compose --profile lab run --rm --no-deps lab m02-03
 ```
 
+📋 Ficha del comando [`m02-03`](../comandos-lab.md#m02-03): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text

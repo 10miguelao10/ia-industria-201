@@ -70,6 +70,8 @@ cat linea/docs/procedimiento-est01.md
 docker compose --profile lab run --rm --no-deps lab m05-03
 ```
 
+📋 Ficha del comando [`m05-03`](../comandos-lab.md#m05-03): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 ```text
 fragmento:
 El tornillo de la brida se aprieta a 12 N·m. Si el par queda por debajo, la pieza se manda a revisión y no se acepta en línea.
@@ -82,6 +84,8 @@ OK m05-03: responde 12 a partir del procedimiento
 ```bash
 docker compose --profile lab run --rm --no-deps lab m05-04
 ```
+
+📋 Ficha del comando [`m05-04`](../comandos-lab.md#m05-04): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 ```text
 agente: La temperatura en la estación era de 61.49 °C.

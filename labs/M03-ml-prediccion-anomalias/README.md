@@ -43,6 +43,8 @@ Todo se lanza desde `infra/`, con `data/limpio.csv` ya generado (M02-03).
 docker compose --profile lab run --rm --no-deps lab m03-01
 ```
 
+📋 Ficha del comando [`m03-01`](../comandos-lab.md#m03-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 ```text
 {"tp": 15, "fp": 38, "fn": 6, "tn": 172, "recall": 0.7142857142857143, "fpr": 0.18095238095238095}
 OK m03-01: recall_defecto=0.71 falsas_alarmas=0.18
@@ -56,6 +58,8 @@ De 231 piezas nuevas, 21 son defectuosas: el modelo encuentra 15 y da 38 falsas 
 docker compose --profile lab run --rm --no-deps lab m03-02
 ```
 
+📋 Ficha del comando [`m03-02`](../comandos-lab.md#m03-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 ```text
 inyectados=20 detectados=20
 OK m03-02: avisos sobre inyectados 20/20
@@ -66,6 +70,8 @@ OK m03-02: avisos sobre inyectados 20/20
 ```bash
 docker compose --profile lab run --rm --no-deps lab m03-03
 ```
+
+📋 Ficha del comando [`m03-03`](../comandos-lab.md#m03-03): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 ```text
 OK m03-03: elegido=arbol recall=0.76 fpr=0.01

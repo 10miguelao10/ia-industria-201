@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Pones en marcha una estación que fabrica piezas, sigues la ficha de una pieza desde la máquina hasta el histórico y compruebas que no se pierde por el camino.
+Pones en marcha una estación que fabrica piezas, sigues el registro de una pieza desde la máquina hasta el histórico y compruebas que no se pierde por el camino.
 
 ### Prerrequisitos
 
@@ -28,18 +28,18 @@ Mientras la máquina trabaja cada carcasa, tres sensores la vigilan:
 | Vibración | Cuánto tiembla la máquina | 0,22–0,28 mm/s |
 | Corriente del motor | Cuánto esfuerzo hace | ~4 A |
 
-Al terminar cada carcasa, la estación emite su **ficha**: qué pieza es, a qué hora terminó y cuánto marcaron los tres sensores. Esa ficha tiene que llegar al **histórico de la planta** para que, más adelante, alguien pueda consultarla, entrenar un modelo con ella o explicar una reclamación.
+Al terminar cada carcasa, la estación emite su **registro**: qué pieza es, a qué hora terminó y cuánto marcaron los tres sensores. Ese registro tiene que llegar al **histórico de la planta** para que, más adelante, alguien pueda consultarlo, entrenar un modelo con él o explicar una reclamación.
 
-El camino de la ficha tiene tres tramos:
+El camino del registro tiene tres tramos:
 
 ```
- ORIGEN                         TRANSPORTE                    ALMACÉN
- la estación emite la ficha ──▶ el broker la reparte ──────▶ el archivador la guarda
- (sensor)                       (mosquitto)                   (archivador → historial.sqlite)
+ ORIGEN                            TRANSPORTE                ALMACÉN
+ la estación emite el registro ──▶ el broker lo reparte ──▶ el archivador lo guarda
+ (sensor)                          (mosquitto)               (archivador → historial.sqlite)
 ```
 
-- **El broker no guarda nada.** Recibe la ficha y entrega una copia a todos los que estén suscritos. Si nadie la escucha en ese momento, se pierde.
-- **El archivador es quien registra.** Está suscrito a las fichas de EST-01 y escribe cada una como una fila en la base de datos del histórico.
+- **El broker no guarda nada.** Recibe el registro y entrega una copia a todos los que estén suscritos. Si nadie lo escucha en ese momento, se pierde.
+- **El archivador es quien registra.** Está suscrito a los registros de EST-01 y escribe cada uno como una fila en la base de datos del histórico.
 
 | En planta | En este laboratorio |
 |-----------|---------------------|
@@ -47,11 +47,11 @@ El camino de la ficha tiene tres tramos:
 | Broker MQTT en un servidor de planta | Contenedor `mosquitto` |
 | Histórico (historian, base de datos de MES) | Contenedor `archivador` y el fichero `infra/data/historial.sqlite` |
 
-Todavía no hay ningún modelo de IA. Este lab solo comprueba que las fichas llegan.
+Todavía no hay ningún modelo de IA. Este lab solo comprueba que los registros llegan.
 
-### 1 — Arrancar la estación y el camino de las fichas
+### 1 — Arrancar la estación y el camino de los registros
 
-**Qué ocurre:** enciendes la estación (empieza a fabricar y a emitir una ficha por segundo), el broker que las reparte y el archivador que las guarda. Desde ese momento el histórico empieza a llenarse.
+**Qué ocurre:** enciendes la estación (empieza a fabricar y a emitir un registro por segundo), el broker que los reparte y el archivador que los guarda. Desde ese momento el histórico empieza a llenarse.
 
 ```bash
 cd infra
@@ -72,18 +72,20 @@ mosquitto    Up 3 seconds
 sensor       Up 3 seconds
 ```
 
-Si alguno no aparece, ese tramo no existe y las fichas no llegan al histórico.
+Si alguno no aparece, ese tramo no existe y los registros no llegan al histórico.
 
 ### 2 — Ver el dato cruzar
 
-**Qué ocurre:** haces lo que haría un técnico para comprobar que la línea de datos funciona. Primero cuenta cuántas fichas hay ya en el histórico. Después se pone a escuchar en el broker hasta que la estación emite la siguiente ficha. Por último, la compara con lo que la estación dice haber fabricado, para confirmar que es de EST-01 y de la pieza que toca.
+**Qué ocurre:** haces lo que haría un técnico para comprobar que la línea de datos funciona. Primero cuenta cuántos registros hay ya en el histórico. Después se pone a escuchar en el broker hasta que la estación emite la siguiente registro. Por último, la compara con lo que la estación dice haber fabricado, para confirmar que es de EST-01 y de la pieza que toca.
 
 Esta comprobación solo lee: no fabrica piezas ni cambia nada. Puedes repetirla tantas veces como quieras.
 
 ```bash
-# Ejecuta la comprobación m01-01 en un contenedor de un solo uso
+# m01-01: cuenta los registros del histórico, escucha uno en MQTT y comprueba que cuadran
 docker compose --profile lab run --rm --no-deps lab m01-01
 ```
+
+📋 Ficha del comando [`m01-01`](../comandos-lab.md#m01-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 > La primera vez que lanzas `lab`, Docker prepara su imagen y verás líneas `#1 … DONE` antes de la salida. Es normal y no se repite.
 
@@ -96,9 +98,9 @@ OK m01-01: ciclo P0010 archivado; total=7
 
 Cómo se lee:
 
-- `"mqtt": {…}` es la ficha que acaba de pasar por el broker: la carcasa `P0010`, la décima desde que arrancó la estación, terminada a las 17:12:46 con el husillo a 62,1 °C.
-- `"archivadas": 7` son las fichas que había en el histórico al empezar la comprobación.
-- El total puede ser algo menor que el número de pieza. Las fichas que la estación emitió en el primer segundo, antes de que el archivador terminara de conectarse, nadie las escuchó y se perdieron. Es el comportamiento normal de un broker sin persistencia, y por eso el archivador tiene que estar siempre en marcha.
+- `"mqtt": {…}` es el registro que acaba de pasar por el broker: la carcasa `P0010`, la décima desde que arrancó la estación, terminada a las 17:12:46 con el husillo a 62,1 °C.
+- `"archivadas": 7` son los registros que había en el histórico al empezar la comprobación.
+- El total puede ser algo menor que el número de pieza. Los registros que la estación emitió en el primer segundo, antes de que el archivador terminara de conectarse, nadie los escuchó y se perdieron. Es el comportamiento normal de un broker sin persistencia, y por eso el archivador tiene que estar siempre en marcha.
 
 **Si lo repites** unos segundos después, verás una pieza posterior (`P0020`, por ejemplo) y un total mayor: la estación sigue fabricando y el archivador sigue guardando.
 
@@ -107,10 +109,10 @@ Cómo se lee:
 
 ```python
 n = esperar_filas(1)                  # ALMACÉN: SELECT COUNT(*) en historial.sqlite
-payload = consumir(TOPIC_CICLO, 15)   # TRANSPORTE: se suscribe a linea/est01/ciclo y espera una ficha
+payload = consumir(TOPIC_CICLO, 15)   # TRANSPORTE: se suscribe a linea/est01/ciclo y espera un registro
 ciclo = json.loads(payload)
 estado = leer_estado()                # ORIGEN: lo último que la estación dice haber fabricado
-# la ficha y el estado tienen que ser de la misma estación y de piezas cercanas
+# el registro y el estado tienen que ser de la misma estación y de piezas cercanas
 ...
 return ok("m01-01", f"ciclo {ciclo['pieza_id']} archivado; total={n}")
 ```
@@ -119,13 +121,13 @@ return ok("m01-01", f"ciclo {ciclo['pieza_id']} archivado; total={n}")
 
 ### 3 — Mirar la estación y el archivador
 
-**Qué ocurre:** el `OK` es un resumen. Ahora miras directamente qué dice cada parte: la estación anuncia cada carcasa que termina con su temperatura, y el archivador anuncia cada ficha que guarda.
+**Qué ocurre:** el `OK` es un resumen. Ahora miras directamente qué dice cada parte: la estación anuncia cada carcasa que termina con su temperatura, y el archivador anuncia cada registro que guarda.
 
 ```bash
 # Las 5 últimas carcasas que terminó la estación
 docker compose logs --tail=5 sensor
 
-# Las 5 últimas fichas que guardó el archivador
+# Los 5 últimos registros que guardó el archivador
 docker compose logs --tail=5 archivador
 ```
 
@@ -153,7 +155,7 @@ Las mismas carcasas en los dos lados: todo lo que la estación fabrica queda en 
 
 **La misma pieza**
 
-Toma el `pieza_id` de la salida del paso 2 y búscalo en los registros del paso 3.
+Toma el `pieza_id` de la salida del paso 2 y búscalo en los mensajes de log del paso 3.
 
 → Aparece en la estación (la fabricó) y en el archivador (la guardó).
 
@@ -161,12 +163,14 @@ Toma el `pieza_id` de la salida del paso 2 y búscalo en los registros del paso 
 
 ### 1 — Para la estación
 
-Para la estación y repite la comprobación. ¿Qué pasa con las fichas y con el histórico?
+Para la estación y repite la comprobación. ¿Qué pasa con los registros y con el histórico?
 
 ```bash
 docker compose stop sensor
 docker compose --profile lab run --rm --no-deps lab m01-01
 ```
+
+📋 Ficha del comando [`m01-01`](../comandos-lab.md#m01-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 <details>
 <summary>Ver solución</summary>
@@ -175,13 +179,13 @@ docker compose --profile lab run --rm --no-deps lab m01-01
 FALLO: no llega ningún ciclo por MQTT
 ```
 
-La estación ya no fabrica, así que no hay fichas nuevas que repartir. El histórico conserva todas las que ya guardó. Para volver a fabricar:
+La estación ya no fabrica, así que no hay registros nuevos que repartir. El histórico conserva todos los que ya guardó. Para volver a fabricar:
 
 ```bash
 docker compose start sensor
 ```
 
-Al volver, la numeración empieza otra vez en `P0001`: la estación simulada no recuerda por dónde iba. Por eso cada ficha lleva también la hora (`ts`), que distingue las piezas de antes y de después de la parada.
+Al volver, la numeración empieza otra vez en `P0001`: la estación simulada no recuerda por dónde iba. Por eso cada registro lleva también la hora (`ts`), que distingue las piezas de antes y de después de la parada.
 
 </details>
 

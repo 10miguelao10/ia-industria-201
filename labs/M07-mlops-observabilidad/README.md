@@ -65,6 +65,8 @@ curl -s -X POST http://localhost:8000/predecir -H 'Content-Type: application/jso
 docker compose --profile lab run --rm --no-deps lab m07-02
 ```
 
+📋 Ficha del comando [`m07-02`](../comandos-lab.md#m07-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 ```text
 tasa_base=0.08 tasa_desplazada=0.96
 OK m07-02: base=0.08 desplazada=0.96

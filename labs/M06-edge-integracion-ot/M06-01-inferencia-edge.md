@@ -39,6 +39,8 @@ Vas a cargar el modelo de defecto desde el disco y medir cuántos milisegundos t
 docker compose --profile lab run --rm --no-deps lab m06-01
 ```
 
+📋 Ficha del comando [`m06-01`](../comandos-lab.md#m06-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado** (el tiempo depende del puesto; tiene que quedar por debajo de 200 ms):
 
 ```text

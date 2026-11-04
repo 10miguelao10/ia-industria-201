@@ -30,6 +30,8 @@ Vas a preguntar al agente la temperatura de la estación y, después, pedirle qu
 docker compose --profile lab run --rm --no-deps lab m05-04
 ```
 
+📋 Ficha del comando [`m05-04`](../comandos-lab.md#m05-04): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado** (cambia la temperatura):
 
 ```text

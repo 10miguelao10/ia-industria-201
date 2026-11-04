@@ -45,6 +45,8 @@ Todo se lanza desde `infra/`.
 docker compose --profile lab run --rm --no-deps lab m04-01
 ```
 
+📋 Ficha del comando [`m04-01`](../comandos-lab.md#m04-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 ```text
 acierto_prueba=0.88
 OK m04-01: acierto=0.88 en imágenes no usadas al entrenar
@@ -60,6 +62,8 @@ Abre `infra/data/imagenes/buenas/ok_00.png` y `infra/data/imagenes/defectuosas/k
 docker compose --profile lab run --rm --no-deps lab m04-02
 ```
 
+📋 Ficha del comando [`m04-02`](../comandos-lab.md#m04-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 ```text
 errores_zona=0 falsos_en_buenas=0
 OK m04-02: zona correcta en 5 defectos; buenas sin marca=0
@@ -70,6 +74,8 @@ OK m04-02: zona correcta en 5 defectos; buenas sin marca=0
 ```bash
 docker compose --profile lab run --rm --no-deps lab m04-03
 ```
+
+📋 Ficha del comando [`m04-03`](../comandos-lab.md#m04-03): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 ```text
    imagen  probabilidad_defecto decision

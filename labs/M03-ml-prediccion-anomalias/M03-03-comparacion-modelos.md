@@ -33,6 +33,8 @@ Vas a entrenar los dos candidatos con las mismas piezas y medirlos con las misma
 docker compose --profile lab run --rm --no-deps lab m03-03
 ```
 
+📋 Ficha del comando [`m03-03`](../comandos-lab.md#m03-03): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text

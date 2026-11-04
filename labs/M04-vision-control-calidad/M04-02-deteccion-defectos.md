@@ -32,6 +32,8 @@ Vas a buscar en 5 piezas defectuosas la fila donde está el rayón y comprobar e
 docker compose --profile lab run --rm --no-deps lab m04-02
 ```
 
+📋 Ficha del comando [`m04-02`](../comandos-lab.md#m04-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text

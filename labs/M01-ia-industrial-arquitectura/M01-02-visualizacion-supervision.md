@@ -17,7 +17,7 @@ Lees la estación en indicadores (valor actual, serie y margen) y no en una list
 
 ### Qué está pasando
 
-El jefe de turno no lee fichas una a una. Necesita mirar una pantalla y saber en dos segundos qué carcasa está saliendo, cómo va el husillo y si algo se ha salido de lo normal.
+El jefe de turno no lee los registros uno a uno. Necesita mirar una pantalla y saber en dos segundos qué carcasa está saliendo, cómo va el husillo y si algo se ha salido de lo normal.
 
 Eso es el **panel**: la pantalla del puesto de supervisión. No escucha al broker; lee el **histórico** que llena el archivador y lo convierte en tres indicadores, un aviso y una gráfica de las últimas lecturas.
 
@@ -51,6 +51,8 @@ Vas a confirmar que el panel responde y a contar, directamente en el almacén, c
 # Pide la página del panel y cuenta lecturas en el SQLite
 docker compose --profile lab run --rm --no-deps lab m01-02
 ```
+
+📋 Ficha del comando [`m01-02`](../comandos-lab.md#m01-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 **Resultado esperado** (cambia el número de lecturas):
 

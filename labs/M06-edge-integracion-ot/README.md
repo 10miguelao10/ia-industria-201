@@ -38,6 +38,8 @@ docker compose stop llm     # no hace falta en este módulo
 docker compose --profile lab run --rm --no-deps lab m06-01
 ```
 
+📋 Ficha del comando [`m06-01`](../comandos-lab.md#m06-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 ```text
 ms_por_pieza=0.39 fichero=modelo_defecto.joblib
 OK m06-01: 0.39 ms por pieza, modelo en disco
@@ -54,6 +56,8 @@ En la primera, se dictamina y se publica:
 ```bash
 docker compose --profile lab run --rm --no-deps lab m06-02
 ```
+
+📋 Ficha del comando [`m06-02`](../comandos-lab.md#m06-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 ```text
 linea/est01/dictamen {"pieza_id": "P0207", "decision": "seguir", "probabilidad": 0.08}

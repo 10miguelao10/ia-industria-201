@@ -51,6 +51,8 @@ Vas a preguntar el par de apriete. Verás primero el párrafo recuperado y despu
 docker compose --profile lab run --rm --no-deps lab m05-03
 ```
 
+📋 Ficha del comando [`m05-03`](../comandos-lab.md#m05-03): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text
@@ -87,6 +89,8 @@ Vas a preguntar por el color del tornillo de recambio, que el procedimiento no m
 ```bash
 docker compose --profile lab run --rm --no-deps lab m05-03-ausente
 ```
+
+📋 Ficha del comando [`m05-03-ausente`](../comandos-lab.md#m05-03-ausente): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 **Resultado esperado:**
 

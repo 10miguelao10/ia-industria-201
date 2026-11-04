@@ -17,11 +17,11 @@ Consumes la telemetría de EST-01 como eventos y ves el hueco cuando el origen s
 
 ### Qué está pasando
 
-Hay sistemas que no pueden esperar a consultar el histórico: quieren enterarse de **cada carcasa en el momento en que termina**. Por ejemplo, un modelo que tiene que dar su dictamen antes de que salga la siguiente. Para eso se **suscriben** al broker y reciben cada ficha como un evento, sin tener que preguntar a la máquina.
+Hay sistemas que no pueden esperar a consultar el histórico: quieren enterarse de **cada carcasa en el momento en que termina**. Por ejemplo, un modelo que tiene que dar su dictamen antes de que salga la siguiente. Para eso se **suscriben** al broker y reciben cada registro como un evento, sin tener que preguntar a la máquina.
 
 También hay que saber qué pasa cuando la máquina **para** (cambio de herramienta, avería, fin de turno). La estación deja de emitir y llega **silencio**. Un buen consumidor tiene que distinguir «no llega nada» de «llega una temperatura de 0 °C»: un hueco no se rellena con lecturas inventadas.
 
-En este lab te suscribes a las fichas, paras la estación para ver el hueco y la vuelves a arrancar.
+En este lab te suscribes a los registros, paras la estación para ver el hueco y la vuelves a arrancar.
 
 ### 1 — Consumir un ciclo
 
@@ -31,6 +31,8 @@ Vas a suscribirte al tema y quedarte con el primer evento que llegue. Suscribirs
 # Escucha linea/est01/ciclo hasta recibir un evento y comprueba sus campos
 docker compose --profile lab run --rm --no-deps lab m02-01
 ```
+
+📋 Ficha del comando [`m02-01`](../comandos-lab.md#m02-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 **Resultado esperado** (cambian la pieza, la hora y los valores):
 
@@ -58,6 +60,8 @@ docker compose stop sensor
 docker compose --profile lab run --rm --no-deps lab m02-01-pausa
 ```
 
+📋 Ficha del comando [`m02-01-pausa`](../comandos-lab.md#m02-01-pausa): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text
@@ -72,6 +76,8 @@ Vas a devolver el origen y comprobar que vuelven los eventos. Los ciclos perdido
 docker compose start sensor
 docker compose --profile lab run --rm --no-deps lab m02-01
 ```
+
+📋 Ficha del comando [`m02-01`](../comandos-lab.md#m02-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 **Resultado esperado:**
 

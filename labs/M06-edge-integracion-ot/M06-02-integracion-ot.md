@@ -19,11 +19,11 @@ Publicas el dictamen como evento y compruebas que el registro de paro de segurid
 
 Un dictamen que se queda en el equipo edge no sirve de nada. Tiene que llegar al **automatismo de la línea**, que es quien desvía la carcasa a revisión o la deja seguir.
 
-La forma de hacerlo es la misma que para las fichas: el dictamen se publica como **evento** en el broker, en el tema `linea/est01/dictamen`, y el automatismo está suscrito. Así el modelo no necesita conocer el PLC ni escribir en él.
+La forma de hacerlo es la misma que para los registros: el dictamen se publica como **evento** en el broker, en el tema `linea/est01/dictamen`, y el automatismo está suscrito. Así el modelo no necesita conocer el PLC ni escribir en él.
 
 Hay una línea que no se cruza nunca: el **paro de seguridad** (registro Modbus 10) lo decide el automatismo con sus propias protecciones. El modelo recomienda; no para la máquina. En este lab se comprueba que el paro sigue en 0 después de publicar.
 
-La presión no viaja en la ficha en vivo, así que el dictamen usa la consigna nominal de 6 bar.
+La presión no viaja en el registro en vivo, así que el dictamen usa la consigna nominal de 6 bar.
 
 ### 1 — Asegurar la línea
 
@@ -52,6 +52,8 @@ Vas a dictaminar la pieza actual de la estación, publicar el resultado como eve
 # Terminal 1
 docker compose --profile lab run --rm --no-deps lab m06-02
 ```
+
+📋 Ficha del comando [`m06-02`](../comandos-lab.md#m06-02): qué hace, qué lee, qué escribe y cuándo da `OK`.
 
 **Resultado esperado** en la terminal 1 (cambia la pieza):
 

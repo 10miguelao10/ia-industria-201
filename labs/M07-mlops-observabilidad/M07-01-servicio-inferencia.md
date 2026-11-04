@@ -76,6 +76,8 @@ Vas a ejecutar la comprobación del laboratorio: una pieza correcta tiene que da
 docker compose --profile lab run --rm --no-deps lab m07-01
 ```
 
+📋 Ficha del comando [`m07-01`](../comandos-lab.md#m07-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text

@@ -30,6 +30,8 @@ Vas a inspeccionar un lote con el modelo ya entrenado. Inspeccionar es dar un di
 docker compose --profile lab run --rm --no-deps lab m04-03
 ```
 
+📋 Ficha del comando [`m04-03`](../comandos-lab.md#m04-03): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text

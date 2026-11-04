@@ -53,6 +53,8 @@ Vas a generar el inventario de superficies con una medida para cada riesgo, y a 
 docker compose --profile lab run --rm --no-deps lab m08-01
 ```
 
+📋 Ficha del comando [`m08-01`](../comandos-lab.md#m08-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
+
 **Resultado esperado:**
 
 ```text
