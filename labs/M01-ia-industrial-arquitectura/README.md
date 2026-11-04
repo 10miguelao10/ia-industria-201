@@ -45,9 +45,49 @@ Problema de planta → datos que de verdad se pueden capturar → modelo pequeñ
 
 ## Demostración guiada
 
-El recorrido usa una línea simulada de una sola estación. Aparece un generador de lecturas, un sitio donde esas lecturas se acumulan y un panel con la temperatura y el conteo de piezas.
+Se recorre la línea simulada de una sola estación: un generador de lecturas, un sitio donde se acumulan y un panel. La idea que hay que ver es que **la misma pieza** aparece en el origen, en el almacén y en el panel: no son cuatro sistemas desconectados, es un hecho que cruza.
 
-Al abrir el caso se ve el mismo identificador de pieza en el origen, en el almacén y en el panel. Esa continuidad es la arquitectura: no hay cuatro sistemas desconectados, hay un hecho que cruza.
+Todo se lanza desde `infra/`.
+
+**1. Levantar el camino del dato.**
+
+```bash
+cd infra
+docker compose up -d mosquitto sensor archivador
+```
+
+**2. Ver los mensajes que viajan** (origen → transporte):
+
+```bash
+# Suscríbete a todo lo de la estación y sal tras 3 mensajes
+docker compose exec mosquitto mosquitto_sub -t 'linea/est01/#' -v -C 3
+```
+
+```text
+linea/est01/ciclo {"estacion": "EST-01", "pieza_id": "P0005", "ts": "2026-11-04T17:12:41+00:00", "temperatura_c": 62.74, "vibracion_mm_s": 0.22, "corriente_a": 4.11, "secuencia": 5}
+linea/est01/ciclo {"estacion": "EST-01", "pieza_id": "P0006", "ts": "2026-11-04T17:12:42+00:00", "temperatura_c": 63.05, "vibracion_mm_s": 0.235, "corriente_a": 4.01, "secuencia": 6}
+linea/est01/ciclo {"estacion": "EST-01", "pieza_id": "P0007", "ts": "2026-11-04T17:12:43+00:00", "temperatura_c": 61.11, "vibracion_mm_s": 0.25, "corriente_a": 4.1, "secuencia": 7}
+```
+
+**3. Ver que el almacén guarda las mismas piezas:**
+
+```bash
+docker compose logs --tail=3 archivador
+```
+
+```text
+archivador-1  | archivador: P0005
+archivador-1  | archivador: P0006
+archivador-1  | archivador: P0007
+```
+
+**4. Abrir el panel** en <http://localhost:8501>:
+
+```bash
+docker compose up -d panel
+```
+
+![Panel de EST-01](../img/M01-02-panel.png)
 
 El panel no «es la IA». Solo demuestra que el dato ya es información operativa. Los modelos llegan en los módulos siguientes, sobre este mismo flujo.
 

@@ -8,23 +8,75 @@
 
 ### Objetivo
 
-Una aplicación pide texto al servicio local y, si el servicio no está, el fallo se entiende.
+Una aplicación pide texto al servicio local por HTTP y, si el servicio no está, el fallo se entiende.
 
 ### Prerrequisitos
 
-- El contenedor `llm` en marcha y `/salud` en ok.
+- El contenedor `llm` en marcha y `/salud` en `ok` (M05-01).
 
 ### En qué consiste
 
-El comando hace de aplicación: envía un mensaje a `http://llm:8088/v1/chat/completions` y enseña la respuesta. Después intenta un host que no existe y tiene que fallar con un error de red, no con un texto inventado.
+Integrar es usar el contrato HTTP del servicio, no abrir el modelo. El servicio sigue el formato de chat habitual: `POST /v1/chat/completions` con una lista de mensajes.
 
-### 1 — Llamar y mostrar
+### 1 — Llamar al modelo como lo haría una aplicación
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m05-02`
+Vas a mandar una pregunta al servicio con `curl`, igual que lo haría cualquier programa. Lo que viaja es un JSON con los mensajes; lo que vuelve, un JSON con la respuesta.
 
-**Por qué:** Integrar es usar el contrato HTTP, no abrir la consola del modelo.
+```bash
+curl -s http://localhost:8088/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "messages": [{"role": "user", "content": "Explica en una frase qué es un PLC."}],
+        "max_tokens": 60
+      }'
+```
 
-**Resultado esperado:** `OK m05-02:` ves la respuesta y una línea `servicio caído:` con el tipo de error de red.
+**Resultado esperado** (el texto varía):
+
+```json
+{"id":"chatcmpl-…","object":"chat.completion","model":"/modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf","choices":[{"index":0,"message":{"role":"assistant","content":"Un PLC, o Programmable Logic Controller, es un sistema de control de procesos electrónicos diseñado para controlar procesos industriales…"},"finish_reason":"length"}],"usage":{"prompt_tokens":41,"completion_tokens":60,"total_tokens":101}}
+```
+
+- `content` es el texto generado.
+- `finish_reason: "length"` indica que se cortó al llegar a `max_tokens`.
+- `usage` cuenta los tokens (trozos de palabra) de entrada y de salida.
+
+### 2 — Una aplicación que también sabe fallar
+
+Vas a ejecutar una aplicación mínima: pide texto al servicio y después llama a un servicio que no existe. Tiene que fallar con un error de red claro, no con un texto inventado.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m05-02
+```
+
+**Resultado esperado** (la frase del modelo varía):
+
+```text
+aplicacion: Mi nombre es Qwen, un modelo de lenguaje artificial creado por Alibaba Cloud. …
+servicio caído: ConnectError
+OK m05-02: la aplicación habla con el servicio local y avisa si no está
+```
+
+Le pidió «di solo la palabra estacion» y contestó otra cosa: un modelo de 0,5B no siempre obedece. Lo verás de nuevo en M05-03.
+
+<details>
+<summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
+
+```python
+respuesta = httpx.post(
+    f"{LLM_URL}/v1/chat/completions",
+    json={"messages": [{"role": "user", "content": "Di solo la palabra estacion"}], "max_tokens": 60},
+    timeout=180,                     # sin límite de tiempo, la aplicación podría quedarse colgada
+)
+texto = respuesta.json()["choices"][0]["message"]["content"]
+
+try:
+    httpx.get("http://servicio-inexistente:9/salud", timeout=2)
+except httpx.HTTPError as exc:
+    print(f"servicio caído: {type(exc).__name__}")    # se informa, no se inventa
+```
+
+</details>
 
 ## Comprueba tu entendimiento
 
@@ -38,12 +90,12 @@ Compara el puerto de esta llamada con el de M05-01.
 
 ### 1 — Tiempo máximo
 
-Si quitas el servicio a media frase, la aplicación no puede quedarse colgada.
+Si el servicio se cae a media respuesta, ¿cuánto espera esta aplicación?
 
 <details>
 <summary>Ver solución</summary>
 
-El cliente de este laboratorio corta a los 180 s. En un puesto real el límite debe ser más corto y verse en pantalla.
+Hasta 180 s, el `timeout` del cliente. En un puesto real el límite debe ser más corto y el operario tiene que ver en pantalla que no hubo respuesta.
 
 </details>
 
@@ -51,5 +103,5 @@ El cliente de este laboratorio corta a los 180 s. En un puesto real el límite d
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| Connection refused al llm | `docker compose up -d llm` todavía no está sano | espera a `/salud` |
-| no aparece servicio caído | el host inventado resolvió por error | el nombre del comando es `servicio-inexistente`; no lo cambies por localhost |
+| `Connection refused` en el paso 1 | `llm` todavía no está listo | espera a que `/salud` conteste |
+| no aparece `servicio caído` | el host inventado resolvió por error | no cambies el código del paso |

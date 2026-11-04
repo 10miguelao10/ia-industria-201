@@ -8,43 +8,95 @@
 
 ### Objetivo
 
-Cierras el flujo: una carpeta de imágenes entra y sale un registro con decisión por pieza.
+Cierras el flujo de inspección: entra una carpeta de imágenes y sale un registro con una decisión por pieza.
 
 ### Prerrequisitos
 
 - `modelo_vision.joblib` de M04-01.
-- Escribe `lote_entrada/` y `lote_resultado.csv`.
+- Escribe `data/lote_entrada/` y `data/lote_resultado.csv`.
 
 ### En qué consiste
 
-Se copian 3 buenas y 3 malas a `lote_entrada`. Cada una recibe probabilidad de defecto. Con 0,5 o más, la decisión es `revisar`; por debajo, `aceptar`. Dudar manda a revisión, no a aceptar.
+Se copian 3 buenas y 3 malas a `lote_entrada`, como si llegaran de la cámara. Cada una recibe una probabilidad de defecto. Con 0,5 o más la decisión es `revisar`; por debajo, `aceptar`.
 
 ### 1 — Pasar el lote
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m04-03`
+Vas a inspeccionar un lote con el modelo ya entrenado. Inspeccionar es dar un dictamen por imagen, no volver a entrenar.
 
-**Por qué:** Inspeccionar es producir un dictamen por imagen, no volver a entrenar.
+```bash
+# Copia 6 imágenes a lote_entrada, las puntúa y escribe lote_resultado.csv
+docker compose --profile lab run --rm --no-deps lab m04-03
+```
 
-**Resultado esperado:** `OK m04-03:` seis filas y al menos una `revisar`. El CSV está en `infra/data/lote_resultado.csv`.
+**Resultado esperado:**
+
+```text
+   imagen  probabilidad_defecto decision
+ok_00.png                 0.345  aceptar
+ok_01.png                 0.269  aceptar
+ok_02.png                 0.314  aceptar
+ko_00.png                 0.493  aceptar
+ko_01.png                 0.657  revisar
+ko_02.png                 0.714  revisar
+OK m04-03: registro=6 revisar=2
+```
+
+Fíjate en `ko_00.png`: es defectuosa, pero con 0,493 queda justo por debajo del umbral y se acepta. Es un defecto que se escapa.
+
+### 2 — Leer el registro
+
+Vas a abrir el registro que quedaría en el puesto de inspección.
+
+```bash
+cat data/lote_resultado.csv
+ls data/lote_entrada
+```
+
+**Resultado esperado:**
+
+```text
+imagen,probabilidad_defecto,decision
+ok_00.png,0.345,aceptar
+ok_01.png,0.269,aceptar
+ok_02.png,0.314,aceptar
+ko_00.png,0.493,aceptar
+ko_01.png,0.657,revisar
+ko_02.png,0.714,revisar
+```
+
+```text
+ko_00.png  ko_01.png  ko_02.png  ok_00.png  ok_01.png  ok_02.png
+```
 
 ## Comprueba tu entendimiento
 
 **El registro cuadra**
 
-Cuenta filas del CSV y ficheros en `lote_entrada`.
+Cuenta filas del CSV (sin la cabecera) y ficheros en `lote_entrada`.
 
-→ Seis y seis.
+→ Seis y seis: cada imagen tiene su dictamen.
 
 ## Reto
 
-### 1 — Sin foto
+### 1 — El umbral
 
-Si falta la imagen, ¿se acepta la pieza?
+¿Qué pasaría con `ko_00.png` si el umbral de `revisar` bajara de 0,5 a 0,4? ¿Y con las buenas?
 
 <details>
 <summary>Ver solución</summary>
 
-No. Sin imagen no hay fila de aceptación. La pieza se queda fuera del registro y, en planta, iría a revisión por ausencia.
+`ko_00.png` (0,493) pasaría a `revisar`. Las buenas siguen en `aceptar` porque la más alta está en 0,345. Bajar el umbral recupera defectos a cambio de mandar más piezas a revisión: la misma balanza que el recall y las falsas alarmas de M03.
+
+</details>
+
+### 2 — Sin foto
+
+Si falta la imagen de una pieza, ¿se acepta?
+
+<details>
+<summary>Ver solución</summary>
+
+No. Sin imagen no hay fila de aceptación. En planta, una pieza sin dictamen iría a revisión por ausencia.
 
 </details>
 
@@ -52,5 +104,5 @@ No. Sin imagen no hay fila de aceptación. La pieza se queda fuera del registro 
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| el registro no tiene una fila por imagen | el lote no se copió | repite `m04-03` |
-| ninguna a revisión | el modelo no se cargó | lanza antes `m04-01` |
+| `FALLO: el registro no tiene una fila por imagen` | el lote no se copió | repite `m04-03` |
+| `FALLO: ninguna pieza fue a revisión` | el modelo no se cargó bien | lanza antes `m04-01` |

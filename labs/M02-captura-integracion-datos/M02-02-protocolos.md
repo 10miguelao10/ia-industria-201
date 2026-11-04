@@ -8,32 +8,73 @@
 
 ### Objetivo
 
-Lees la misma temperatura de EST-01 por OPC-UA y por Modbus, y cuadra con el estado que ya publica MQTT.
+Lees la misma temperatura de EST-01 por OPC-UA y por Modbus, y compruebas que cuadra con el estado que publica MQTT.
 
 ### Prerrequisitos
 
-- mosquitto, sensor, y ahora también `opcua` y `modbus`.
+- mosquitto y sensor en marcha; en este lab se añaden `opcua` y `modbus`.
 - Puertos 4840 y 1502 libres. RAM conjunta ~0,7 GB.
 
 ### En qué consiste
 
-No hay tres sensores. `opcua` y `modbus` leen el fichero `estado.json` que escribe `sensor`. Modbus guarda la temperatura en décimas en el registro 0 (614 significa 61,4 °C). El puerto del laboratorio es 1502, no el 502 de planta.
+No hay tres sensores. `opcua` y `modbus` leen el fichero `estado.json` que escribe `sensor`. Modbus guarda la temperatura en décimas en el registro 0: 614 significa 61,4 °C. El puerto del laboratorio es el 1502, no el 502 habitual en planta.
 
 ### 1 — Abrir las otras dos puertas
 
-**Acción:** `docker compose up -d opcua modbus` y `docker compose ps`.
+Vas a arrancar el servidor OPC-UA y el esclavo Modbus. Hasta que esos procesos no escuchan, no hay interoperabilidad que enseñar.
 
-**Por qué:** Hasta que esos procesos no escuchan, no hay interoperabilidad que enseñar.
+```bash
+# Servidor OPC-UA (4840) y esclavo Modbus TCP (1502)
+docker compose up -d opcua modbus
 
-**Resultado esperado:** `opcua` y `modbus` en running.
+docker compose ps --format 'table {{.Service}}\t{{.Status}}'
+```
+
+**Resultado esperado:**
+
+```text
+SERVICE      STATUS
+archivador   Up About a minute
+modbus       Up 5 seconds
+mosquitto    Up About a minute
+opcua        Up 5 seconds
+sensor       Up 10 seconds
+```
 
 ### 2 — Leer las tres a la vez
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m02-02`
+Vas a leer la temperatura por los tres caminos: el nodo OPC-UA `Estacion.Temperatura`, el registro Modbus 0 (dividido entre 10) y el JSON de estado. Los tres tienen que dar lo mismo.
 
-**Por qué:** El comando lee el nodo OPC-UA `Estacion.Temperatura`, el registro Modbus 0 con escala /10, y el JSON de estado.
+```bash
+docker compose --profile lab run --rm --no-deps lab m02-02
+```
 
-**Resultado esperado:** `OK m02-02:` y una línea `estado=… opcua=… modbus=…` con los tres valores a menos de 1,5 °C.
+**Resultado esperado** (cambia la temperatura; los tres valores deben quedar a menos de 1,5 °C):
+
+```text
+estado=63.22 opcua=63.22 modbus=63.2
+OK m02-02: MQTT, OPC-UA y Modbus leen la misma temperatura
+```
+
+<details>
+<summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
+
+```python
+# OPC-UA: se navega por nombres (objeto Estacion → variable Temperatura)
+async with Client(url=OPCUA_ENDPOINT) as client:
+    ...
+    nodo = await estacion.get_child([f"{indice}:Temperatura"])
+    opc = float(await nodo.read_value())
+
+# Modbus: se lee un registro por número y se aplica la escala
+cliente = ModbusTcpClient(MODBUS_HOST, port=MODBUS_PORT)
+rr = cliente.read_holding_registers(0, 4, slave=1)
+modbus_c = rr.registers[0] / 10        # 632 → 63,2 °C
+```
+
+OPC-UA da el dato con nombre y tipo. Modbus da un entero en una posición: la escala y el significado los tienes que saber tú.
+
+</details>
 
 ## Comprueba tu entendimiento
 
@@ -41,18 +82,18 @@ No hay tres sensores. `opcua` y `modbus` leen el fichero `estado.json` que escri
 
 Si Modbus devolviera 614, ¿qué temperatura es?
 
-→ 61,4 °C. Sin dividir entre 10 el número no es una temperatura de husillo.
+→ 61,4 °C. Sin dividir entre 10 no es una temperatura de husillo.
 
 ## Reto
 
-### 1 — Registro que no existe
+### 1 — El registro 10
 
-El mapa solo rellena unos pocos registros. El 10 es el paro de seguridad y vale 0.
+El registro 10 es el paro de seguridad y vale 0. ¿Significa que el proceso está parado?
 
 <details>
 <summary>Ver solución</summary>
 
-Leerlo da 0. No es «proceso parado»: es un registro que este laboratorio no usa para la temperatura.
+No. 0 es «paro en reposo»: nadie lo ha activado. Este laboratorio lo lee pero nunca lo escribe.
 
 </details>
 
@@ -60,5 +101,5 @@ Leerlo da 0. No es «proceso parado»: es un registro que este laboratorio no us
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| OPC-UA: … | el servidor no arrancó o el endpoint no es opc.tcp://opcua:4840/linea/server | `docker compose logs opcua` |
-| Modbus no coincide | se olvidó la escala /10 | el laboratorio ya la aplica; si ves el entero crudo, estás leyendo el registro a mano |
+| `FALLO: OPC-UA: …` | el servidor no arrancó | `docker compose logs opcua` |
+| `FALLO: Modbus no conecta` | el esclavo no está en marcha | `docker compose up -d modbus` |

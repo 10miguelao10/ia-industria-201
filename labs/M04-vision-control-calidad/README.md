@@ -35,11 +35,54 @@ El laboratorio mide ese compromiso. No busca un porcentaje redondo.
 
 ## Demostración guiada
 
-Se muestra un conjunto pequeño de imágenes de componente, etiquetadas como correctas o defectuosas, y un modelo que clasifica imágenes nuevas del mismo puesto.
+Se enseñan imágenes de componente correctas y defectuosas, un modelo que clasifica imágenes nuevas, una detección que dice dónde está el defecto y un lote que sale con dictamen por pieza.
 
-Después se enseña un caso en el que el defecto ocupa poco en la imagen: la clasificación global duda y una detección por zona acota mejor el problema.
+Todo se lanza desde `infra/`.
 
-El cierre es una carpeta de entrada que el sistema vacía produciendo un dictamen por imagen, guardado al lado, como haría un puesto de inspección.
+**1. Clasificar.**
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m04-01
+```
+
+```text
+acierto_prueba=0.88
+OK m04-01: acierto=0.88 en imágenes no usadas al entrenar
+```
+
+Abre `infra/data/imagenes/buenas/ok_00.png` y `infra/data/imagenes/defectuosas/ko_00.png`:
+
+![Pieza buena y defectuosa](../img/M04-01-buena-defectuosa.png)
+
+**2. Localizar el defecto.**
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m04-02
+```
+
+```text
+errores_zona=0 falsos_en_buenas=0
+OK m04-02: zona correcta en 5 defectos; buenas sin marca=0
+```
+
+**3. Inspeccionar un lote.**
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m04-03
+```
+
+```text
+   imagen  probabilidad_defecto decision
+ok_00.png                 0.345  aceptar
+ok_01.png                 0.269  aceptar
+ok_02.png                 0.314  aceptar
+ko_00.png                 0.493  aceptar
+ko_01.png                 0.657  revisar
+ko_02.png                 0.714  revisar
+OK m04-03: registro=6 revisar=2
+```
+
+`ko_00.png` es defectuosa y se acepta por poco (0,493 frente al umbral de 0,5). Un modelo con un 88 % de acierto deja escapar piezas: hay que decidir dónde poner el umbral.
 
 ## Ahora practica tú
 

@@ -13,38 +13,96 @@ Listas las superficies de la arquitectura y dejas una medida para el dato, otra 
 ### Prerrequisitos
 
 - `modbus` en marcha, para leer el registro de paro.
-- El inventario es el de `infra/README.md`.
+- El inventario es el de [infra/README.md](../../infra/README.md).
 
 ### En qué consiste
 
-Cada contenedor que publicaste es una superficie. El cruce con OT es el tema de dictamen; el registro 10 no entra en ese cruce. Las medidas de este laboratorio son concretas: el dato no sale del volumen, el modelo lleva versión, los puertos se publican solo en el puesto.
+Cada contenedor que publica un puerto es una superficie de ataque. El cruce con OT es el tema de dictámenes; el registro de paro no entra en ese cruce.
 
-### 1 — Inventariar y mirar el paro
+### 1 — Ver qué está expuesto
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m08-01`
+Vas a listar qué contenedores están en marcha y qué puertos publican en el puesto. No se protege lo que no está escrito.
 
-**Por qué:** No se protege lo que no está escrito.
+```bash
+docker compose ps --format 'table {{.Service}}\t{{.Ports}}'
+```
 
-**Resultado esperado:** `OK m08-01:` lista de servicios y `paro de seguridad en 0`. Tres medidas: dato, modelo y acceso.
+**Resultado esperado** (depende de lo que tengas arrancado):
+
+```text
+SERVICE      PORTS
+api          0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+archivador
+modbus       0.0.0.0:1502->1502/tcp, [::]:1502->1502/tcp
+mosquitto    0.0.0.0:1883->1883/tcp, [::]:1883->1883/tcp
+opcua        0.0.0.0:4840->4840/tcp, [::]:4840->4840/tcp
+sensor
+```
+
+`0.0.0.0` (y `[::]` en IPv6) significa que el puerto escucha en todas las interfaces del equipo, no solo en `localhost`. En una red de planta, cualquiera que llegue a ese equipo llegaría a esos servicios.
+
+### 2 — Inventariar y mirar el paro
+
+Vas a generar el inventario de superficies con una medida para cada riesgo, y a comprobar que el paro de seguridad sigue en reposo.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m08-01
+```
+
+**Resultado esperado:**
+
+```text
+superficies:
+  mosquitto puerto=1883 — transporte MQTT de los ciclos
+  sensor puerto=- — origen: publica el estado de EST-01
+  archivador puerto=- — almacén SQLite de ciclos
+  opcua puerto=4840 — la misma señal, como servidor OPC-UA
+  modbus puerto=1502 — la misma señal, como esclavo Modbus TCP
+  panel puerto=8501 — indicadores del turno
+  llm puerto=8088 — inferencia del modelo generativo, solo en M05
+  api puerto=8000 — servicio de inferencia del clasificador, desde M07
+medida_dato: el histórico y el procedimiento se quedan en el volumen local; no hay URL externa
+medida_modelo: el fichero joblib y el GGUF están en disco y la respuesta lleva versión
+medida_acceso: los puertos del laboratorio solo se publican en localhost del puesto
+OK m08-01: inventario escrito; paro de seguridad en 0
+```
 
 ## Comprueba tu entendimiento
 
-**Tres medidas**
+**La medida de acceso**
 
-Comprueba que no son la misma frase.
+Compara `medida_acceso` con lo que viste en el paso 1.
 
-→ Una habla del volumen local, otra de la versión, otra de los puertos.
+→ No cuadra: el paso 1 enseña `0.0.0.0`, no `127.0.0.1`. La medida escrita no se está cumpliendo. Eso es justo lo que busca una evaluación de riesgos: la diferencia entre lo que se dice y lo que hay.
 
 ## Reto
 
-### 1 — El agente
+### 1 — Cumplir la medida
 
-¿Qué medida tomaste al no crear una herramienta de escritura?
+¿Qué cambiarías en `docker-compose.yml` para que la medida de acceso fuera cierta?
 
 <details>
 <summary>Ver solución</summary>
 
-No dar la herramienta. M05-04 ya la rechazó.
+Publicar cada puerto solo en `localhost`, por ejemplo:
+
+```yaml
+    ports:
+      - "127.0.0.1:1883:1883"
+```
+
+Con eso, `docker compose ps` enseña `127.0.0.1:1883->1883/tcp` y el servicio solo es accesible desde el propio puesto.
+
+</details>
+
+### 2 — El agente
+
+¿Qué medida tomaste en M05-04 al no crear una herramienta de escritura?
+
+<details>
+<summary>Ver solución</summary>
+
+Mínimo privilegio: el agente no puede escribir en el proceso porque no tiene con qué.
 
 </details>
 
@@ -52,5 +110,5 @@ No dar la herramienta. M05-04 ya la rechazó.
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| modbus no disponible | el esclavo está parado | `docker compose up -d modbus` |
-| paro distinto de 0 | alguien escribió el registro | reinicia el contenedor modbus |
+| `FALLO: modbus no disponible para el cruce OT` | el esclavo está parado | `docker compose up -d modbus` |
+| `FALLO: el paro de seguridad no está en reposo` | alguien escribió el registro | `docker compose restart modbus` |

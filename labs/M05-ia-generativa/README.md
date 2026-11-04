@@ -36,13 +36,58 @@ La respuesta puede sonar correcta y estar mal. En operación, el asistente propo
 
 ## Demostración guiada
 
-Se arranca un modelo ya descargado en la máquina y se le hace una pregunta corta. Se observa cuánto tarda y cuánta memoria ocupa, que es el requisito de infraestructura.
+Se arranca un modelo ya descargado, se le pregunta desde una aplicación, se le da un procedimiento para que conteste citándolo y se cierra con un agente que solo lee.
 
-Luego una aplicación mínima envía la pregunta por una API local y muestra la respuesta: el mismo modelo, llamado desde un programa.
+Todo se lanza desde `infra/`.
 
-El asistente recibe una carpeta con un procedimiento de la línea simulada y contesta citando el fragmento. Si la carpeta no tiene el dato, debe decir que no está.
+**1. Arrancar el modelo local y ver lo que ocupa.**
 
-El agente cierra el módulo llamando una sola herramienta: leer el último valor de la estación. No escribe en el automatismo.
+```bash
+docker compose stop panel          # libera memoria
+docker compose up -d llm
+curl -s http://localhost:8088/salud
+docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}'
+```
+
+```json
+{"estado":"ok","modelo":"qwen2.5-0.5b-instruct-q4_k_m.gguf"}
+```
+
+**2. Preguntar como lo haría una aplicación.**
+
+```bash
+curl -s http://localhost:8088/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"messages": [{"role": "user", "content": "Explica en una frase qué es un PLC."}], "max_tokens": 60}'
+```
+
+La respuesta llega en algo más de un segundo, en CPU y sin salir del puesto.
+
+**3. Asistente sobre el procedimiento.**
+
+```bash
+cat linea/docs/procedimiento-est01.md
+docker compose --profile lab run --rm --no-deps lab m05-03
+```
+
+```text
+fragmento:
+El tornillo de la brida se aprieta a 12 N·m. Si el par queda por debajo, la pieza se manda a revisión y no se acepta en línea.
+respuesta='12 N·m.'
+OK m05-03: responde 12 a partir del procedimiento
+```
+
+**4. Agente que lee y no escribe.**
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m05-04
+```
+
+```text
+agente: La temperatura en la estación era de 61.49 °C.
+escritura: No puedo modificar el automatismo: no existe una herramienta de escritura.
+OK m05-04: usó leer_estacion=61.49 y rechazó escribir
+```
 
 ## Ahora practica tú
 

@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Publicas el dictamen como evento y compruebas que el registro de paro sigue en cero.
+Publicas el dictamen como evento y compruebas que el registro de paro de seguridad sigue en cero.
 
 ### Prerrequisitos
 
@@ -17,34 +17,83 @@ Publicas el dictamen como evento y compruebas que el registro de paro sigue en c
 
 ### En qué consiste
 
-Cada dictamen va al tema `linea/est01/dictamen` con pieza, decisión (`seguir` o `revisar`) y probabilidad. El consumidor hace de automatismo: se entera por el evento. El registro Modbus 10 es el paro de seguridad y este flujo no lo escribe. La presión no viene en el ciclo vivo; el laboratorio usa la consigna nominal de 6 bar.
+Cada dictamen va al tema `linea/est01/dictamen` con la pieza, la decisión (`seguir` o `revisar`) y la probabilidad. El automatismo se entera por el evento. El registro Modbus 10 es el paro de seguridad, y este flujo no lo escribe. La presión no viaja en el ciclo vivo; el laboratorio usa la consigna nominal de 6 bar.
 
-### 1 — Publicar y no tocar el paro
+### 1 — Asegurar la línea
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m06-02`
+Vas a comprobar que están en marcha el transporte, el origen y el automatismo simulado.
 
-**Por qué:** OT lee eventos. No lee el fichero del modelo ni obedece un modelo en el enclavamiento.
+```bash
+docker compose up -d mosquitto sensor modbus
+```
 
-**Resultado esperado:** `OK m06-02:` pieza, decisión y `paro=0`.
+### 2 — Escuchar el tema de dictámenes
+
+Vas a abrir una segunda terminal que haga de automatismo: se queda escuchando los dictámenes que se publiquen.
+
+```bash
+# Terminal 2 (también en infra/): espera un dictamen y sale
+docker compose exec mosquitto mosquitto_sub -t 'linea/est01/dictamen' -v -C 1
+```
+
+Déjala esperando y vuelve a la primera terminal.
+
+### 3 — Publicar el dictamen sin tocar el paro
+
+Vas a dictaminar la pieza actual de la estación, publicar el resultado como evento y leer el registro de paro. OT lee eventos; no obedece a un modelo en el enclavamiento.
+
+```bash
+# Terminal 1
+docker compose --profile lab run --rm --no-deps lab m06-02
+```
+
+**Resultado esperado** en la terminal 1 (cambia la pieza):
+
+```text
+{"evento": {"pieza_id": "P0048", "decision": "seguir", "probabilidad": 0.08}, "paro_seguridad": 0}
+OK m06-02: P0048 -> seguir; paro=0
+```
+
+**Resultado esperado** en la terminal 2:
+
+```text
+linea/est01/dictamen {"pieza_id": "P0048", "decision": "seguir", "probabilidad": 0.08}
+```
+
+<details>
+<summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
+
+```python
+estado = leer_estado()                                   # la pieza actual
+proba = modelo.predict_proba(fila)[0, 1]
+dictamen = "revisar" if proba >= 0.5 else "seguir"
+cliente.publish(TOPIC_DICTAMEN, json.dumps(evento))      # evento MQTT para el automatismo
+
+paro = mb.read_holding_registers(10, 1, slave=1)         # solo se LEE el paro
+if paro.registers[0] != 0:
+    return fallo("el registro de paro de seguridad cambió")
+```
+
+</details>
 
 ## Comprueba tu entendimiento
 
 **Evento completo**
 
-En el JSON impreso, comprueba que `evento.pieza_id` es el de `estado.json`.
+¿La pieza del evento es una pieza real de la estación?
 
-→ Son la misma pieza.
+→ Sí: el `pieza_id` sale de `estado.json` en el momento del dictamen.
 
 ## Reto
 
 ### 1 — Confianza baja
 
-Si la probabilidad pasa de 0,5 la decisión es `revisar` aunque preferirías seguir fabricando.
+La decisión pasa a `revisar` con una probabilidad de 0,5 o más. ¿Dónde está ese umbral, en el PLC o en el código?
 
 <details>
 <summary>Ver solución</summary>
 
-Dudar es una decisión de proceso. El umbral está en el código del comando, no en el PLC.
+En el código del paso, no en el PLC. Dudar manda a revisión: es una decisión de proceso, que el automatismo recibe como evento y aplica con sus propias protecciones.
 
 </details>
 
@@ -52,5 +101,5 @@ Dudar es una decisión de proceso. El umbral está en el código del comando, no
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| el automatismo no recibió el dictamen | mosquitto caído | `docker compose up -d mosquitto sensor modbus` |
-| el registro de paro cambió | algo escribió el registro 10 | no debe ocurrir; reinicia `modbus` |
+| `FALLO: el automatismo no recibió el dictamen` | mosquitto caído | `docker compose up -d mosquitto sensor modbus` |
+| `FALLO: el registro de paro de seguridad cambió` | algo escribió el registro 10 | no debe ocurrir; `docker compose restart modbus` |

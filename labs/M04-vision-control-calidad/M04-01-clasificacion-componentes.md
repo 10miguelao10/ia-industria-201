@@ -17,23 +17,55 @@ Entrenas un clasificador que separa componente correcto y defectuoso, y lo prueb
 
 ### En qué consiste
 
-Las imágenes son sintéticas: una pieza gris y, en las malas, un rayón blanco. Hay 40 y 40. El 30 % final no entra al entrenamiento. El modelo es una regresión logística sobre la imagen reducida a 16×16.
+Las imágenes son sintéticas: una pieza gris y, en las malas, un rayón blanco. Hay 40 de cada. El 30 % final de cada clase no entra al entrenamiento. El modelo es una regresión logística sobre la imagen reducida a 16×16 píxeles.
 
-### 1 — Contar y entrenar
+### 1 — Generar y entrenar
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m04-01`
+Vas a generar el juego de imágenes, entrenar con el 70 % y medir el acierto con el 30 % que el modelo no ha visto.
 
-**Por qué:** Si una clase no existe, no hay nada que aprender. Aquí están equilibradas a propósito para que el límite lo veas en el laboratorio siguiente, no en un dataset vacío.
+```bash
+# Genera las imágenes (si faltan), entrena y guarda modelo_vision.joblib
+docker compose --profile lab run --rm --no-deps lab m04-01
+```
 
-**Resultado esperado:** `OK m04-01:` con un acierto en prueba de al menos 0,85. Queda `modelo_vision.joblib`.
+**Resultado esperado:**
 
-### 2 — Abrir una de cada
+```text
+acierto_prueba=0.88
+OK m04-01: acierto=0.88 en imágenes no usadas al entrenar
+```
 
-**Acción:** Abre un PNG de `imagenes/buenas` y otro de `imagenes/defectuosas`.
+<details>
+<summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
 
-**Por qué:** Tienes que ver qué está aprendiendo el modelo: el rayón, no un fondo distinto.
+```python
+def _features_imagen(ruta):
+    img = Image.open(ruta).convert("L").resize((16, 16))    # gris y 16×16
+    return np.asarray(img, dtype=np.float32).reshape(-1) / 255.0   # 256 números entre 0 y 1
 
-**Resultado esperado:** La defectuosa tiene una línea clara. La buena, no.
+X = np.stack([_features_imagen(r) for r in entreno["ruta"]])
+modelo = LogisticRegression(max_iter=400)
+modelo.fit(X, entreno["defecto"])                          # cada píxel es una entrada
+```
+
+Para el modelo, una imagen es una fila de 256 números: el brillo de cada píxel.
+
+</details>
+
+### 2 — Mirar una de cada
+
+Vas a abrir una imagen buena y una defectuosa. Tienes que ver qué está aprendiendo el modelo: el rayón, no un fondo distinto.
+
+```bash
+ls data/imagenes/buenas | head -3        # ok_00.png, ok_01.png…
+ls data/imagenes/defectuosas | head -3   # ko_00.png, ko_01.png…
+```
+
+Ábrelas en VS Code: `infra/data/imagenes/buenas/ok_00.png` y `infra/data/imagenes/defectuosas/ko_00.png`.
+
+**Resultado esperado:** la defectuosa tiene una línea blanca; la buena, no.
+
+![Pieza buena (izquierda) y defectuosa con rayón blanco (derecha)](../img/M04-01-buena-defectuosa.png)
 
 ## Comprueba tu entendimiento
 
@@ -41,18 +73,18 @@ Las imágenes son sintéticas: una pieza gris y, en las malas, un rayón blanco.
 
 El acierto que imprime el comando, ¿de qué imágenes es?
 
-→ Del 30 % apartado, no del entrenamiento.
+→ Del 30 % apartado, no de las del entrenamiento.
 
 ## Reto
 
 ### 1 — Atajo
 
-Si todas las malas tuvieran otro fondo, el modelo podría ignorar el rayón.
+Si todas las malas tuvieran otro fondo, ¿qué podría aprender el modelo?
 
 <details>
 <summary>Ver solución</summary>
 
-En este generador el fondo es el mismo. El rayón es la diferencia.
+El fondo en vez del rayón: acertaría aquí y fallaría en planta. En este generador el fondo cambia un poco entre imágenes pero no según la clase; la diferencia que importa es el rayón.
 
 </details>
 
@@ -60,5 +92,5 @@ En este generador el fondo es el mismo. El rayón es la diferencia.
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| acierto bajo | las imágenes no se generaron | borra `infra/data/imagenes` y repite |
-| no abre el PNG | estás en el contenedor, no en el disco del host | la carpeta montada es `infra/data/imagenes` |
+| `FALLO: el clasificador visual no separa las piezas` | las imágenes no se generaron bien | borra `data/imagenes` y repite |
+| no encuentras los PNG | los buscas dentro del contenedor | están en el disco del puesto, en `infra/data/imagenes` |

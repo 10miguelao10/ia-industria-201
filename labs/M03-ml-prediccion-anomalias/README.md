@@ -33,11 +33,45 @@ También hay que separar datos de entrenamiento y datos de prueba por tiempo o p
 
 ## Demostración guiada
 
-Se parte del dataset de piezas ya preparado. Se entrena un clasificador sencillo que usa las señales de proceso anteriores al control de calidad.
+Se entrena un clasificador con las señales de proceso, se detectan anomalías sin usar la etiqueta y se comparan dos modelos sobre el mismo corte temporal.
 
-Después se recorre un histórico de ciclos sanos y se marca lo que se aleja, sin usar la etiqueta de defecto.
+Todo se lanza desde `infra/`, con `data/limpio.csv` ya generado (M02-03).
 
-Al comparar dos modelos sobre el mismo corte temporal se ve que un porcentaje global casi igual puede esconder un modelo que no encuentra defectos y otro que sí, a costa de más falsas alarmas.
+**1. Predecir defectos y leer la matriz de confusión.**
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m03-01
+```
+
+```text
+{"tp": 15, "fp": 38, "fn": 6, "tn": 172, "recall": 0.7142857142857143, "fpr": 0.18095238095238095}
+OK m03-01: recall_defecto=0.71 falsas_alarmas=0.18
+```
+
+De 231 piezas nuevas, 21 son defectuosas: el modelo encuentra 15 y da 38 falsas alarmas. El acierto global sería (15 + 172) / 231 = 81 %, un número que no dice cuántos defectos se escapan.
+
+**2. Avisar de lo raro sin etiqueta.**
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m03-02
+```
+
+```text
+inyectados=20 detectados=20
+OK m03-02: avisos sobre inyectados 20/20
+```
+
+**3. Comparar dos modelos con la misma vara.**
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m03-03
+```
+
+```text
+OK m03-03: elegido=arbol recall=0.76 fpr=0.01
+```
+
+El árbol encuentra 16 de 21 defectos con 3 falsas alarmas; la regresión logística, 15 con 38. Mismo corte, regla escrita de antemano.
 
 ## Ahora practica tú
 

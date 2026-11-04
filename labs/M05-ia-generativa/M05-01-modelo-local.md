@@ -8,53 +8,91 @@
 
 ### Objetivo
 
-Arrancas un modelo generativo en el puesto y compruebas que responde en local.
+Arrancas un modelo generativo en el puesto y compruebas que responde en local, sin salir a internet.
 
 ### Prerrequisitos
 
-- Para el panel si sigue en marcha (`docker compose stop panel`): el modelo pide RAM.
-- Fichero `infra/modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf` (~470 MB). Descarga, una sola vez:
-- `curl -L -o modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf`
-- Luego `docker compose up -d llm`. Techo del contenedor: 2 GB. CPU, sin GPU. La primera carga tarda.
+- El fichero `infra/modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf` (~470 MB). Lo deja la prueba del puesto; si falta, paso 1.
+- RAM: el contenedor `llm` tiene un techo de 2 GB. CPU, sin GPU.
 
 ### En qué consiste
 
-El contenedor `llm` carga Qwen2.5 de 0,5B cuantizado a 4 bits y escucha en el puerto 8088. No llama a ningún proveedor. En un Codespace justo, no lo dejes conviviendo con el panel.
+El contenedor `llm` carga Qwen2.5 de 0,5B (500 millones de parámetros) cuantizado a 4 bits y escucha en el puerto 8088. No llama a ningún proveedor externo.
 
-### 1 — Esperar a que cargue
+### 1 — Tener el modelo en disco
 
-**Acción:** Abre http://localhost:8088/salud hasta que responda `estado: ok`.
+Vas a comprobar que el fichero del modelo está en el puesto. Un modelo local es, ante todo, un fichero.
 
-**Por qué:** Hasta que el proceso no tiene el modelo en memoria, no hay inferencia.
+```bash
+# ¿Está el modelo?
+ls -lh modelos/
 
-**Resultado esperado:** JSON con el nombre del fichero `.gguf`.
+# Solo si no está: descarga única (~470 MB)
+curl -L -o modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf \
+  https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+```
 
-### 2 — Una pregunta corta
+**Resultado esperado:** un fichero `qwen2.5-0.5b-instruct-q4_k_m.gguf` de unos 470 MB.
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m05-01`
+### 2 — Arrancar el modelo y esperar a que cargue
 
-**Por qué:** Mide el puesto: tiempo de una respuesta corta.
+Vas a liberar memoria parando el panel, arrancar el servicio del modelo y esperar a que diga que está listo. Hasta que el proceso no tiene el modelo en memoria, no hay respuesta.
 
-**Resultado esperado:** `OK m05-01:` con los segundos y la URL `http://llm:8088` (dentro de la red Docker eso es el propio puesto, no internet).
+```bash
+# El panel no hace falta en M05 y ocupa memoria
+docker compose stop panel
+
+# Arranca el servicio del modelo
+docker compose up -d llm
+
+# Pregunta si está listo (repite hasta que conteste)
+curl -s http://localhost:8088/salud
+```
+
+**Resultado esperado:**
+
+```json
+{"estado":"ok","modelo":"qwen2.5-0.5b-instruct-q4_k_m.gguf"}
+```
+
+Si `curl` da `Connection refused` o no contesta, el modelo sigue cargando: espera unos segundos y repite.
+
+### 3 — Una pregunta corta
+
+Vas a pedir una respuesta corta y medir cuánto tarda. Es la medida que importa del puesto: segundos por respuesta.
+
+```bash
+# Pide "hola" al servicio local y cronometra
+docker compose --profile lab run --rm --no-deps lab m05-01
+```
+
+**Resultado esperado** (el tiempo depende del puesto):
+
+```text
+respuesta='¡Hola! ¿Cómo puedo ayudarte hoy?' segundos=0.5 url=http://llm:8088
+OK m05-01: inferencia local en 0.5s via http://llm:8088
+```
+
+`http://llm:8088` es el contenedor `llm` dentro de la red de Docker del puesto, no un dominio de internet.
 
 ## Comprueba tu entendimiento
 
 **Sigue en local**
 
-La URL que imprime el OK, ¿sale del puesto o de un dominio externo?
+La URL del `OK`, ¿sale del puesto o va a un proveedor externo?
 
-→ Es `http://llm:8088`, el contenedor. No aparece un proveedor.
+→ Es `http://llm:8088`, el contenedor del puesto.
 
 ## Reto
 
 ### 1 — Modelo más grande
 
-¿Por qué este curso no baja un modelo de varios GB?
+¿Por qué este curso no usa un modelo de varios GB?
 
 <details>
 <summary>Ver solución</summary>
 
-En 8 GB de RAM y sin GPU no responde a tiempo de un laboratorio. 0,5B cabe y basta para ver inferencia, recuperación y el límite de un modelo pequeño.
+Sin GPU y con 2 GB para el contenedor no respondería a tiempo. El de 0,5B cabe y basta para ver inferencia, recuperación de documentos y los límites de un modelo pequeño.
 
 </details>
 
@@ -62,5 +100,6 @@ En 8 GB de RAM y sin GPU no responde a tiempo de un laboratorio. 0,5B cabe y bas
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| el servicio local no responde | sigue cargando o falta el gguf | `docker compose logs llm` y comprueba `infra/modelos/` |
-| tarda minutos | es la primera carga en CPU | espera a `/salud` antes de repetir el comando |
+| `FALLO: el servicio local no responde` | sigue cargando o falta el `.gguf` | `docker compose logs llm` y `ls -lh modelos/` |
+| `Falta el modelo en /modelos/…` en los logs | el fichero no está o tiene otro nombre | paso 1 |
+| tarda mucho | es la primera carga en CPU | espera a que `/salud` conteste antes de repetir |

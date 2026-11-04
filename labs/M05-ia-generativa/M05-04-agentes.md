@@ -12,26 +12,73 @@ El agente lee la temperatura con una herramienta y se niega a escribir en el aut
 
 ### Prerrequisitos
 
-- `llm` y `sensor` en marcha (hace falta un estado vivo).
-- RAM: el llm sigue siendo el coste grande.
+- `llm` y `sensor` en marcha: hace falta un estado vivo de la estación.
 
 ### En qué consiste
 
-La herramienta `leer_estacion` lee `estado.json`. La orquestación la llama cuando la pregunta es el valor de la estación, guarda la traza y pide al modelo una frase que incluya ese número, sin cambiarlo. No existe herramienta de escritura: pedir un cambio se rechaza antes de tocar el proceso.
+La herramienta `leer_estacion` lee `data/estado.json`. La orquestación la llama, guarda una traza y pide al modelo una frase con ese número, sin cambiarlo. No existe herramienta de escritura: pedir un cambio se rechaza antes de tocar el proceso.
 
 ### 1 — Pedir el valor y pedir un cambio
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m05-04`
+Vas a preguntar al agente la temperatura de la estación y, después, pedirle que escriba en el automatismo. El número tiene que salir de la herramienta; la escritura, no puede ocurrir.
 
-**Por qué:** El número tiene que salir de la herramienta. Escribir en el proceso no está permitido.
+```bash
+docker compose --profile lab run --rm --no-deps lab m05-04
+```
 
-**Resultado esperado:** `OK m05-04:` con la temperatura medida. La traza queda en `infra/data/traza_agente.jsonl`. La línea de escritura dice que no hay herramienta.
+**Resultado esperado** (cambia la temperatura):
+
+```text
+agente: La temperatura en la estación era de 61.49 °C.
+escritura: No puedo modificar el automatismo: no existe una herramienta de escritura.
+OK m05-04: usó leer_estacion=61.49 y rechazó escribir
+```
+
+<details>
+<summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
+
+```python
+estado = leer_estado()                          # herramienta leer_estacion: lee estado.json
+valor = estado["temperatura_c"]
+traza.write_text(json.dumps({"herramienta": "leer_estacion", "temperatura_c": valor}))
+
+texto = _chat(                                   # el modelo solo redacta la frase
+    f"La herramienta leer_estacion devolvió {valor:.2f} °C. Responde una frase con ese número.",
+    "No cambies el número de la herramienta.",
+)
+# No hay ninguna función que escriba en Modbus: la petición de escritura no tiene a dónde ir
+```
+
+Quien lee el dato es el código, no el modelo. El modelo solo pone las palabras.
+
+</details>
+
+### 2 — Revisar la traza
+
+Vas a comprobar qué herramienta se usó y con qué valor. Un agente sin traza no se puede auditar.
+
+```bash
+cat data/traza_agente.jsonl
+cat data/estado.json
+```
+
+**Resultado esperado:**
+
+```text
+{"herramienta": "leer_estacion", "temperatura_c": 61.49}
+```
+
+```text
+{"estacion": "EST-01", "pieza_id": "P0210", "ts": "2026-11-04T17:17:15+00:00", "temperatura_c": 60.87, "vibracion_mm_s": 0.22, "corriente_a": 4.05, "secuencia": 210}
+```
+
+El estado sigue cambiando cada segundo, así que puede no coincidir ya con el de la traza: la traza guarda lo que el agente vio.
 
 ## Comprueba tu entendimiento
 
 **La cifra no es inventada**
 
-Compara el número de la frase con `infra/data/estado.json`.
+Compara el número de la frase del agente con el de `traza_agente.jsonl`.
 
 → Son el mismo.
 
@@ -44,7 +91,7 @@ Compara el número de la frase con `infra/data/estado.json`.
 <details>
 <summary>Ver solución</summary>
 
-No. El agente de este curso solo lee. El paro no se toca.
+No. El agente de este curso solo lee. El paro lo decide el automatismo, y la forma más segura de que un agente no escriba es no darle la herramienta.
 
 </details>
 
@@ -52,5 +99,5 @@ No. El agente de este curso solo lee. El paro no se toca.
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| la frase no incluye el valor | el modelo no copió el número de la herramienta | repite; el estado tiene que existir (`docker compose up -d sensor`) |
-| no quedó traza | el comando no llegó a escribir el jsonl | mira el permiso de `infra/data` |
+| `FALLO: la frase no incluye el valor medido` | el modelo no copió el número | repite el comando |
+| `FileNotFoundError … estado.json` | el sensor no ha arrancado nunca | `docker compose up -d sensor` |

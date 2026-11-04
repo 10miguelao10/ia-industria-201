@@ -17,34 +17,61 @@ Localizas el rayón en la imagen y compruebas que una pieza buena no dispara la 
 
 ### En qué consiste
 
-La clasificación dice «mala». Este paso dice «dónde»: la fila más brillante de la imagen. El manifiesto guarda la fila real del rayón para poder medir el error. En una pieza buena esa fila brillante no aparece.
+La clasificación dice «mala». Este paso dice «dónde»: la fila más brillante de la imagen. El manifiesto guarda la fila real del rayón para medir el error. En una pieza buena no aparece una fila tan brillante.
 
 ### 1 — Medir la zona
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m04-02`
+Vas a buscar en 5 piezas defectuosas la fila donde está el rayón y comprobar en 3 buenas que no se marca nada. Calidad necesita saber dónde mirar; una clase sola no lo dice.
 
-**Por qué:** Calidad necesita saber dónde mirar. Una clase sola no lo dice.
+```bash
+# Localiza el rayón en 5 malas y revisa 3 buenas
+docker compose --profile lab run --rm --no-deps lab m04-02
+```
 
-**Resultado esperado:** `OK m04-02:` zona correcta en 5 defectos y ninguna buena marcada como rayón.
+**Resultado esperado:**
+
+```text
+errores_zona=0 falsos_en_buenas=0
+OK m04-02: zona correcta en 5 defectos; buenas sin marca=0
+```
+
+<details>
+<summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
+
+```python
+def _fila_brillante(ruta):
+    img = np.asarray(Image.open(ruta).convert("L"), dtype=np.float32)
+    return int(img.mean(axis=1).argmax())     # brillo medio de cada fila → la más clara
+
+# Acierta si cae a 2 filas o menos de la fila real del manifiesto
+if abs(_fila_brillante(ruta) - fila_real) > 2:
+    errores += 1
+
+# En una buena, ninguna fila llega a un brillo medio de 230 (de 255)
+if img.mean(axis=1).max() > 230:
+    falsos += 1
+```
+
+</details>
 
 ## Comprueba tu entendimiento
 
-**Tres casos**
+**Dónde está el rayón**
 
-Abre una defectuosa, señala la línea clara y compara con la fila que encontrarías barriendo la imagen de arriba a abajo.
+Abre `infra/data/imagenes/defectuosas/ko_00.png` y busca la línea clara.
 
-→ La línea es la fila más clara. Si caes en el borde de la pieza, estás mirando el contorno, no el defecto.
+→ Es la fila más brillante de toda la imagen. El borde de la pieza es un contorno, no una fila clara entera.
 
 ## Reto
 
 ### 1 — Límite
 
-Este detector busca una línea blanca. ¿Qué defecto no vería?
+Este detector busca una línea blanca horizontal. ¿Qué defecto no vería?
 
 <details>
 <summary>Ver solución</summary>
 
-Uno oscuro, o uno que no cambia el brillo de una fila. Por eso un puesto real no se fía de un solo truco.
+Uno oscuro, uno vertical o uno que no cambia el brillo de una fila. Por eso un puesto real no se fía de un solo truco.
 
 </details>
 
@@ -52,5 +79,5 @@ Uno oscuro, o uno que no cambia el brillo de una fila. Por eso un puesto real no
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| la zona no cae sobre el rayón | el manifiesto no es el de estas imágenes | regenera con `m04-01` |
-| falsos en buenas | el umbral de brillo es demasiado bajo | el comando usa 230; no lo bajes para «pillar más» |
+| `FALLO: la zona no cae sobre el rayón` | el manifiesto no es el de estas imágenes | borra `data/imagenes` y repite `m04-01` |
+| falsos en buenas | se bajó el umbral de brillo | el comando usa 230; no lo bajes para «pillar más» |

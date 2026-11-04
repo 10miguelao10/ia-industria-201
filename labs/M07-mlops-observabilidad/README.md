@@ -30,9 +30,47 @@ Contenerizar —empaquetar servicio y dependencias para llevarlo a otra máquina
 
 ## Demostración guiada
 
-Se publica el modelo de defecto como un servicio local. Una llamada con las señales de una pieza devuelve dictamen y nombre de versión.
+Se publica el modelo de defecto como servicio local y se le alimenta con datos desplazados para ver la degradación antes de hablar de reentrenar.
 
-Luego se alimenta el servicio con un tramo de datos desplazado (la estación «se ha ido» respecto al entrenamiento) y se ve el cambio en la tasa de avisos y en el perfil de entrada. Eso es la degradación, antes de hablar de reentrenar.
+Todo se lanza desde `infra/`, con el modelo de M03-03.
+
+**1. El modelo como servicio, con versión.**
+
+```bash
+docker compose up -d api
+curl -s http://localhost:8000/salud
+curl -s -X POST http://localhost:8000/predecir -H 'Content-Type: application/json' \
+  -d '{"pieza_id": "DEMO1", "temperatura_c": 61.4, "vibracion_mm_s": 0.25, "corriente_a": 4.1, "presion_bar": 6.0}'
+```
+
+```json
+{"estado":"ok","version":"defecto-0.1"}
+{"pieza_id":"DEMO1","version":"defecto-0.1","entrada":{…},"dictamen":"seguir","probabilidad":0.0798,"ts":"…"}
+```
+
+**2. La misma pieza, 8 °C más caliente.**
+
+```bash
+curl -s -X POST http://localhost:8000/predecir -H 'Content-Type: application/json' \
+  -d '{"pieza_id": "DEMO2", "temperatura_c": 69.4, "vibracion_mm_s": 0.25, "corriente_a": 4.1, "presion_bar": 6.0}'
+```
+
+```json
+{"pieza_id":"DEMO2","version":"defecto-0.1","entrada":{…},"dictamen":"revisar","probabilidad":1.0,"ts":"…"}
+```
+
+**3. La deriva en un lote.**
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m07-02
+```
+
+```text
+tasa_base=0.08 tasa_desplazada=0.96
+OK m07-02: base=0.08 desplazada=0.96
+```
+
+Si la estación «se ha ido» 8 °C, casi todo va a revisión. El modelo no avisa de que ya no sirve: hay que vigilar la tasa.
 
 ## Ahora practica tú
 

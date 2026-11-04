@@ -4,6 +4,7 @@ import json
 import sqlite3
 import sys
 import time
+import warnings
 from pathlib import Path
 
 import httpx
@@ -36,6 +37,9 @@ from linea.config import (
 )
 from linea.datos import escribir_crudo, generar_imagenes, generar_limpio, limpiar, vigilancia
 from linea.estado import leer as leer_estado
+
+# Aviso de scipy/scikit-learn sin efecto en el resultado; ensucia la salida del alumno.
+warnings.filterwarnings("ignore", message="Unknown solver options")
 
 FEATURES = ["temperatura_c", "vibracion_mm_s", "corriente_a", "presion_bar"]
 

@@ -39,11 +39,50 @@ No son tres verdades distintas. Son tres puertas al mismo hecho de proceso. El l
 
 ## Demostración guiada
 
-El recorrido enseña la misma estación publicada por MQTT. Un cliente suscrito al tema recibe ciclos sin preguntar uno a uno.
+La misma estación se lee de tres formas. Cambia el modo de acceso, no la física. Después, una tabla pasa de «filas tal cual llegaron» a un dataset limpio.
 
-A continuación se abre un servidor OPC-UA simulado y un esclavo Modbus con los mismos números en otros nombres: nodo OPC y registro Modbus. El valor coincide. Cambia el modo de acceso, no la física.
+Todo se lanza desde `infra/`, con mosquitto, sensor y archivador en marcha.
 
-Al final, una tabla pasa de «filas tal cual llegaron» a un dataset con tipos, huecos marcados y unidades homogéneas.
+**1. MQTT: el cliente se entera sin preguntar.**
+
+```bash
+docker compose exec mosquitto mosquitto_sub -t 'linea/est01/ciclo' -v -C 2
+```
+
+**2. OPC-UA y Modbus: la misma temperatura con otros nombres.**
+
+```bash
+docker compose up -d opcua modbus
+docker compose --profile lab run --rm --no-deps lab m02-02
+```
+
+```text
+estado=63.22 opcua=63.22 modbus=63.2
+OK m02-02: MQTT, OPC-UA y Modbus leen la misma temperatura
+```
+
+En OPC-UA el dato es el nodo `Estacion.Temperatura`. En Modbus es el registro 0, un entero en décimas (632 → 63,2 °C).
+
+**3. Del crudo al limpio.**
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m02-03
+head -3 data/crudo.csv
+head -3 data/imposibles.csv
+```
+
+```text
+{"filas_crudo": 800, "filas_limpias": 768, "huecos": 32, "imposibles": 6, "piezas_unicas": 768}
+OK m02-03: crudo=800 limpio=768 huecos=32
+pieza_id,temperatura_c,vibracion_mm_s,corriente_a,presion_bar,defecto
+H0001,61.39,0.286,4.07,5.96,0
+H0002,61.45,0.268,4.06,6.0,0
+pieza_id,temperatura_c,vibracion_mm_s,corriente_a,presion_bar,defecto
+H0059,9999.0,0.218,4.22,6.09,0
+H0322,9999.0,0.244,4.15,5.95,1
+```
+
+32 piezas sin temperatura y 6 con un sensor clavado en 9999 se quedan fuera del dataset de entrenamiento.
 
 ## Ahora practica tú
 

@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Ajustas un detector con ciclos normales y cuentas cuántos ciclos raros inyectados avisa.
+Ajustas un detector solo con ciclos normales y cuentas cuántos de los ciclos raros inyectados avisa.
 
 ### Prerrequisitos
 
@@ -17,15 +17,39 @@ Ajustas un detector con ciclos normales y cuentas cuántos ciclos raros inyectad
 
 ### En qué consiste
 
-El ajuste usa solo piezas sin defecto del histórico limpio. Cada señal se pone en su propia escala y el aviso sale de la distancia de Mahalanobis: cuánto se aleja el ciclo, en conjunto, de lo normal. Un bosque de aislamiento no vale aquí: un valor muy alto se queda en la misma rama que el máximo del histórico y no se aísla. Luego se puntúa otro fichero: 180 ciclos normales y 20 con la vibración subida a propósito. Esa marca `inyectada` no entra al modelo; solo sirve para saber si el aviso acertó.
+El ajuste usa solo piezas sin defecto. Cada señal se pone en su propia escala y el aviso sale de la distancia de Mahalanobis: cuánto se aleja el ciclo, en conjunto, de lo normal. Luego se puntúan 200 ciclos: 180 normales y 20 con la vibración subida a propósito. La marca `inyectada` no entra al modelo; solo sirve para comprobar si el aviso acertó.
 
 ### 1 — Ajustar y avisar
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m03-02`
+Vas a enseñar al detector cómo es un ciclo normal y a pasarle ciclos nuevos. Una anomalía es «no se parece a lo normal», no «se parece a un defecto que ya conocía».
 
-**Por qué:** La anomalía es «no se parece a lo normal», no «se parece a un defecto ya etiquetado».
+```bash
+# Ajusta con ciclos normales y puntúa 200 ciclos (20 alterados)
+docker compose --profile lab run --rm --no-deps lab m03-02
+```
 
-**Resultado esperado:** `OK m03-02:` con detectados/inyectados de al menos 70 %.
+**Resultado esperado:**
+
+```text
+inyectados=20 detectados=20
+OK m03-02: avisos sobre inyectados 20/20
+```
+
+<details>
+<summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
+
+```python
+normal = base[base["defecto"] == 0]                 # solo ciclos sanos
+escala = StandardScaler()                           # cada señal en su escala (media 0, desviación 1)
+base_z = escala.fit_transform(normal[FEATURES])
+detector = EmpiricalCovariance().fit(base_z)        # aprende cómo varían juntas las señales
+distancias = detector.mahalanobis(escala.transform(vig[FEATURES]))
+marcas = np.where(distancias >= 13.3, -1, 1)        # -1 = aviso
+```
+
+13,3 es el percentil 99 de una chi-cuadrado con 4 señales: un ciclo normal solo lo supera 1 vez de cada 100.
+
+</details>
 
 ## Comprueba tu entendimiento
 
@@ -39,12 +63,12 @@ El ajuste usa solo piezas sin defecto del histórico limpio. Cada señal se pone
 
 ### 1 — Umbral más duro
 
-Si el detector marcara la mitad del día, dejaría de ser una alerta.
+¿Qué pasa si subes o bajas el umbral de 13,3?
 
 <details>
 <summary>Ver solución</summary>
 
-El corte es una distancia de Mahalanobis de 13,3 (el percentil 99 de una chi-cuadrado con 4 señales). Subirlo esconde los inyectados; bajarlo llena el turno de avisos sobre ciclos normales.
+Subirlo esconde ciclos raros. Bajarlo llena el turno de avisos sobre ciclos normales, y un detector que avisa la mitad del día deja de ser una alerta.
 
 </details>
 
@@ -52,5 +76,5 @@ El corte es una distancia de Mahalanobis de 13,3 (el percentil 99 de una chi-cua
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| no ve los ciclos inyectados | entrenó con los raros dentro | el comando separa normales e inyectados; relánzalo |
-| FALLO sin número | falta scikit-learn en la imagen | `docker compose build` otra vez |
+| `FALLO: el detector no ve los ciclos inyectados` | se ajustó con ciclos raros dentro | el comando separa normales e inyectados; relánzalo |
+| `FALLO` sin número | la imagen está a medias | `docker compose build` otra vez |

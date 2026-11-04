@@ -33,9 +33,38 @@ Segmentar de palabra y de hecho: el modelo propone, el automatismo de seguridad 
 
 ## Demostración guiada
 
-Se recorre la arquitectura ya levantada —canal de eventos, servicio de inferencia, modelo local, agente— y se marca qué está expuesto si el puesto estuviera en una red de planta.
+Se recorre la arquitectura levantada y se marca qué está expuesto. Después se pide el rastro de una pieza ya dictaminada. Si no se puede reconstruir, no hay gobierno aunque el modelo acierte.
 
-Después se pide el rastro de una pieza ya dictaminada: qué versión, qué entrada, qué salida. Si no se puede reconstruir, no hay gobierno aunque el modelo acierte.
+Todo se lanza desde `infra/`, con `api` y `modbus` en marcha.
+
+**1. Qué está expuesto.**
+
+```bash
+docker compose ps --format 'table {{.Service}}\t{{.Ports}}'
+```
+
+Cada `0.0.0.0:…` es un servicio accesible desde cualquier equipo que llegue a este.
+
+**2. Inventario y medidas.**
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m08-01
+```
+
+La medida de acceso dice «solo en localhost». Compárala con el paso 1: no se cumple.
+
+**3. El rastro de una pieza.**
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m08-02
+grep AUD0007 data/predicciones.jsonl
+```
+
+```text
+{"pieza_id": "AUD0007", "version": "defecto-0.1", "entrada": {"pieza_id": "AUD0007", "temperatura_c": 63.19, "vibracion_mm_s": 0.246, "corriente_a": 3.88, "presion_bar": 6.1}, "dictamen": "seguir", "probabilidad": 0.0798, "ts": "…"}
+```
+
+Entrada, dictamen, versión y hora: con eso se responde a «por qué se aceptó esta pieza».
 
 ## Ahora practica tú
 

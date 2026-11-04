@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Lees la estación en indicadores —nivel, serie y margen— y no en una lista cruda.
+Lees la estación en indicadores (valor actual, serie y margen) y no en una lista cruda.
 
 ### Prerrequisitos
 
@@ -17,42 +17,76 @@ Lees la estación en indicadores —nivel, serie y margen— y no en una lista c
 
 ### En qué consiste
 
-El panel es otro contenedor (`panel`, Streamlit). Lee el mismo SQLite del archivador. El margen de 70 °C es una regla de operación, no un modelo.
+El panel es otro contenedor (`panel`, hecho con Streamlit). Lee el mismo SQLite que llena el archivador. El margen de 70 °C es una regla de operación, no un modelo.
 
 ### 1 — Arrancar el panel
 
-**Acción:** `docker compose up -d panel` y abre http://localhost:8501.
+Vas a levantar el puesto de supervisión y abrirlo en el navegador. Supervisar es mirar un indicador, no una tabla.
 
-**Por qué:** Supervisar es mirar un indicador. El contenedor `panel` es ese puesto.
+```bash
+# Arranca el panel
+docker compose up -d panel
+```
 
-**Resultado esperado:** Ves la pieza actual, la temperatura, la vibración y una serie. Si la temperatura pasa de 70 °C el panel lo marca.
+Abre <http://localhost:8501> en Chrome.
+
+**Resultado esperado:** la pieza actual, la temperatura, la vibración, el recuadro del margen y la serie de las últimas lecturas.
+
+![Panel de EST-01 con pieza, temperatura, vibración, margen y serie](../img/M01-02-panel.png)
 
 ### 2 — Comprobar el dato detrás del dibujo
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m01-02`
+Vas a confirmar que el panel responde y a contar, directamente en el almacén, cuántas lecturas superan 70 °C. El número tiene que cuadrar con lo que enseña el panel.
 
-**Por qué:** Confirma que el panel responde y cuántas lecturas de la ventana están fuera del margen.
+```bash
+# Pide la página del panel y cuenta lecturas en el SQLite
+docker compose --profile lab run --rm --no-deps lab m01-02
+```
 
-**Resultado esperado:** `OK m01-02:` con el código HTTP del panel, el número de lecturas y las que superan 70 °C.
+**Resultado esperado** (cambia el número de lecturas):
+
+```text
+panel_http=200 lecturas=29 fuera_de_margen=0 umbral=70.0
+OK m01-02: panel vivo, 29 lecturas, 0 fuera de 70 C
+```
+
+<details>
+<summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
+
+```python
+respuesta = httpx.get(PANEL_URL)                       # el panel tiene que contestar (200)
+df = pd.read_sql_query("SELECT temperatura_c FROM lecturas", con)
+fuera = int((df["temperatura_c"] > UMBRAL_TEMPERATURA).sum())   # regla fija: 70 °C
+```
+
+</details>
 
 ## Comprueba tu entendimiento
 
 **Margen visible**
 
-En el panel, lee el número de lecturas fuera de margen que declara el recuadro.
+Lee en el panel cuántas lecturas fuera de margen declara el recuadro verde.
 
-→ Coincide con `fuera_de_margen` impreso por `m01-02`.
+→ Coincide con `fuera_de_margen` de la salida de `m01-02`.
 
 ## Reto
 
 ### 1 — Quita el panel
 
-`docker compose stop panel` y recarga http://localhost:8501.
+Para el panel y recarga la página. ¿Se pierden datos?
+
+```bash
+docker compose stop panel
+```
 
 <details>
 <summary>Ver solución</summary>
 
-La página deja de abrir. Los ciclos siguen archivándose: el panel no es el origen. `docker compose start panel` lo devuelve.
+La página deja de abrir, pero los ciclos siguen archivándose: el panel no es el origen. Para recuperarlo:
+
+```bash
+docker compose start panel
+```
 
 </details>
 
@@ -60,5 +94,5 @@ La página deja de abrir. Los ciclos siguen archivándose: el panel no es el ori
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| localhost:8501 no abre | el contenedor panel no está running o el puerto está ocupado | `docker compose ps` y `docker compose logs panel` |
-| El panel dice que no hay histórico | el archivador acaba de crear la base y aún no entró un ciclo | Espera un segundo y recarga |
+| <http://localhost:8501> no abre | el panel no está en marcha o el puerto está ocupado | `docker compose ps` y `docker compose logs panel` |
+| El panel dice que no hay histórico | el archivador acaba de crear la base | espera unos segundos y recarga |

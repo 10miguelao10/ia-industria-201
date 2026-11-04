@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Publicas la telemetría de EST-01 y la consumes como eventos, incluido el hueco cuando el origen se detiene.
+Consumes la telemetría de EST-01 como eventos y ves el hueco cuando el origen se detiene.
 
 ### Prerrequisitos
 
@@ -17,37 +17,72 @@ Publicas la telemetría de EST-01 y la consumes como eventos, incluido el hueco 
 
 ### En qué consiste
 
-El sensor publica JSON en el tema `linea/est01/ciclo` cada segundo: pieza, hora, temperatura, vibración y corriente. Tú te suscribes. No se entrena nada.
+El sensor publica un JSON por segundo en el tema `linea/est01/ciclo`: pieza, hora, temperatura, vibración y corriente. Tú te suscribes. No se entrena nada.
 
 ### 1 — Consumir un ciclo
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m02-01`
+Vas a suscribirte al tema y quedarte con el primer evento que llegue. Suscribirse es enterarse del evento cuando ocurre, no leer un fichero después.
 
-**Por qué:** Suscribirse es enterarse del evento, no leer un archivo a posteriori.
+```bash
+# Escucha linea/est01/ciclo hasta recibir un evento y comprueba sus campos
+docker compose --profile lab run --rm --no-deps lab m02-01
+```
 
-**Resultado esperado:** `OK m02-01:` y el JSON con `pieza_id`, `temperatura_c`, `vibracion_mm_s` y `ts`.
+**Resultado esperado** (cambian la pieza, la hora y los valores):
+
+```text
+{"estacion": "EST-01", "pieza_id": "P0014", "ts": "2026-11-04T17:13:29+00:00", "temperatura_c": 61.0, "vibracion_mm_s": 0.28, "corriente_a": 4.01, "secuencia": 14}
+OK m02-01: evento P0014 en linea/est01/ciclo
+```
+
+Puedes ver el mismo flujo con el cliente de Mosquitto, sin pasar por el laboratorio:
+
+```bash
+# -v enseña el tema; -C 3 sale tras 3 mensajes
+docker compose exec mosquitto mosquitto_sub -t 'linea/est01/#' -v -C 3
+```
 
 ### 2 — Abrir el hueco
 
-**Acción:** `docker compose stop sensor` y, enseguida, `docker compose --profile lab run --rm --no-deps lab m02-01-pausa`.
+Vas a parar el origen y escuchar 3 segundos. Una parada no debe inventar lecturas: el hueco se ve porque no llega nada.
 
-**Por qué:** Una parada del origen no debe inventar lecturas. El hueco se ve porque no llega nada.
+```bash
+# Para el sensor
+docker compose stop sensor
 
-**Resultado esperado:** `OK m02-01-pausa:` ningún ciclo en 3 segundos.
+# Escucha 3 s; el paso cuadra si NO llega ningún ciclo
+docker compose --profile lab run --rm --no-deps lab m02-01-pausa
+```
+
+**Resultado esperado:**
+
+```text
+OK m02-01-pausa: hueco: ningún ciclo en 3 s
+```
 
 ### 3 — Reanudar
 
-**Acción:** `docker compose start sensor` y otra vez `lab m02-01`.
+Vas a devolver el origen y comprobar que vuelven los eventos. Los ciclos perdidos durante la pausa no reaparecen.
 
-**Por qué:** Al volver el origen llegan ciclos nuevos. Los perdidos durante la pausa no reaparecen.
+```bash
+docker compose start sensor
+docker compose --profile lab run --rm --no-deps lab m02-01
+```
 
-**Resultado esperado:** `OK m02-01:` con una pieza posterior a la última que viste antes de parar.
+**Resultado esperado:**
+
+```text
+{"estacion": "EST-01", "pieza_id": "P0006", "ts": "2026-11-04T17:13:51+00:00", "temperatura_c": 63.05, "vibracion_mm_s": 0.235, "corriente_a": 4.01, "secuencia": 6}
+OK m02-01: evento P0006 en linea/est01/ciclo
+```
+
+Fíjate en `secuencia`: el sensor simulado reinicia su contador al arrancar. Por eso cada evento lleva también `ts`, la hora, para ordenar sin ambigüedad.
 
 ## Comprueba tu entendimiento
 
 **Tema**
 
-Di el tema del que sale el JSON.
+¿De qué tema sale el JSON?
 
 → `linea/est01/ciclo`.
 
@@ -60,7 +95,7 @@ Si lanzaras un segundo publicador contra el mismo tema, ¿qué vería el consumi
 <details>
 <summary>Ver solución</summary>
 
-Dos voces en el mismo tema, sin saber cuál es la estación. Por eso el ciclo lleva `estacion` y `pieza_id`.
+Dos voces en el mismo tema, sin saber cuál es cuál. Por eso el ciclo lleva `estacion` y `pieza_id`.
 
 </details>
 
@@ -69,4 +104,4 @@ Dos voces en el mismo tema, sin saber cuál es la estación. Por eso el ciclo ll
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
 | siguen llegando ciclos con el sensor parado | no llegaste a pararlo, o hay otro sensor | `docker compose ps` y deja un solo sensor |
-| no hay telemetría | mosquitto o sensor caídos | `docker compose up -d mosquitto sensor` |
+| `FALLO: no hay telemetría` | mosquitto o sensor caídos | `docker compose up -d mosquitto sensor` |

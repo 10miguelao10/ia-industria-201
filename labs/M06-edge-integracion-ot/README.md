@@ -27,9 +27,43 @@ Eso se prueba con el simulador: hay una cola de eventos que el «PLC» lee. No h
 
 ## Demostración guiada
 
-Se carga el modelo ya entrenado (el de defecto o el de visión) y se lanza una inferencia en local sobre una pieza nueva. Se mide el tiempo entre el dato de entrada y el dictamen.
+Se carga el modelo ya entrenado en el propio puesto, se mide el tiempo por pieza y el dictamen se publica como evento para un automatismo que no cede su paro de seguridad.
 
-Después ese dictamen se publica como evento. Un consumidor que hace de automatismo lo recibe y muestra la decisión de proceso: seguir o mandar a revisión. Cortar la red no cambia el dictamen, porque no había nube.
+Todo se lanza desde `infra/`, con mosquitto, sensor y modbus en marcha y el modelo de M03-03.
+
+**1. Inferencia en el borde.**
+
+```bash
+docker compose stop llm     # no hace falta en este módulo
+docker compose --profile lab run --rm --no-deps lab m06-01
+```
+
+```text
+ms_por_pieza=0.39 fichero=modelo_defecto.joblib
+OK m06-01: 0.39 ms por pieza, modelo en disco
+```
+
+**2. El dictamen como evento.** En una segunda terminal, el automatismo escucha:
+
+```bash
+docker compose exec mosquitto mosquitto_sub -t 'linea/est01/dictamen' -v -C 1
+```
+
+En la primera, se dictamina y se publica:
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m06-02
+```
+
+```text
+linea/est01/dictamen {"pieza_id": "P0207", "decision": "seguir", "probabilidad": 0.08}
+```
+
+```text
+OK m06-02: P0207 -> seguir; paro=0
+```
+
+No hay nube en ningún punto: cortar la red de la oficina no cambia el dictamen.
 
 ## Ahora practica tú
 

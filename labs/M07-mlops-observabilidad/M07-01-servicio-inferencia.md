@@ -8,44 +8,104 @@
 
 ### Objetivo
 
-Publicas el clasificador como servicio y la respuesta dice qué versión contestó.
+Publicas el clasificador como servicio y cada respuesta dice qué versión del modelo contestó.
 
 ### Prerrequisitos
 
-- M03-03 hecho (`modelo_defecto.joblib` y `VERSION`).
-- `docker compose up -d api`. Puerto 8000. Techo 768 MB.
-- http://localhost:8000/salud tiene que responder antes del comando.
+- M03-03 hecho (`data/modelo_defecto.joblib` y `data/VERSION`).
+- Puerto 8000 libre. Techo del contenedor: 768 MB.
 
 ### En qué consiste
 
-Al arrancar, `api` carga el joblib y lee `VERSION` una vez. Cada `POST /predecir` guarda una línea en `predicciones.jsonl` con entrada, dictamen y esa versión. Una pieza sin señales se rechaza: el servicio no rellena huecos.
+Al arrancar, `api` carga el `.joblib` y lee `VERSION` una sola vez. Cada `POST /predecir` guarda una línea en `predicciones.jsonl` con la entrada, el dictamen y esa versión. Una pieza sin señales se rechaza: el servicio no rellena huecos.
 
-### 1 — Llamar al servicio
+### 1 — Arrancar el servicio
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m07-01`
+Vas a levantar el servicio de inferencia y preguntarle si está listo y qué versión sirve.
 
-**Por qué:** Las aplicaciones llaman al servicio, no abren el fichero del modelo.
+```bash
+docker compose up -d api
 
-**Resultado esperado:** `OK m07-01:` con `version=defecto-0.1` (o la que cargó al arrancar) y un dictamen. Una petición incompleta no cuela.
+curl -s http://localhost:8000/salud
+```
+
+**Resultado esperado:**
+
+```json
+{"estado":"ok","version":"defecto-0.1"}
+```
+
+El servicio documenta su propio contrato en <http://localhost:8000/docs>:
+
+![Documentación del servicio con GET /salud y POST /predecir](../img/M07-01-api-docs.png)
+
+### 2 — Pedir un dictamen
+
+Vas a mandar las señales de una pieza como lo haría una aplicación de planta. Las aplicaciones llaman al servicio; no abren el fichero del modelo.
+
+```bash
+# Pieza con temperatura normal
+curl -s -X POST http://localhost:8000/predecir \
+  -H 'Content-Type: application/json' \
+  -d '{"pieza_id": "DEMO1", "temperatura_c": 61.4, "vibracion_mm_s": 0.25, "corriente_a": 4.1, "presion_bar": 6.0}'
+
+# La misma pieza, 8 °C más caliente
+curl -s -X POST http://localhost:8000/predecir \
+  -H 'Content-Type: application/json' \
+  -d '{"pieza_id": "DEMO2", "temperatura_c": 69.4, "vibracion_mm_s": 0.25, "corriente_a": 4.1, "presion_bar": 6.0}'
+```
+
+**Resultado esperado:**
+
+```json
+{"pieza_id":"DEMO1","version":"defecto-0.1","entrada":{…},"dictamen":"seguir","probabilidad":0.0798,"ts":"…"}
+{"pieza_id":"DEMO2","version":"defecto-0.1","entrada":{…},"dictamen":"revisar","probabilidad":1.0,"ts":"…"}
+```
+
+Cada respuesta lleva la versión del modelo que la dio.
+
+### 3 — Comprobar el contrato completo
+
+Vas a ejecutar la comprobación del laboratorio: una pieza correcta tiene que dar dictamen con la versión de `/salud`, y una pieza sin señales tiene que rechazarse.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m07-01
+```
+
+**Resultado esperado:**
+
+```text
+{"pieza_id": "SRV0001", "version": "defecto-0.1", "entrada": {"pieza_id": "SRV0001", "temperatura_c": 61.39, "vibracion_mm_s": 0.286, "corriente_a": 4.07, "presion_bar": 5.96}, "dictamen": "seguir", "probabilidad": 0.0798, "ts": "…"}
+OK m07-01: version=defecto-0.1 dictamen=seguir
+```
 
 ## Comprueba tu entendimiento
 
 **La versión viaja**
 
-Abre `infra/data/predicciones.jsonl` y lee `version` de la última línea.
+Lee la versión de la última línea del registro de predicciones.
 
-→ Es la misma que `/salud`.
+```bash
+tail -1 data/predicciones.jsonl
+```
+
+→ `"version": "defecto-0.1"`, la misma que `/salud`.
 
 ## Reto
 
 ### 1 — Pieza incompleta
 
-El comando ya manda un JSON solo con `pieza_id`. ¿Qué código vuelve?
+Manda una pieza solo con `pieza_id`. ¿Qué devuelve el servicio?
+
+```bash
+curl -s -w '\nHTTP %{http_code}\n' -X POST http://localhost:8000/predecir \
+  -H 'Content-Type: application/json' -d '{"pieza_id": "X"}'
+```
 
 <details>
 <summary>Ver solución</summary>
 
-Un error 4xx. No hay dictamen.
+Un error `HTTP 422` con la lista de campos que faltan (`temperatura_c`, `vibracion_mm_s`…). No hay dictamen: el servicio no se inventa las señales.
 
 </details>
 
@@ -53,5 +113,5 @@ Un error 4xx. No hay dictamen.
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| el servicio no está | api no arrancó porque faltaba el joblib | `docker compose logs api` y, si falta el modelo, `m03-03` y `docker compose up -d api` |
-| responde otra versión | el contenedor se arrancó con un VERSION viejo | `docker compose up -d --force-recreate api` después de cambiar el fichero |
+| `curl: (7) Failed to connect` | `api` no arrancó, normalmente porque faltaba el `.joblib` | `docker compose logs api`; si falta el modelo, `m03-03` y `docker compose up -d api` |
+| responde otra versión | el contenedor arrancó con un `VERSION` viejo | `docker compose up -d --force-recreate api` |

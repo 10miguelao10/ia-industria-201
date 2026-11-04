@@ -17,42 +17,102 @@ Pasas el histórico crudo a una fila por pieza, en grados, con los huecos contad
 
 ### En qué consiste
 
-El crudo son 800 piezas sintéticas de EST-01. Una parte de las temperaturas falta, otra viene en décimas (×10) y algunas valen 9999 (sensor clavado). El entrenamiento posterior usa solo el limpio.
+El crudo son 800 piezas sintéticas de EST-01. A una parte le falta la temperatura, otra viene en décimas (×10) y algunas valen 9999 (sensor clavado). Los modelos de M03 se entrenan solo con el limpio.
 
 ### 1 — Generar y limpiar
 
-**Acción:** `docker compose --profile lab run --rm --no-deps lab m02-03`
+Vas a generar el histórico crudo y limpiarlo. Antes de fiarte de un modelo tienes que saber cuántas filas sobrevivieron y por qué se cayeron las demás.
 
-**Por qué:** Hay que ver el recuento antes de fiarse de un modelo.
+```bash
+# Escribe crudo.csv, lo limpia y deja limpio.csv e imposibles.csv
+docker compose --profile lab run --rm --no-deps lab m02-03
+```
 
-**Resultado esperado:** `OK m02-03:` con filas de crudo, filas limpias (menos) y huecos > 0.
+**Resultado esperado:**
 
-### 2 — Abrir los tres ficheros
+```text
+{"filas_crudo": 800, "filas_limpias": 768, "huecos": 32, "imposibles": 6, "piezas_unicas": 768}
+OK m02-03: crudo=800 limpio=768 huecos=32
+```
 
-**Acción:** En `infra/data/`, abre `crudo.csv`, `limpio.csv` e `imposibles.csv`.
+32 piezas sin temperatura y 6 con 9999 no pasan al limpio.
 
-**Por qué:** El crudo conserva el desastre. El limpio es el que se entrena. Los 9999 no se convierten en una temperatura.
+### 2 — Mirar los tres ficheros
 
-**Resultado esperado:** En el limpio no hay 9999 ni valores de cientos de grados. `imposibles.csv` no está vacío.
+Vas a comparar el crudo, el limpio y los imposibles. El crudo conserva el desastre, el limpio es lo que se entrena y los 9999 no se convierten en una temperatura.
+
+```bash
+head -5 data/crudo.csv        # tal cual llegó
+head -5 data/limpio.csv       # una fila por pieza, en grados, con la columna hueco
+head -5 data/imposibles.csv   # los 9999 apartados
+```
+
+**Resultado esperado:**
+
+```text
+pieza_id,temperatura_c,vibracion_mm_s,corriente_a,presion_bar,defecto
+H0001,61.39,0.286,4.07,5.96,0
+H0002,61.45,0.268,4.06,6.0,0
+H0003,62.95,0.263,3.85,6.1,0
+H0004,62.56,0.347,4.29,5.95,0
+```
+
+```text
+pieza_id,temperatura_c,vibracion_mm_s,corriente_a,presion_bar,defecto,hueco
+H0001,61.39,0.286,4.07,5.96,0,0
+H0002,61.45,0.268,4.06,6.0,0,0
+H0003,62.95,0.263,3.85,6.1,0,0
+H0004,62.56,0.347,4.29,5.95,0,0
+```
+
+```text
+pieza_id,temperatura_c,vibracion_mm_s,corriente_a,presion_bar,defecto
+H0059,9999.0,0.218,4.22,6.09,0
+H0322,9999.0,0.244,4.15,5.95,1
+H0510,9999.0,0.289,4.0,5.94,0
+H0601,9999.0,0.286,4.12,6.06,0
+```
+
+También puedes abrirlos en VS Code: están en `infra/data/`.
 
 ## Comprueba tu entendimiento
 
 **Una pieza, una fila**
 
-Cuenta filas y valores distintos de `pieza_id` en `limpio.csv`.
+Cuenta filas y valores distintos de `pieza_id` en el limpio.
 
-→ Son el mismo número.
+```bash
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -c \
+  "import pandas as pd; d = pd.read_csv('/data/limpio.csv'); print(len(d), d.pieza_id.nunique())"
+```
+
+→ Los dos números son iguales (768 768).
 
 ## Reto
 
 ### 1 — No rellenes el hueco
 
-Localiza en el crudo una temperatura vacía y comprueba que esa pieza no está en el limpio.
+Busca en el crudo una pieza con la temperatura vacía y comprueba que no está en el limpio.
+
+```bash
+# Piezas con la temperatura vacía (dos comas seguidas)
+grep ',,' data/crudo.csv | head -3
+
+# ¿Está H0017 en el limpio? Cuenta sus líneas
+grep -c '^H0017,' data/limpio.csv
+```
 
 <details>
 <summary>Ver solución</summary>
 
-Se excluye, no se sustituye por la media. Rellenarla escondería un sensor mudo.
+```text
+H0017,,0.28,4.34,6.07,0
+H0065,,0.225,4.23,6.01,0
+H0080,,0.196,4.07,6.03,0
+0
+```
+
+La pieza no aparece en `limpio.csv`: se excluye, no se sustituye por la media. Rellenarla escondería un sensor mudo.
 
 </details>
 
@@ -60,5 +120,5 @@ Se excluye, no se sustituye por la media. Rellenarla escondería un sensor mudo.
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| la temperatura limpia no está en grados | una décima no se escaló | vuelve a lanzar `m02-03`; el comando es quien limpia |
-| imposibles vacío | el crudo no trae 9999 | borra `infra/data/crudo.csv` y repite el comando |
+| `FALLO: la temperatura limpia no está en grados` | una décima no se escaló | vuelve a lanzar `m02-03`: el comando es quien limpia |
+| `FALLO: no se apartaron los 9999` | el crudo no trae 9999 | borra `data/crudo.csv` y repite el comando |
