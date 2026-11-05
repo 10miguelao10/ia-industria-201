@@ -104,3 +104,12 @@ Asiste: recomienda seguir o revisar y no escribe el paro. No rechaza piezas por 
 |---------|----------------|-----------------|
 | `FALLO: no hay rastro de las dos piezas` | `api` no está guardando | `docker compose logs api` y repite M07-01 |
 | `FALLO: el rastro cambió de versión` | `api` se reinició entre las dos llamadas | deja `api` en marcha y repite |
+
+## Conclusiones
+
+- **Gobernar un modelo es poder reconstruir cada decisión:** qué entró, qué dictaminó, con qué versión y cuándo.
+- **El registro no se reescribe** aunque alguien cambie un fichero: las dos piezas conservaron la versión que de verdad contestó.
+- **El sistema asiste; no decide solo.** Recomienda seguir o revisar y no toca el paro. Esa clasificación es la que se documenta frente al Reglamento europeo de IA.
+- **La trazabilidad empieza en el M01**: sin identificador de pieza y hora desde el origen, aquí no habría nada que reconstruir.
+
+> 🔑 Ante una reclamación, la pregunta es «¿por qué se aceptó esta pieza?». Si el registro no la responde, el modelo no está gobernado, por mucho que acierte.

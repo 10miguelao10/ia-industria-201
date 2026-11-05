@@ -107,3 +107,11 @@ docker compose start panel
 |---------|----------------|-----------------|
 | <http://localhost:8501> no abre | el panel no está en marcha o el puerto está ocupado | `docker compose ps` y `docker compose logs panel` |
 | El panel dice que no hay histórico | el archivador acaba de crear la base | espera unos segundos y recarga |
+
+## Conclusiones
+
+- **Supervisar es leer indicadores, no listas.** El panel convierte el histórico en «qué pieza va, cómo está el husillo y si algo se sale del margen».
+- **El panel lee del histórico, no de la máquina.** Si se cae, no se pierde ningún dato; si se cae el archivador, el panel se queda congelado.
+- **El margen de 70 °C es una regla fija.** Avisa cuando una señal pasa un número, pero no ve combinaciones raras entre varias señales. Ese es el hueco que cubrirán los modelos.
+
+> 🔑 Un panel informa a una persona; no decide. Y solo es tan bueno como el histórico que hay detrás.

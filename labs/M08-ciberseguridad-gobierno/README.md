@@ -78,3 +78,11 @@ Entrada, dictamen, versión y hora: con eso se responde a «por qué se aceptó 
 | M08-02 | [Gobierno y trazabilidad](M08-02-gobierno-trazabilidad.md) | Reconstruir qué modelo dictaminó una pieza. |
 
 → Empieza por **[M08-01 — Evaluación de riesgos](M08-01-evaluacion-riesgos.md)**.
+
+## Conclusiones del módulo
+
+Al terminar los laboratorios de este módulo deberías tener claro que:
+
+- Cada servicio expuesto es una superficie de riesgo, y las medidas escritas hay que comprobarlas.
+- Gobernar es poder reconstruir cada decisión: entrada, dictamen, versión y hora.
+- El sistema del curso asiste y no decide solo. Esa clasificación es la base para cumplir el Reglamento de IA.

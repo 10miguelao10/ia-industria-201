@@ -102,3 +102,12 @@ El panel no «es la IA». Solo demuestra que el dato ya es información operativ
 | M01-02 | [Visualización y supervisión de procesos](M01-02-visualizacion-supervision.md) | Leer la estación en indicadores, no en una lista cruda. |
 
 → Empieza por **[M01-01 — Arquitectura básica de datos](M01-01-arquitectura-datos.md)**.
+
+## Conclusiones del módulo
+
+Al terminar los laboratorios de este módulo deberías tener claro que:
+
+- La IA en planta empieza en el camino del dato: origen → transporte → almacén → panel → acción.
+- Cada pieza de ese camino es un componente separado, con su función, y que puede fallar por separado.
+- El histórico puede tener huecos y repetidos sin dar error. Hay que comprobarlo antes de usarlo.
+- Un panel con reglas fijas informa, pero no ve combinaciones raras. Ahí empiezan a aportar los modelos.

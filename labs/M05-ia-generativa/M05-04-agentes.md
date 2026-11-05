@@ -107,3 +107,12 @@ No. El agente de este curso solo lee. El paro lo decide el automatismo, y la for
 |---------|----------------|-----------------|
 | `FALLO: la frase no incluye el valor medido` | el modelo no copió el número | repite el comando |
 | `FileNotFoundError … estado.json` | el sensor no ha arrancado nunca | `docker compose up -d sensor` |
+
+## Conclusiones
+
+- **Un agente es un modelo con herramientas.** El dato vivo lo trae una herramienta (`leer_estacion`), no la memoria del modelo.
+- **El código decide qué herramienta se usa; el modelo solo redacta.** El número de la frase es el que leyó la herramienta.
+- **Todo queda en una traza**: qué herramienta se usó y qué devolvió.
+- **La seguridad está en qué herramientas existen.** El agente no puede escribir en el automatismo porque no tiene con qué.
+
+> 🔑 No se le pide a un agente que «no toque el proceso»: se le deja sin herramientas para tocarlo.

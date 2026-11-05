@@ -110,3 +110,12 @@ No. Sin imagen no hay fila de aceptación. En planta, una pieza sin dictamen ir�
 |---------|----------------|-----------------|
 | `FALLO: el registro no tiene una fila por imagen` | el lote no se copió | repite `m04-03` |
 | `FALLO: ninguna pieza fue a revisión` | el modelo no se cargó bien | lanza antes `m04-01` |
+
+## Conclusiones
+
+- **Un puesto de inspección es un flujo:** entran fotos y sale un registro con una decisión por pieza.
+- **Inspeccionar no es entrenar.** Se usa el modelo que ya existe.
+- **La decisión depende del umbral.** `ko_00.png` era defectuosa y se aceptó con 0,493, justo por debajo de 0,5.
+- **Mover el umbral es cambiar el equilibrio:** más defectos detectados a cambio de más piezas buenas a revisión.
+
+> 🔑 Ningún modelo es perfecto: hay que decidir, con calidad, qué error es más caro, si dejar pasar un defecto o parar una pieza buena.

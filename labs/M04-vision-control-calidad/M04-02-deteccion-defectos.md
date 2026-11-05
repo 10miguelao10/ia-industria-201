@@ -87,3 +87,12 @@ Uno oscuro, uno vertical o uno que no cambia el brillo de una fila. Por eso un p
 |---------|----------------|-----------------|
 | `FALLO: la zona no cae sobre el rayón` | el manifiesto no es el de estas imágenes | borra `data/imagenes` y repite `m04-01` |
 | falsos en buenas | se bajó el umbral de brillo | el comando usa 230; no lo bajes para «pillar más» |
+
+## Conclusiones
+
+- **Clasificar dice «mala»; detectar dice «dónde».** Retrabajo necesita lo segundo.
+- **A veces basta una regla sencilla** (la fila más brillante) cuando el defecto es siempre del mismo tipo.
+- **Esa regla tiene límites claros:** no vería un defecto oscuro, vertical o que no cambie el brillo.
+- **Se comprueba en los dos sentidos:** que encuentra el defecto en las malas y que no lo inventa en las buenas.
+
+> 🔑 Antes de usar una red neuronal, pregunta si una regla simple resuelve el caso, y cuáles son sus límites.

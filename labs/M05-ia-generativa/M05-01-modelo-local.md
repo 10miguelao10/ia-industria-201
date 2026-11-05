@@ -107,3 +107,12 @@ Sin GPU y con 2 GB para el contenedor no respondería a tiempo. El de 0,5B cabe 
 | `FALLO: el servicio local no responde` | sigue cargando o falta el `.gguf` | `docker compose logs llm` y `ls -lh modelos/` |
 | `Falta el modelo en /modelos/…` en los logs | el fichero no está o tiene otro nombre | paso 1 |
 | tarda mucho | es la primera carga en CPU | espera a que `/salud` conteste antes de repetir |
+
+## Conclusiones
+
+- **Un modelo de lenguaje puede ejecutarse en el propio puesto**, sin enviar nada fuera de la fábrica.
+- **Un modelo local es un fichero** (aquí, unos 470 MB) más un proceso que lo carga en memoria.
+- **El tamaño se elige por el puesto**: este modelo de 0,5B cabe en 2 GB y responde en menos de un segundo en CPU, a cambio de ser más limitado que uno grande.
+- **Lo que decide si es usable es el tiempo de respuesta** en el equipo real.
+
+> 🔑 «Local» significa que la pregunta y la respuesta no salen del puesto. Eso se comprueba mirando a qué dirección se llama.

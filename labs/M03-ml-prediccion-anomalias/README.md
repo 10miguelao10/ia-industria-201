@@ -88,3 +88,11 @@ El árbol encuentra 16 de 21 defectos con 3 falsas alarmas; la regresión logís
 | M03-03 | [Comparación de modelos predictivos](M03-03-comparacion-modelos.md) | Elegir entre enfoques con los mismos datos. |
 
 → Empieza por **[M03-01 — Predicción de defectos de fabricación](M03-01-prediccion-defectos.md)**.
+
+## Conclusiones del módulo
+
+Al terminar los laboratorios de este módulo deberías tener claro que:
+
+- Un modelo se mide por los defectos que encuentra y por las piezas buenas que para, no por un porcentaje global.
+- Sin etiquetas también se puede avisar de lo raro, comparando con lo normal.
+- El modelo que va a la línea se elige con una regla escrita de antemano y queda con nombre y versión.

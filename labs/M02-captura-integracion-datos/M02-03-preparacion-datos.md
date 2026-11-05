@@ -136,3 +136,12 @@ La pieza no aparece en `limpio.csv`: se excluye, no se sustituye por la media. R
 |---------|----------------|-----------------|
 | `FALLO: la temperatura limpia no está en grados` | una décima no se escaló | vuelve a lanzar `m02-03`: el comando es quien limpia |
 | `FALLO: no se apartaron los 9999` | el crudo no trae 9999 | borra `data/crudo.csv` y repite el comando |
+
+## Conclusiones
+
+- **El histórico real viene sucio:** huecos (sensor desconectado), unidades mezcladas (décimas) y valores imposibles (sensor clavado en 9999).
+- **Limpiar es decidir qué se queda y contarlo.** De 800 piezas quedaron 768: 32 sin temperatura y 6 imposibles se apartaron.
+- **Un hueco no se rellena con la media.** Rellenarlo escondería un sensor mudo y metería en el entrenamiento un dato que nadie midió.
+- **Una pieza, una fila:** es la condición para poder unir las señales con la etiqueta de calidad.
+
+> 🔑 Un modelo aprende lo que hay en el fichero. Si el fichero tiene 9999 °C, el modelo «aprende» que el husillo puede estar a 9999 °C.

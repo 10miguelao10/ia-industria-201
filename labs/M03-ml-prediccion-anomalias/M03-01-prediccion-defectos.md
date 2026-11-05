@@ -119,3 +119,13 @@ No predice: lee la respuesta. Las entradas permitidas son solo las señales que 
 |---------|----------------|-----------------|
 | `FALLO: recall de defecto demasiado bajo` | el CSV limpio está mal generado | repite `m02-03` y luego `m03-01` |
 | no está `limpio.csv` | no hiciste M02-03 | el comando lo crea si falta; si falla, lanza `m02-03` |
+
+## Conclusiones
+
+- **Un modelo de clasificación aprende de ejemplos pasados**: qué combinaciones de señales acabaron en defecto.
+- **Se evalúa con piezas que no ha visto**, y en orden de tiempo: entrena con el pasado y se examina con lo más reciente, como pasará en la línea.
+- **El porcentaje de acierto global engaña** cuando el defecto es raro. Aquí habría dado un 81 % dejando escapar defectos.
+- **Lo que importa son dos números:** cuántos defectos encuentra (recall) y cuántas piezas buenas manda a revisar sin motivo (falsas alarmas). Con este modelo: 15 de 21 defectos y 38 falsas alarmas.
+- **El modelo es un fichero** (`modelo_logreg.joblib`) que se guarda, se compara y se despliega.
+
+> 🔑 Pregunta siempre: ¿cuántos defectos se le escapan y cuántas piezas buenas para? Un solo porcentaje no responde a eso.

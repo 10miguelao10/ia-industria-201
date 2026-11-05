@@ -111,3 +111,12 @@ Con el de menor tasa de falsas alarmas. Es la segunda clave de la regla.
 |---------|----------------|-----------------|
 | `No such file … limpio.csv` | no está el CSV | lanza `m02-03` |
 | `VERSION` vacío | el comando no terminó en `OK` | repite `m03-03` |
+
+## Conclusiones
+
+- **Para comparar modelos, todos se miden con la misma vara:** las mismas piezas de entrenamiento y de examen.
+- **La regla de elección se escribe antes de ver los resultados**, para que nadie la ajuste a su favor.
+- **El árbol ganó con claridad:** 16 de 21 defectos con 3 falsas alarmas, frente a 15 con 38.
+- **El elegido queda con nombre y versión** (`modelo_defecto.joblib`, `defecto-0.1`). Es lo que se despliega y lo que se audita después.
+
+> 🔑 Elegir un modelo es una decisión de proceso con una regla escrita, no una cuestión de «el que mejor parezca».

@@ -117,3 +117,12 @@ No. 0 es «paro en reposo»: nadie lo ha activado. Este laboratorio lo lee pero 
 |---------|----------------|-----------------|
 | `FALLO: OPC-UA: …` | el servidor no arrancó | `docker compose logs opcua` |
 | `FALLO: Modbus no conecta` | el esclavo no está en marcha | `docker compose up -d modbus` |
+
+## Conclusiones
+
+- **La misma máquina se lee de varias formas** según quién pregunte: MQTT para la plataforma de datos, OPC-UA para el SCADA, Modbus para equipos antiguos.
+- **Integrar es conseguir que todos cuenten lo mismo.** Los tres caminos dieron la misma temperatura.
+- **OPC-UA da el dato con nombre; Modbus da un número en una posición.** Con Modbus, la escala y el significado (614 = 61,4 °C; registro 10 = paro) hay que saberlos por el manual.
+- **Leer no es escribir.** El paro de seguridad se puede consultar, pero ningún paso del curso lo toca.
+
+> 🔑 Si una cifra de Modbus parece absurda, lo primero es revisar la escala, no la máquina.

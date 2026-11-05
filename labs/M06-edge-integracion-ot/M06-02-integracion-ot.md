@@ -111,3 +111,12 @@ En el código del paso, no en el PLC. Dudar manda a revisión: es una decisión 
 |---------|----------------|-----------------|
 | `FALLO: el automatismo no recibió el dictamen` | mosquitto caído | `docker compose up -d mosquitto sensor modbus` |
 | `FALLO: el registro de paro de seguridad cambió` | algo escribió el registro 10 | no debe ocurrir; `docker compose restart modbus` |
+
+## Conclusiones
+
+- **El dictamen viaja como evento**, por el mismo broker que los registros. El automatismo se suscribe y decide qué hacer.
+- **El modelo no conoce el PLC ni escribe en él.** Publica una recomendación: `seguir` o `revisar`.
+- **El paro de seguridad no lo toca el modelo.** Siguió en 0 después de publicar.
+- **El umbral de decisión está en el código del modelo**, no en el automatismo. Cambiarlo es una decisión de proceso.
+
+> 🔑 El modelo recomienda; el automatismo decide con sus propias protecciones. Esa frontera no se cruza.

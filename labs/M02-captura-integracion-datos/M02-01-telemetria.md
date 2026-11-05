@@ -115,3 +115,12 @@ Dos voces en el mismo tema, sin saber cuál es cuál. Por eso el ciclo lleva `es
 |---------|----------------|-----------------|
 | siguen llegando ciclos con el sensor parado | no llegaste a pararlo, o hay otro sensor | `docker compose ps` y deja un solo sensor |
 | `FALLO: no hay telemetría` | mosquitto o sensor caídos | `docker compose up -d mosquitto sensor` |
+
+## Conclusiones
+
+- **Suscribirse es enterarse de cada pieza cuando ocurre**, sin preguntar a la máquina ni esperar al histórico.
+- **Una parada de la máquina se ve como silencio.** No llega nada, y un buen consumidor no lo rellena con lecturas inventadas ni lo confunde con un valor 0.
+- **Los registros de una parada no reaparecen al volver.** El broker solo entrega lo que se publica mientras escuchas.
+- **La secuencia de la estación se reinicia al arrancar**; la hora (`ts`) es lo que ordena los registros sin ambigüedad.
+
+> 🔑 Un evento que no llega es información: hay que distinguir «no hay dato» de «el dato vale cero».

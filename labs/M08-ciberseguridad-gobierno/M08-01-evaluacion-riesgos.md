@@ -118,3 +118,12 @@ Mínimo privilegio: el agente no puede escribir en el proceso porque no tiene co
 |---------|----------------|-----------------|
 | `FALLO: modbus no disponible para el cruce OT` | el esclavo está parado | `docker compose up -d modbus` |
 | `FALLO: el paro de seguridad no está en reposo` | alguien escribió el registro | `docker compose restart modbus` |
+
+## Conclusiones
+
+- **Cada servicio que escucha en un puerto es una superficie de ataque.** Lo primero es tener el inventario.
+- **Lo más delicado es lo que toca OT**, como el esclavo Modbus con el registro del paro.
+- **Las medidas tienen que ser concretas**: una para el dato, otra para el modelo y otra para el acceso.
+- **Lo escrito hay que comprobarlo.** La medida de acceso decía «solo localhost» y los puertos estaban abiertos en todas las interfaces.
+
+> 🔑 Una evaluación de riesgos no termina cuando se escriben las medidas, sino cuando se comprueba que se cumplen.

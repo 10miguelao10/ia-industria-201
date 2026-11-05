@@ -99,3 +99,11 @@ OK m04-03: registro=6 revisar=2
 | M04-03 | [Sistema de inspección basado en cámara](M04-03-inspeccion-camara.md) | Analizar imágenes y dejar un dictamen automático. |
 
 → Empieza por **[M04-01 — Clasificación automática de componentes](M04-01-clasificacion-componentes.md)**.
+
+## Conclusiones del módulo
+
+Al terminar los laboratorios de este módulo deberías tener claro que:
+
+- Para un modelo, una imagen es una lista de números; aprende lo que diferencia a las fotos de entrenamiento.
+- Clasificar dice «mala»; localizar dice «dónde». Retrabajo necesita lo segundo.
+- En inspección, el umbral decide qué error se acepta: dejar pasar un defecto o parar una pieza buena.

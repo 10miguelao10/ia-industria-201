@@ -121,3 +121,12 @@ Un error `HTTP 422` con la lista de campos que faltan (`temperatura_c`, `vibraci
 |---------|----------------|-----------------|
 | `curl: (7) Failed to connect` | `api` no arrancó, normalmente porque faltaba el `.joblib` | `docker compose logs api`; si falta el modelo, `m03-03` y `docker compose up -d api` |
 | responde otra versión | el contenedor arrancó con un `VERSION` viejo | `docker compose up -d --force-recreate api` |
+
+## Conclusiones
+
+- **Publicar un modelo como servicio** evita que cada aplicación tenga su copia y su versión.
+- **Cada respuesta dice qué versión contestó**, y cada consulta queda registrada con su entrada y su salida.
+- **El servicio no se inventa datos:** una pieza sin señales se rechaza con un error.
+- **El servicio documenta su propio contrato** (`/docs`): qué recibe y qué devuelve.
+
+> 🔑 Si no sabes qué versión del modelo dio un dictamen, no puedes explicarlo ni corregirlo.

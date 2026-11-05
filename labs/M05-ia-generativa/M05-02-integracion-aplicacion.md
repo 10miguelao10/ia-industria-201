@@ -109,3 +109,12 @@ Hasta 180 s, el `timeout` del cliente. En un puesto real el límite debe ser má
 |---------|----------------|-----------------|
 | `Connection refused` en el paso 1 | `llm` todavía no está listo | espera a que `/salud` conteste |
 | no aparece `servicio caído` | el host inventado resolvió por error | no cambies el código del paso |
+
+## Conclusiones
+
+- **Las aplicaciones hablan con el modelo por HTTP**, con un JSON de mensajes, como con cualquier otro servicio de la planta.
+- **La respuesta trae más que texto:** por qué terminó (`finish_reason`) y cuánto ocupó (`usage`).
+- **Un modelo pequeño no siempre obedece.** Le pidieron una palabra y contestó otra cosa.
+- **Una buena integración sabe fallar**: si el servicio no está, lo dice, y no se queda colgada ni inventa una respuesta.
+
+> 🔑 Integrar un modelo es integrar un servicio más: contrato, tiempos máximos y qué pasa cuando no responde.

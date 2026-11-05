@@ -93,3 +93,12 @@ No. Llegar tarde es no llegar: la pieza iría a revisión.
 |---------|----------------|-----------------|
 | `FALLO: falta el modelo; pasa antes por M03-03` | no terminó M03-03 | lanza `m03-03` |
 | `FALLO: la inferencia local va demasiado lenta` | el puesto está saturado | `docker compose stop llm` y repite |
+
+## Conclusiones
+
+- **Edge es ejecutar el modelo junto a la máquina**, sin depender de la red de oficina ni de internet.
+- **Un modelo clásico es muy rápido:** menos de medio milisegundo por pieza, frente a un ciclo de un segundo.
+- **La latencia que importa es la de la pieza siguiente**, no la del arranque. La primera predicción no se mide.
+- **Un dictamen que llega tarde no vale:** si no está a tiempo, la pieza va a revisión.
+
+> 🔑 Antes de llevar un modelo a la línea, mide en el equipo real si llega a tiempo para cada pieza.

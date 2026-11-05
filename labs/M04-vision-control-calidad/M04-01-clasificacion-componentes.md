@@ -100,3 +100,12 @@ El fondo en vez del rayón: acertaría aquí y fallaría en planta. En este gene
 |---------|----------------|-----------------|
 | `FALLO: el clasificador visual no separa las piezas` | las imágenes no se generaron bien | borra `data/imagenes` y repite |
 | no encuentras los PNG | los buscas dentro del contenedor | están en el disco del puesto, en `infra/data/imagenes` |
+
+## Conclusiones
+
+- **Para un modelo, una imagen es una lista de números**: el brillo de cada punto.
+- **Hacen falta ejemplos de las dos clases**, buenas y malas, y se examina con fotos que no se usaron para entrenar.
+- **Un 88 % de acierto significa que algunas fotos se clasifican mal.** En inspección eso son defectos que pasan o piezas buenas que se paran.
+- **Hay que mirar qué está aprendiendo**: el rayón, y no otra diferencia casual entre las fotos, como el fondo o la iluminación.
+
+> 🔑 Un modelo de visión aprende lo que diferencia a las fotos de entrenamiento, que no siempre es lo que tú querías que aprendiera.

@@ -126,3 +126,12 @@ No. La próxima pregunta recupera el párrafo nuevo. El modelo no se toca: por e
 |---------|----------------|-----------------|
 | `FALLO: la respuesta no contiene el 12` | el modelo pequeño no copió el número | repite. Si el fragmento impreso no tiene el 12, falló la recuperación |
 | `FALLO` con error de conexión | `llm` parado | `docker compose ps` y `docker compose up -d llm` |
+
+## Conclusiones
+
+- **El modelo no conoce tu planta.** Si contesta de memoria, puede inventarse un dato que suene bien.
+- **La respuesta se apoya en el documento:** primero se busca el párrafo y después el modelo contesta usando solo ese texto (recuperar y generar).
+- **Si el documento no trata el tema, no hay respuesta.** Es mejor «no está en el procedimiento» que un número inventado.
+- **Actualizar el asistente es actualizar el documento**, no reentrenar el modelo.
+
+> 🔑 En planta, un asistente vale lo que valen sus fuentes. Si no puede señalar de dónde sale la respuesta, no sirve.

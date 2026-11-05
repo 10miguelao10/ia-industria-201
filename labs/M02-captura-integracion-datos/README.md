@@ -97,3 +97,11 @@ H0322,9999.0,0.244,4.15,5.95,1
 | M02-03 | [Preparación de información para analítica](M02-03-preparacion-datos.md) | Limpiar y normalizar hasta tener un dataset usable. |
 
 → Empieza por **[M02-01 — Captura de telemetría industrial](M02-01-telemetria.md)**.
+
+## Conclusiones del módulo
+
+Al terminar los laboratorios de este módulo deberías tener claro que:
+
+- La misma señal llega por varios protocolos (MQTT, OPC-UA, Modbus); integrar es conseguir que cuenten lo mismo.
+- Un silencio de la máquina es un dato: no se rellena ni se confunde con un cero.
+- Antes de entrenar hay que limpiar el histórico y contar lo que se descarta.

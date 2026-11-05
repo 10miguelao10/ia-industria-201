@@ -84,3 +84,12 @@ Subirlo esconde ciclos raros. Bajarlo llena el turno de avisos sobre ciclos norm
 |---------|----------------|-----------------|
 | `FALLO: el detector no ve los ciclos inyectados` | se ajustó con ciclos raros dentro | el comando separa normales e inyectados; relánzalo |
 | `FALLO` sin número | la imagen está a medias | `docker compose build` otra vez |
+
+## Conclusiones
+
+- **Sin etiquetas también se puede avisar**: el detector aprende cómo es un ciclo normal y señala lo que se aleja.
+- **Mira todas las señales a la vez.** Un ciclo puede tener cada valor dentro de su rango y aun así ser raro en conjunto.
+- **Detectó los 20 ciclos con vibración alterada** sin haberlos visto nunca y sin saber qué es un defecto.
+- **El umbral decide el equilibrio:** más bajo, más avisos sobre ciclos normales; más alto, más ciclos raros sin aviso.
+
+> 🔑 Una anomalía no es un defecto: es «esto no se parece a lo de siempre». Alguien tiene que mirar por qué.

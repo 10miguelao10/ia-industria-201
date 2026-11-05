@@ -82,3 +82,11 @@ Si la estación «se ha ido» 8 °C, casi todo va a revisión. El modelo no avis
 | M07-02 | [Monitorización y seguimiento operacional](M07-02-monitorizacion.md) | Ver rendimiento y degradación del modelo desplegado. |
 
 → Empieza por **[M07-01 — Publicación de servicios de inferencia](M07-01-servicio-inferencia.md)**.
+
+## Conclusiones del módulo
+
+Al terminar los laboratorios de este módulo deberías tener claro que:
+
+- Un modelo en operación se publica como servicio, con versión en cada respuesta y registro de cada consulta.
+- Un modelo no avisa de que ha dejado de servir: hay que vigilar su comportamiento frente a una línea base.
+- Que el servicio esté caído y que el modelo esté desfasado son problemas distintos, con soluciones distintas.

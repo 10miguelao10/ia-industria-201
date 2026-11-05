@@ -96,3 +96,12 @@ La de la base, alrededor de 0,08. Si no vuelve, ya no estás puntuando el modelo
 |---------|----------------|-----------------|
 | `FALLO: no se ve la deriva al subir 8 °C` | el CSV no es el limpio de este curso | repite `m02-03` y `m03-03` |
 | `No such file … modelo_defecto.joblib` | saltaste M03-03 | `m03-03` |
+
+## Conclusiones
+
+- **Un modelo no avisa de que ha dejado de servir.** Sigue contestando aunque la línea haya cambiado.
+- **La deriva se ve vigilando su comportamiento:** con el husillo 8 °C más caliente, las piezas a revisión pasaron del 8 % al 96 %.
+- **Sin línea base no hay vigilancia.** El número de hoy solo dice algo comparado con el de referencia.
+- **No es lo mismo un servicio caído que un modelo desfasado.** Lo primero se arregla reiniciando; lo segundo, revisando datos y, quizá, reentrenando.
+
+> 🔑 Poner un modelo en marcha no es el final: hay que medir cada día si la línea sigue pareciéndose a la que aprendió.

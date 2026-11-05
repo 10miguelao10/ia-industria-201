@@ -77,3 +77,11 @@ No hay nube en ningún punto: cortar la red de la oficina no cambia el dictamen.
 | M06-02 | [Integración con sistemas industriales](M06-02-integracion-ot.md) | Entregar el dictamen como evento al automatismo simulado. |
 
 → Empieza por **[M06-01 — Inferencia en entornos edge](M06-01-inferencia-edge.md)**.
+
+## Conclusiones del módulo
+
+Al terminar los laboratorios de este módulo deberías tener claro que:
+
+- El modelo se ejecuta junto a la máquina y llega a tiempo para cada pieza, sin depender de la red.
+- El dictamen viaja como evento y el automatismo decide qué hacer con él.
+- El paro de seguridad nunca depende del modelo.

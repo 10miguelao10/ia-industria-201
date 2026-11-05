@@ -170,8 +170,6 @@ docker compose stop sensor
 docker compose --profile lab run --rm --no-deps lab m01-01
 ```
 
-📋 Ficha del comando [`m01-01`](../comandos-lab.md#m01-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
-
 <details>
 <summary>Ver solución</summary>
 
@@ -179,15 +177,112 @@ docker compose --profile lab run --rm --no-deps lab m01-01
 FALLO: no llega ningún ciclo por MQTT
 ```
 
-La estación ya no fabrica, así que no hay registros nuevos que repartir. El histórico conserva todos los que ya guardó. Para volver a fabricar:
+En el laboratorio, `sensor` es la estación entera (máquina, sensores y pasarela). Al pararlo **no se fabrica ninguna carcasa**, así que no se pierde nada: no hay producción. El histórico conserva todo lo que ya guardó. Vuelve a arrancarla antes del reto siguiente:
 
 ```bash
 docker compose start sensor
 ```
 
-Al volver, la numeración empieza otra vez en `P0001`: la estación simulada no recuerda por dónde iba. Por eso cada registro lleva también la hora (`ts`), que distingue las piezas de antes y de después de la parada.
+</details>
+
+### 2 — Para el archivador con la estación fabricando
+
+Ahora la estación sigue fabricando, pero nadie guarda. Para el archivador 10 segundos, vuelve a arrancarlo y busca huecos en la numeración del histórico.
+
+```bash
+# La estación sigue: una carcasa por segundo
+docker compose stop archivador
+sleep 10
+docker compose start archivador
+sleep 3
+
+# Recorre el histórico en orden y avisa cuando falten números de pieza
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -c "
+import sqlite3
+con = sqlite3.connect('/data/historial.sqlite')
+anterior = None
+for (pieza,) in con.execute('SELECT pieza_id FROM lecturas ORDER BY id'):
+    n = int(pieza[1:])
+    if anterior is not None and n > anterior + 1:
+        print(f'hueco: después de P{anterior:04d} viene {pieza}; faltan {n - anterior - 1} carcasas')
+    anterior = n
+"
+```
+
+<details>
+<summary>Ver solución</summary>
+
+```text
+hueco: después de P0022 viene P0033; faltan 10 carcasas
+```
+
+Esas 10 carcasas **se fabricaron**, y la estación publicó su registro, pero el broker no las guarda y el archivador no estaba escuchando. No están en el histórico y nada dio error. En planta pasa igual cuando se cae el servidor del histórico o se corta la red: hay piezas reales sin registro.
 
 </details>
+
+### 3 — Reinicia la estación y busca piezas repetidas
+
+Reinicia la estación y mira si hay identificadores que aparecen más de una vez en el histórico.
+
+```bash
+docker compose stop sensor
+docker compose start sensor
+sleep 5
+
+# Piezas que aparecen más de una vez en el histórico
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -c "
+import sqlite3
+con = sqlite3.connect('/data/historial.sqlite')
+for pieza, veces in con.execute(
+        'SELECT pieza_id, COUNT(*) FROM lecturas GROUP BY pieza_id HAVING COUNT(*) > 1 ORDER BY pieza_id LIMIT 5'):
+    print(pieza, veces)
+"
+```
+
+Si calidad dice que la `P0003` salió mala, ¿cuál de ellas es?
+
+<details>
+<summary>Ver solución</summary>
+
+```text
+P0002 2
+P0003 2
+P0004 2
+P0005 2
+P0006 2
+```
+
+Al reiniciar, la estación simulada vuelve a numerar desde `P0001`. En el histórico hay ahora **dos carcasas distintas** con el mismo identificador. Solo la hora las distingue:
+
+```bash
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -c "
+import sqlite3
+con = sqlite3.connect('/data/historial.sqlite')
+for fila in con.execute(\"SELECT pieza_id, ts, temperatura_c FROM lecturas WHERE pieza_id = 'P0003'\"):
+    print(*fila)
+"
+```
+
+```text
+P0003 2026-11-05T09:51:57+00:00 62.05
+P0003 2026-11-05T09:52:44+00:00 62.05
+```
+
+(La temperatura coincide porque la simulación repite la misma secuencia de valores en cada arranque; en una máquina real no pasaría.)
+
+Con el identificador solo, no se puede saber cuál es la mala. Por eso cada registro lleva la hora y, en planta, el identificador no lo pone un contador de la máquina sino el MES o un código grabado en la pieza.
+
+</details>
+
+### Empezar con el histórico vacío
+
+Los ficheros de `infra/data/` los crea el contenedor como administrador, así que se borran también desde un contenedor:
+
+```bash
+docker compose stop sensor archivador mosquitto
+docker compose --profile lab run --rm --no-deps --entrypoint rm lab -f /data/historial.sqlite /data/estado.json
+docker compose up -d mosquitto sensor archivador
+```
 
 ## Errores frecuentes
 
@@ -196,3 +291,12 @@ Al volver, la numeración empieza otra vez en `P0001`: la estación simulada no 
 | `FALLO: el archivador no tiene ciclos` | la estación o el broker no han arrancado | `docker compose ps` y `docker compose logs sensor` |
 | `no such service: lab` | falta `--profile lab` | copia el comando del paso 2 tal cual |
 | `no configuration file provided` | no estás en `infra/` | `cd infra` |
+
+## Conclusiones
+
+- **Una solución de datos en planta son piezas separadas.** Origen (la estación), transporte (el broker) y almacén (el archivador). Si una falta, el dato no llega.
+- **El broker reparte, no guarda.** Lo que se publica cuando nadie escucha se pierde.
+- **El histórico no es la realidad.** Puede faltar producción (reto 2) y puede haber identificadores repetidos (reto 3), sin que nada dé error.
+- **El identificador de pieza y la hora son lo que permite seguir un dato** desde la máquina hasta el histórico. Sin ellos no se puede unir una lectura con su resultado de calidad.
+
+> 🔑 Antes de pensar en modelos, el dato tiene que llegar completo y cada registro tiene que ser de la pieza que crees.

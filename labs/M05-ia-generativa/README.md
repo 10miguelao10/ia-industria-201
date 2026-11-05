@@ -103,3 +103,11 @@ OK m05-04: usó leer_estacion=61.49 y rechazó escribir
 | M05-04 | [Automatización mediante agentes](M05-04-agentes.md) | Dejar que un agente llame una herramienta acotada. |
 
 → Empieza por **[M05-01 — Ejecución local de modelos generativos](M05-01-modelo-local.md)**.
+
+## Conclusiones del módulo
+
+Al terminar los laboratorios de este módulo deberías tener claro que:
+
+- Un modelo de lenguaje puede ejecutarse en el puesto, sin sacar datos de la fábrica.
+- Las respuestas sobre la planta tienen que salir de sus documentos, no de la memoria del modelo.
+- A un agente se le limita con las herramientas que tiene: si no puede escribir, no escribe.
