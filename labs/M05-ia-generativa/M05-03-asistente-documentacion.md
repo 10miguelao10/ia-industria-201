@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-El asistente contesta el par de apriete a partir del procedimiento, y no inventa cuando el documento no habla del tema.
+Comprender qué es un **asistente basado en documentación**: por qué un modelo no debe contestar de memoria sobre la planta, cómo debe apoyarse en los documentos, cómo se detecta que inventa y cómo se mejora.
 
 ### Prerrequisitos
 
@@ -129,9 +129,37 @@ No. La próxima pregunta recupera el párrafo nuevo. El modelo no se toca: por e
 
 ## Conclusiones
 
-- **El modelo no conoce tu planta.** Si contesta de memoria, puede inventarse un dato que suene bien.
-- **La respuesta se apoya en el documento:** primero se busca el párrafo y después el modelo contesta usando solo ese texto (recuperar y generar).
-- **Si el documento no trata el tema, no hay respuesta.** Es mejor «no está en el procedimiento» que un número inventado.
-- **Actualizar el asistente es actualizar el documento**, no reentrenar el modelo.
+### Qué es un asistente basado en documentación
 
-> 🔑 En planta, un asistente vale lo que valen sus fuentes. Si no puede señalar de dónde sale la respuesta, no sirve.
+Es un modelo que contesta **a partir de los documentos de la planta**, no de su memoria. Funciona en dos pasos:
+
+```
+ pregunta ──▶ RECUPERAR: buscar el párrafo del procedimiento ──▶ GENERAR: el modelo contesta usando solo ese párrafo
+```
+
+### Cómo debe ser
+
+| Requisito | En el lab |
+|-----------|-----------|
+| La respuesta sale del documento | El fragmento impreso contiene el 12 N·m y la respuesta también |
+| Se puede ver de dónde sale | El paso enseña el párrafo antes de la respuesta |
+| Si el documento no lo dice, no hay respuesta | Para el color del tornillo no hay párrafo, y no se pregunta al modelo |
+| Se actualiza cambiando el documento | No hace falta reentrenar el modelo |
+
+### Cómo se detecta que inventa
+
+- La respuesta contiene un dato que **no está en el fragmento**.
+- El fragmento recuperado **no tiene relación** con la pregunta.
+- Contesta con seguridad a algo que **ningún documento trata**.
+
+En el lab, el paso repite hasta 3 veces si la respuesta no trae el 12: un modelo pequeño no siempre copia bien, aunque tenga el texto delante.
+
+### Cómo se mejora
+
+- **Mejor recuperación**: buscar por significado (embeddings) en lugar de contar palabras comunes, que falla con sinónimos.
+- **Citar la fuente** en cada respuesta, para que el técnico la compruebe.
+- **Mantener los documentos al día**: el asistente vale lo que valen sus fuentes.
+
+### En una frase
+
+> 🔑 En planta, un asistente vale lo que valen sus documentos. Si no puede señalar de dónde sale la respuesta, no sirve.

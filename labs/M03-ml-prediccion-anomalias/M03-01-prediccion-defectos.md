@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Entrenas un clasificador que relaciona las señales de proceso con un defecto ya etiquetado, y lo mides por los defectos que encuentra.
+Comprender qué es un **modelo de predicción de defectos**: cómo aprende de las piezas pasadas, cómo debe evaluarse para que el resultado sea creíble, cómo se interpretan sus errores y cómo se mejora.
 
 ### Prerrequisitos
 
@@ -122,10 +122,36 @@ No predice: lee la respuesta. Las entradas permitidas son solo las señales que 
 
 ## Conclusiones
 
-- **Un modelo de clasificación aprende de ejemplos pasados**: qué combinaciones de señales acabaron en defecto.
-- **Se evalúa con piezas que no ha visto**, y en orden de tiempo: entrena con el pasado y se examina con lo más reciente, como pasará en la línea.
-- **El porcentaje de acierto global engaña** cuando el defecto es raro. Aquí habría dado un 81 % dejando escapar defectos.
-- **Lo que importa son dos números:** cuántos defectos encuentra (recall) y cuántas piezas buenas manda a revisar sin motivo (falsas alarmas). Con este modelo: 15 de 21 defectos y 38 falsas alarmas.
-- **El modelo es un fichero** (`modelo_logreg.joblib`) que se guarda, se compara y se despliega.
+### Qué es un modelo de predicción de defectos
 
-> 🔑 Pregunta siempre: ¿cuántos defectos se le escapan y cuántas piezas buenas para? Un solo porcentaje no responde a eso.
+Es una función aprendida de ejemplos: recibe las señales de una carcasa (temperatura, vibración, corriente, presión) y devuelve si cree que saldrá defectuosa. Aprende de piezas pasadas que calidad ya marcó, buscando qué combinaciones de señales acabaron en defecto.
+
+### Cómo debe evaluarse
+
+| Requisito | Cómo se cumple en el lab |
+|-----------|--------------------------|
+| Con piezas que no ha visto | Se examina con el 30 % que no se usó para entrenar |
+| En orden de tiempo | Entrena con el pasado y se examina con lo más reciente, como pasará en la línea |
+| Sin hacer trampa | La etiqueta `defecto` no entra como señal: llega después de la inspección |
+| Con las métricas que importan | Defectos encontrados y falsas alarmas, no un porcentaje global |
+
+### Cómo se interpretan sus errores
+
+De 231 piezas de examen, 21 eran defectuosas:
+
+| | El modelo dijo «defecto» | El modelo dijo «bien» |
+|--|--------------------------|-----------------------|
+| **Era defectuosa** (21) | 15: defectos encontrados | 6: **defectos que se escapan** |
+| **Era buena** (210) | 38: **falsas alarmas** | 172: correctas |
+
+El acierto global sería (15 + 172) / 231 = 81 %, un número que no dice que 6 defectos llegarían al cliente ni que 38 piezas buenas se pararían para nada.
+
+### Cómo se mejora
+
+- **Comparar con otros modelos** sobre el mismo corte (lo harás en M03-03).
+- **Mover el umbral de decisión** según qué error sea más caro para la planta: dejar pasar un defecto o revisar una pieza buena.
+- **Añadir señales** que expliquen el defecto, y **más piezas defectuosas** de ejemplo, que son las que escasean.
+
+### En una frase
+
+> 🔑 Un modelo se evalúa con piezas que no ha visto y se mide por los defectos que deja escapar y las piezas buenas que para. Un solo porcentaje no responde a eso.

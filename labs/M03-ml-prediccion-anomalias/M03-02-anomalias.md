@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Ajustas un detector solo con ciclos normales y cuentas cuántos de los ciclos raros inyectados avisa.
+Comprender qué es la **detección de anomalías**: cómo se avisa de lo raro sin tener ejemplos de defecto, cómo debe ajustarse un detector, cuáles son sus límites y cómo se mejora.
 
 ### Prerrequisitos
 
@@ -87,9 +87,35 @@ Subirlo esconde ciclos raros. Bajarlo llena el turno de avisos sobre ciclos norm
 
 ## Conclusiones
 
-- **Sin etiquetas también se puede avisar**: el detector aprende cómo es un ciclo normal y señala lo que se aleja.
-- **Mira todas las señales a la vez.** Un ciclo puede tener cada valor dentro de su rango y aun así ser raro en conjunto.
-- **Detectó los 20 ciclos con vibración alterada** sin haberlos visto nunca y sin saber qué es un defecto.
-- **El umbral decide el equilibrio:** más bajo, más avisos sobre ciclos normales; más alto, más ciclos raros sin aviso.
+### Qué es detectar anomalías
 
-> 🔑 Una anomalía no es un defecto: es «esto no se parece a lo de siempre». Alguien tiene que mirar por qué.
+Es avisar cuando un ciclo **no se parece a lo normal**, aunque nunca se haya visto ese fallo. El detector no aprende qué es un defecto: aprende cómo son los ciclos sanos, y mide cuánto se aleja cada ciclo nuevo de ellos, con todas las señales a la vez.
+
+### Cómo debe ajustarse un detector
+
+| Requisito | Cómo se cumple en el lab |
+|-----------|--------------------------|
+| Aprender solo de lo normal | Se ajusta con piezas sin defecto |
+| Mirar las señales juntas | La distancia de Mahalanobis tiene en cuenta cómo varían juntas |
+| Un umbral con sentido | 13,3: un ciclo normal solo lo supera 1 de cada 100 veces |
+| Evaluarlo sin hacer trampa | La marca de ciclo alterado solo se usa al final, para contar aciertos |
+
+Resultado: avisó los **20 ciclos** con la vibración alterada.
+
+### Sus límites
+
+| Límite | Qué provoca |
+|--------|-------------|
+| Avisa de lo raro, no de lo defectuoso | Un cambio legítimo (otra referencia, otra herramienta) también dispara avisos |
+| El umbral es un compromiso | Más bajo: avisos sobre ciclos normales. Más alto: anomalías sin avisar |
+| Depende de que «lo normal» sea representativo | Si se ajusta con ciclos que ya eran raros, deja de verlos |
+
+### Cómo se mejora
+
+- **Revisar cada aviso** y, cuando se confirme la causa, convertirlo en un ejemplo etiquetado para un modelo como el de M03-01.
+- **Reajustar lo normal** cuando cambie legítimamente el proceso.
+- **Medir los avisos por turno**, para que el umbral no llene el día de alarmas que nadie mira.
+
+### En una frase
+
+> 🔑 Una anomalía no es un defecto: es «esto no se parece a lo de siempre». Sirve para mirar a tiempo, no para rechazar piezas sola.

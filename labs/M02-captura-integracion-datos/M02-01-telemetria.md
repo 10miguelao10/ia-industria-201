@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Consumes la telemetría de EST-01 como eventos y ves el hueco cuando el origen se detiene.
+Comprender qué es la **telemetría basada en eventos**: cómo se entera un sistema de cada pieza en el momento en que ocurre, cómo debe comportarse un consumidor ante una parada, qué se pierde y cómo se diseña para no perderlo.
 
 ### Prerrequisitos
 
@@ -118,9 +118,32 @@ Dos voces en el mismo tema, sin saber cuál es cuál. Por eso el ciclo lleva `es
 
 ## Conclusiones
 
-- **Suscribirse es enterarse de cada pieza cuando ocurre**, sin preguntar a la máquina ni esperar al histórico.
-- **Una parada de la máquina se ve como silencio.** No llega nada, y un buen consumidor no lo rellena con lecturas inventadas ni lo confunde con un valor 0.
-- **Los registros de una parada no reaparecen al volver.** El broker solo entrega lo que se publica mientras escuchas.
-- **La secuencia de la estación se reinicia al arrancar**; la hora (`ts`) es lo que ordena los registros sin ambigüedad.
+### Qué es la telemetría basada en eventos
 
-> 🔑 Un evento que no llega es información: hay que distinguir «no hay dato» de «el dato vale cero».
+La estación no espera a que le pregunten: publica un registro cada vez que termina una carcasa. Quien necesite enterarse se suscribe al tema y lo recibe en el momento. Es la base para cualquier sistema que tenga que reaccionar pieza a pieza, como un modelo que da su dictamen antes de que salga la siguiente.
+
+### Cómo debe comportarse un consumidor
+
+| Situación | Comportamiento correcto |
+|-----------|-------------------------|
+| Llega un registro | Comprobar que trae los campos que necesita (pieza, hora, señales) |
+| La máquina para | Tratar el silencio como silencio: no inventar lecturas ni confundirlo con un valor 0 |
+| La máquina vuelve | Seguir con los registros nuevos, ordenados por su hora |
+
+### Sus límites y cómo los has visto
+
+| Límite | Cómo lo has visto | Qué provoca |
+|--------|-------------------|-------------|
+| Solo se recibe lo que se publica mientras escuchas | Paso 3: los registros de la parada no reaparecen | Quien se conecta tarde no recibe lo anterior |
+| La secuencia de la estación se reinicia | Paso 3: tras arrancar de nuevo, la numeración vuelve a empezar | La secuencia sola no ordena ni identifica |
+| Silencio ambiguo | Paso 2: tres segundos sin datos | Sin más contexto, no se sabe si la máquina está parada o si se ha cortado la comunicación |
+
+### Cómo se mejora
+
+- Ordenar y distinguir siempre por la **hora** del registro, no por un contador de la máquina.
+- Publicar el **estado de la máquina** (en marcha, parada, avería) además de las medidas, para que el silencio tenga explicación.
+- Usar un **latido** o un aviso de desconexión (en MQTT, el mensaje de última voluntad) para distinguir «máquina parada» de «comunicación caída».
+
+### En una frase
+
+> 🔑 Un evento que no llega también es información, y hay que poder saber por qué no llegó.

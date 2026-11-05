@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Publicas el dictamen como evento y compruebas que el registro de paro de seguridad sigue en cero.
+Comprender cómo se **integra un modelo con los sistemas de planta (OT)**: cómo llega el dictamen al automatismo, cómo debe ser esa frontera, qué riesgos tiene y cómo se protege el control de la máquina.
 
 ### Prerrequisitos
 
@@ -114,9 +114,38 @@ En el código del paso, no en el PLC. Dudar manda a revisión: es una decisión 
 
 ## Conclusiones
 
-- **El dictamen viaja como evento**, por el mismo broker que los registros. El automatismo se suscribe y decide qué hacer.
-- **El modelo no conoce el PLC ni escribe en él.** Publica una recomendación: `seguir` o `revisar`.
-- **El paro de seguridad no lo toca el modelo.** Siguió en 0 después de publicar.
-- **El umbral de decisión está en el código del modelo**, no en el automatismo. Cambiarlo es una decisión de proceso.
+### Qué es integrar el modelo con OT
+
+Es hacer que el dictamen del modelo **llegue al automatismo** que actúa sobre la pieza. Aquí se publica como evento en el broker y el automatismo está suscrito:
+
+```
+ estado de la pieza ──▶ modelo ──▶ dictamen (seguir / revisar) ──▶ broker ──▶ automatismo ──▶ desvía o deja pasar
+```
+
+### Cómo debe ser la frontera
+
+| Requisito | En el lab |
+|-----------|-----------|
+| El modelo no conoce el PLC ni escribe en él | Publica en `linea/est01/dictamen` |
+| El dictamen identifica la pieza | Lleva `pieza_id`, decisión y probabilidad |
+| El paro de seguridad no depende del modelo | El registro 10 siguió en 0 |
+| El umbral es una decisión de proceso | Está en el código del modelo, no en el PLC |
+
+### Sus riesgos
+
+| Riesgo | Qué provoca |
+|--------|-------------|
+| El dictamen no llega | El automatismo tiene que decidir sin él (por seguridad, revisión) |
+| Llega el dictamen de otra pieza | Se desvía la carcasa equivocada |
+| Datos incompletos | La presión no viaja en vivo y se usa la consigna de 6 bar: el modelo no ve la presión real |
+| El modelo actúa sobre el control | Un error de software pararía o arrancaría la máquina |
+
+### Cómo se protege el control de la máquina
+
+- El modelo **recomienda** por evento; el automatismo **decide** con sus propias protecciones.
+- El paro y los enclavamientos van por su **camino determinista** (bus de campo), nunca por el broker.
+- Cada dictamen lleva **la pieza a la que se refiere** y el automatismo comprueba que coincide.
+
+### En una frase
 
 > 🔑 El modelo recomienda; el automatismo decide con sus propias protecciones. Esa frontera no se cruza.

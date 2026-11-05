@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Das un dictamen con el modelo cargado desde el disco del puesto y mides el tiempo por pieza.
+Comprender qué es la **inferencia en el edge**: por qué el modelo se ejecuta junto a la máquina, cómo debe medirse si llega a tiempo, qué riesgos tiene y cómo se asegura que funcione sin red.
 
 ### Prerrequisitos
 
@@ -96,9 +96,33 @@ No. Llegar tarde es no llegar: la pieza iría a revisión.
 
 ## Conclusiones
 
-- **Edge es ejecutar el modelo junto a la máquina**, sin depender de la red de oficina ni de internet.
-- **Un modelo clásico es muy rápido:** menos de medio milisegundo por pieza, frente a un ciclo de un segundo.
-- **La latencia que importa es la de la pieza siguiente**, no la del arranque. La primera predicción no se mide.
-- **Un dictamen que llega tarde no vale:** si no está a tiempo, la pieza va a revisión.
+### Qué es la inferencia en el edge
 
-> 🔑 Antes de llevar un modelo a la línea, mide en el equipo real si llega a tiempo para cada pieza.
+Es ejecutar el modelo **en el equipo que está junto a la máquina**, cargándolo desde su disco, sin llamar a ningún servidor. En el lab, ese equipo es tu puesto.
+
+### Cómo debe medirse
+
+| Requisito | En el lab |
+|-----------|-----------|
+| Medir la pieza siguiente, no el arranque | La primera predicción no cuenta |
+| Medir varias veces | Media de 20 dictámenes |
+| Comparar con el ciclo de la máquina | 0,39 ms por pieza frente a 1 s de ciclo |
+| Medir en el equipo real | El tiempo depende del puesto |
+
+### Sus riesgos
+
+| Riesgo | Qué provoca |
+|--------|-------------|
+| El equipo está cargado con otras cosas | El dictamen llega tarde (por eso se para el modelo generativo) |
+| El modelo del equipo no es el aprobado | Se dictamina con una versión que nadie validó |
+| El dictamen llega tarde | La pieza ya salió: debe ir a revisión |
+
+### Cómo se asegura
+
+- **Medir en el equipo real**, con la carga real, antes de llevarlo a la línea.
+- **Controlar qué modelo y qué versión** hay en cada equipo edge (lo verás en M07).
+- Definir qué pasa **si no hay dictamen a tiempo**: la pieza no se acepta sola.
+
+### En una frase
+
+> 🔑 El edge acerca el modelo a la máquina para que llegue a tiempo y no dependa de la red. Hay que medirlo en el equipo real, pieza a pieza.

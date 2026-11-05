@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Una aplicación pide texto al servicio local por HTTP y, si el servicio no está, el fallo se entiende.
+Comprender cómo se **integra un modelo generativo en una aplicación**: qué contrato usa, cómo debe comportarse la aplicación cuando el modelo responde mal o no responde, y cómo se hace robusta esa integración.
 
 ### Prerrequisitos
 
@@ -112,9 +112,33 @@ Hasta 180 s, el `timeout` del cliente. En un puesto real el límite debe ser má
 
 ## Conclusiones
 
-- **Las aplicaciones hablan con el modelo por HTTP**, con un JSON de mensajes, como con cualquier otro servicio de la planta.
-- **La respuesta trae más que texto:** por qué terminó (`finish_reason`) y cuánto ocupó (`usage`).
-- **Un modelo pequeño no siempre obedece.** Le pidieron una palabra y contestó otra cosa.
-- **Una buena integración sabe fallar**: si el servicio no está, lo dice, y no se queda colgada ni inventa una respuesta.
+### Qué es integrar un modelo en una aplicación
 
-> 🔑 Integrar un modelo es integrar un servicio más: contrato, tiempos máximos y qué pasa cuando no responde.
+La aplicación (la tablet del técnico, la intranet de mantenimiento) no ve el modelo: ve un **servicio HTTP**. Le manda un JSON con los mensajes y recibe otro con la respuesta, igual que con cualquier otro servicio de la planta.
+
+### Cómo debe comportarse la aplicación
+
+| Situación | Comportamiento correcto |
+|-----------|-------------------------|
+| El modelo responde | Mostrar el texto y saber si se cortó (`finish_reason: "length"`) |
+| El modelo responde otra cosa | No darlo por bueno: un modelo pequeño no siempre obedece |
+| El servicio no está | Decir «no hay servicio», con un error claro (`ConnectError`) |
+| El servicio tarda | Cortar a un tiempo máximo y avisar, no quedarse colgada |
+
+### Sus riesgos y cómo los has visto
+
+| Riesgo | Cómo lo has visto |
+|--------|-------------------|
+| El modelo no sigue la instrucción | Le pidieron una palabra y contestó otra cosa |
+| La respuesta se corta | `finish_reason: "length"` al llegar a `max_tokens` |
+| La aplicación se queda colgada | El cliente del lab espera hasta 180 s: demasiado para un operario |
+
+### Cómo se hace robusta
+
+- **Tiempo máximo corto** y visible para el usuario.
+- **Validar la respuesta** antes de usarla: formato, longitud, que contenga lo que se pidió.
+- **Mensaje claro cuando falla** y, si hace falta, un camino alternativo (el procedimiento en papel).
+
+### En una frase
+
+> 🔑 Integrar un modelo es integrar un servicio más: contrato, tiempo máximo, validación de la respuesta y qué pasa cuando no responde.

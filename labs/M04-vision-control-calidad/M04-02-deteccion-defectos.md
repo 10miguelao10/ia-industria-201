@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Localizas el rayón en la imagen y compruebas que una pieza buena no dispara la misma marca.
+Comprender qué es la **detección y localización de defectos**: en qué se diferencia de clasificar, cómo debe comprobarse un detector, cuáles son los límites de una regla sencilla y cuándo hace falta algo más.
 
 ### Prerrequisitos
 
@@ -90,9 +90,31 @@ Uno oscuro, uno vertical o uno que no cambia el brillo de una fila. Por eso un p
 
 ## Conclusiones
 
-- **Clasificar dice «mala»; detectar dice «dónde».** Retrabajo necesita lo segundo.
-- **A veces basta una regla sencilla** (la fila más brillante) cuando el defecto es siempre del mismo tipo.
-- **Esa regla tiene límites claros:** no vería un defecto oscuro, vertical o que no cambie el brillo.
-- **Se comprueba en los dos sentidos:** que encuentra el defecto en las malas y que no lo inventa en las buenas.
+### Qué es detectar un defecto
 
-> 🔑 Antes de usar una red neuronal, pregunta si una regla simple resuelve el caso, y cuáles son sus límites.
+Clasificar responde «¿está mala?». Detectar responde «**¿dónde?**». Es lo que necesita retrabajo para reparar la pieza o decidir si se puede salvar.
+
+### Cómo debe comprobarse un detector
+
+| Requisito | Cómo se cumple en el lab |
+|-----------|--------------------------|
+| Encuentra el defecto donde está | En las 5 defectuosas, la fila encontrada cae a 2 filas o menos de la real |
+| No inventa defectos | En las 3 buenas, ninguna fila llega al brillo del rayón |
+| Se mide contra la verdad | El manifiesto guarda la fila real de cada rayón |
+
+### Los límites de una regla sencilla
+
+La regla del lab busca la fila más brillante. Funciona porque aquí el defecto es siempre una línea clara y horizontal. No vería:
+
+- un defecto **oscuro** (una mancha, una falta de material);
+- un rayón **vertical** o en diagonal;
+- un defecto que **no cambia el brillo** de una fila entera.
+
+### Cuándo hace falta algo más
+
+- Cuando hay **varios tipos de defecto** o cambian de forma y posición: modelos de detección que aprenden de ejemplos marcados con su recuadro.
+- Siempre conviene empezar por la regla más simple que resuelva el caso, y **escribir sus límites**, para saber cuándo deja de servir.
+
+### En una frase
+
+> 🔑 Antes de usar una red neuronal, comprueba si una regla simple resuelve el caso, y deja escrito qué defectos no vería.

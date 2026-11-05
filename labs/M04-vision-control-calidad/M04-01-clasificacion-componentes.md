@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Entrenas un clasificador que separa componente correcto y defectuoso, y lo pruebas con imágenes que no vio.
+Comprender qué es la **clasificación por visión artificial**: cómo aprende un modelo a distinguir piezas buenas de defectuosas en una foto, cómo debe evaluarse, qué puede aprender por error y cómo se mejora.
 
 ### Prerrequisitos
 
@@ -103,9 +103,36 @@ El fondo en vez del rayón: acertaría aquí y fallaría en planta. En este gene
 
 ## Conclusiones
 
-- **Para un modelo, una imagen es una lista de números**: el brillo de cada punto.
-- **Hacen falta ejemplos de las dos clases**, buenas y malas, y se examina con fotos que no se usaron para entrenar.
-- **Un 88 % de acierto significa que algunas fotos se clasifican mal.** En inspección eso son defectos que pasan o piezas buenas que se paran.
-- **Hay que mirar qué está aprendiendo**: el rayón, y no otra diferencia casual entre las fotos, como el fondo o la iluminación.
+### Qué es clasificar con visión
+
+Es enseñar a un modelo a decir «buena» o «defectuosa» a partir de una foto. Para el modelo, una foto es una lista de números: aquí, el brillo de 256 puntos (la foto reducida a 16×16). Aprende qué patrones de números aparecen en las fotos de cada clase.
+
+### Cómo debe evaluarse
+
+| Requisito | Cómo se cumple en el lab |
+|-----------|--------------------------|
+| Ejemplos de las dos clases | 40 buenas y 40 con rayón |
+| Examen con fotos no vistas | El 30 % de cada clase se aparta |
+| Ver qué ha aprendido | Abrir fotos de cada clase y comprobar que la diferencia es el rayón |
+
+Resultado: **88 % de acierto** en las fotos de examen.
+
+### Qué puede aprender por error
+
+| Riesgo | Ejemplo |
+|--------|---------|
+| Aprender el fondo en vez del defecto | Si todas las malas se fotografiaran con otra luz, el modelo aprendería la luz |
+| Pocas fotos de defecto | En planta, los defectos son raros y hay pocos ejemplos |
+| Fotos de laboratorio, no de línea | Un modelo entrenado con fotos perfectas falla con polvo, reflejos o piezas giradas |
+
+Un 88 % significa que algunas fotos se clasifican mal: en la línea, defectos que pasan o piezas buenas que se paran.
+
+### Cómo se mejora
+
+- Fotos **en las condiciones reales** del puesto: misma cámara, luz y posición.
+- **Más ejemplos de defecto** y de variaciones normales.
+- Modelos de visión más capaces (redes convolucionales) cuando el defecto no es tan simple como una línea clara.
+
+### En una frase
 
 > 🔑 Un modelo de visión aprende lo que diferencia a las fotos de entrenamiento, que no siempre es lo que tú querías que aprendiera.

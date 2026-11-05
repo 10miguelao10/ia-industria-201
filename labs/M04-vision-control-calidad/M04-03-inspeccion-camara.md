@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Cierras el flujo de inspección: entra una carpeta de imágenes y sale un registro con una decisión por pieza.
+Comprender cómo funciona un **puesto de inspección**: cómo pasa una pieza de foto a decisión, cómo debe ser el registro que deja, qué papel tiene el umbral y cómo se decide dónde ponerlo.
 
 ### Prerrequisitos
 
@@ -113,9 +113,38 @@ No. Sin imagen no hay fila de aceptación. En planta, una pieza sin dictamen ir�
 
 ## Conclusiones
 
-- **Un puesto de inspección es un flujo:** entran fotos y sale un registro con una decisión por pieza.
-- **Inspeccionar no es entrenar.** Se usa el modelo que ya existe.
-- **La decisión depende del umbral.** `ko_00.png` era defectuosa y se aceptó con 0,493, justo por debajo de 0,5.
-- **Mover el umbral es cambiar el equilibrio:** más defectos detectados a cambio de más piezas buenas a revisión.
+### Qué es un puesto de inspección
 
-> 🔑 Ningún modelo es perfecto: hay que decidir, con calidad, qué error es más caro, si dejar pasar un defecto o parar una pieza buena.
+Es el flujo completo: **entra la foto de cada pieza y sale una decisión con su registro**. No se entrena nada: se usa el modelo que ya existe.
+
+```
+ cámara ──▶ lote_entrada/ ──▶ modelo ──▶ probabilidad ──▶ umbral ──▶ aceptar / revisar ──▶ lote_resultado.csv
+```
+
+### Cómo debe ser el registro
+
+| Requisito | En `lote_resultado.csv` |
+|-----------|-------------------------|
+| Una fila por pieza | 6 fotos, 6 filas |
+| La decisión y su motivo | Decisión y probabilidad de defecto |
+| Sin pieza sin dictamen | Si falta la foto, la pieza no se acepta |
+
+### El papel del umbral
+
+| Imagen | Probabilidad | Decisión | ¿Correcta? |
+|--------|--------------|----------|------------|
+| `ok_00.png` – `ok_02.png` | 0,27 – 0,35 | aceptar | Sí |
+| `ko_00.png` | **0,493** | aceptar | **No: defecto que se escapa** |
+| `ko_01.png`, `ko_02.png` | 0,66 – 0,71 | revisar | Sí |
+
+Con el umbral en 0,5, una pieza defectuosa pasa. Con 0,4, se habría parado, y las buenas seguirían pasando.
+
+### Cómo se decide el umbral
+
+- No lo decide el modelo: lo decide **calidad**, según qué error cuesta más, si dejar pasar un defecto o revisar una pieza buena.
+- Se revisa con **datos reales** del puesto, contando cuántos defectos se escapan y cuántas piezas buenas se paran con cada umbral.
+- Las piezas **dudosas** (cerca del umbral) pueden ir a una revisión manual en lugar de decidirse solas.
+
+### En una frase
+
+> 🔑 Ningún modelo es perfecto: el umbral es una decisión de calidad sobre qué error se acepta, y tiene que estar escrita.

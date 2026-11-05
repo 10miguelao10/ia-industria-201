@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comparas la tasa de avisos de un lote normal con la del mismo lote 8 °C más caliente.
+Comprender qué es la **monitorización de un modelo en operación**: por qué un modelo se degrada sin avisar, cómo debe vigilarse, cómo se detecta la deriva y qué se hace cuando aparece.
 
 ### Prerrequisitos
 
@@ -99,9 +99,35 @@ La de la base, alrededor de 0,08. Si no vuelve, ya no estás puntuando el modelo
 
 ## Conclusiones
 
-- **Un modelo no avisa de que ha dejado de servir.** Sigue contestando aunque la línea haya cambiado.
-- **La deriva se ve vigilando su comportamiento:** con el husillo 8 °C más caliente, las piezas a revisión pasaron del 8 % al 96 %.
-- **Sin línea base no hay vigilancia.** El número de hoy solo dice algo comparado con el de referencia.
-- **No es lo mismo un servicio caído que un modelo desfasado.** Lo primero se arregla reiniciando; lo segundo, revisando datos y, quizá, reentrenando.
+### Qué es la deriva
+
+Es que **la línea cambie** y el modelo siga contestando como si nada. El modelo aprendió con un proceso concreto; si cambia el refrigerante, llega el verano o se cambia de utillaje, sus dictámenes dejan de describir la realidad. No da ningún error.
+
+### Cómo debe vigilarse
+
+| Requisito | En el lab |
+|-----------|-----------|
+| Una línea base | Con el proceso normal, el 8 % de las piezas va a revisión |
+| Una medida periódica | La misma tasa con los datos de ahora |
+| Un umbral de alarma | Avisar si sube más de 0,10 |
+| Un registro | `seguimiento.json` con las dos tasas |
+
+Resultado: con el husillo 8 °C más caliente, la tasa pasó del **8 % al 96 %**.
+
+### Cómo se detecta
+
+- **Cambio en lo que dice el modelo**: más o menos piezas a revisión de lo habitual.
+- **Cambio en lo que recibe**: la temperatura media, la vibración… se alejan de las del entrenamiento.
+- **Cambio en el resultado real**: calidad encuentra defectos que el modelo no marcó, o al revés.
+
+### Qué se hace cuando aparece
+
+| Situación | Qué hacer |
+|-----------|-----------|
+| El servicio está caído | Es una avería: se reinicia; no hay que reentrenar |
+| El proceso cambió de forma legítima | Reentrenar con datos del proceso nuevo y desplegar otra versión |
+| El proceso se ha desviado por un problema | Avisar a proceso o mantenimiento: el problema es la máquina, no el modelo |
+
+### En una frase
 
 > 🔑 Poner un modelo en marcha no es el final: hay que medir cada día si la línea sigue pareciéndose a la que aprendió.

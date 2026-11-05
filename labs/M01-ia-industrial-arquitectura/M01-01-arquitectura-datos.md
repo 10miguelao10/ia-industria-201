@@ -8,7 +8,9 @@
 
 ### Objetivo
 
-Pones en marcha una estación que fabrica piezas, sigues el registro de una pieza desde la máquina hasta el histórico y compruebas que no se pierde por el camino.
+Comprender qué es una **arquitectura de datos industrial**: qué piezas la forman y cómo viaja el dato por ellas, cómo debe ser para que sirva a la IA, cómo se detectan sus debilidades y cómo se perfecciona.
+
+Para eso trabajas con una arquitectura mínima, la de la estación EST-01: primero la entiendes, y después la pones a prueba hasta encontrar dónde se rompe.
 
 ### Prerrequisitos
 
@@ -47,7 +49,23 @@ El camino del registro tiene tres tramos:
 | Broker MQTT en un servidor de planta | Contenedor `mosquitto` |
 | Histórico (historian, base de datos de MES) | Contenedor `archivador` y el fichero `infra/data/historial.sqlite` |
 
-Todavía no hay ningún modelo de IA. Este lab solo comprueba que los registros llegan.
+**Cómo es el histórico por dentro.** El archivador guarda cada registro como una fila de la tabla `lecturas` de `historial.sqlite`:
+
+```sql
+CREATE TABLE lecturas (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,  -- número de fila; lo pone la base de datos y nunca se repite
+    pieza_id       TEXT,   -- identificador que puso la estación (P0001…)
+    ts             TEXT,   -- hora en que terminó la carcasa
+    temperatura_c  REAL,   -- las tres medidas del ciclo
+    vibracion_mm_s REAL,
+    corriente_a    REAL,
+    payload        TEXT    -- el mensaje MQTT original, tal cual llegó
+)
+```
+
+Por cada registro que recibe, el archivador añade una fila. No comprueba si ese `pieza_id` ya existía: guarda todo lo que llega.
+
+Esta arquitectura es **la mínima para que el dato se mueva**. Los pasos te enseñan cómo funciona; los retos, dónde se rompe. Todavía no hay ningún modelo de IA.
 
 ### 1 — Arrancar la estación y el camino de los registros
 
@@ -119,45 +137,44 @@ return ok("m01-01", f"ciclo {ciclo['pieza_id']} archivado; total={n}")
 
 </details>
 
-### 3 — Mirar la estación y el archivador
+### 3 — Ver la conversación entre la estación y el archivador
 
-**Qué ocurre:** el `OK` es un resumen. Ahora miras directamente qué dice cada parte: la estación anuncia cada carcasa que termina con su temperatura, y el archivador anuncia cada registro que guarda.
+**Qué ocurre:** el `OK` del paso 2 es un resumen que da un script del curso. Ahora lo ves contado por los propios protagonistas. Cada contenedor escribe una línea, su **log**, cada vez que hace algo; es su diario de trabajo. Vas a ver los diarios de la estación y del archivador a la vez, en directo.
 
 ```bash
-# Las 5 últimas carcasas que terminó la estación
-docker compose logs --tail=5 sensor
-
-# Los 5 últimos registros que guardó el archivador
-docker compose logs --tail=5 archivador
+# Diario en directo de la estación y del archivador (Ctrl+C para salir)
+docker compose logs -f --tail=0 sensor archivador
 ```
 
-**Resultado esperado:**
+**Resultado esperado** (cambian las piezas y las temperaturas; una línea nueva por segundo):
 
 ```text
-sensor-1  | sensor: P0006 63.05 C
-sensor-1  | sensor: P0007 61.11 C
-sensor-1  | sensor: P0008 61.36 C
-sensor-1  | sensor: P0009 61.6 C
-sensor-1  | sensor: P0010 62.1 C
+sensor-1      | sensor: P2818 62.28 C
+archivador-1  | archivador: P2818
+sensor-1      | sensor: P2819 62.72 C
+archivador-1  | archivador: P2819
+sensor-1      | sensor: P2820 62.96 C
+archivador-1  | archivador: P2820
 ```
 
-```text
-archivador-1  | archivador: P0006
-archivador-1  | archivador: P0007
-archivador-1  | archivador: P0008
-archivador-1  | archivador: P0009
-archivador-1  | archivador: P0010
-```
+**Cómo se lee:**
 
-Las mismas carcasas en los dos lados: todo lo que la estación fabrica queda en el histórico.
+| Línea | Quién la escribe | Qué significa |
+|-------|------------------|---------------|
+| `sensor: P2818 62.28 C` | La estación | «He terminado la carcasa P2818, el husillo estaba a 62,28 °C, y he enviado su registro al broker» |
+| `archivador: P2818` | El archivador | «Me ha llegado el registro de P2818 y lo he guardado en el histórico» |
+
+Se lee como una conversación: la estación anuncia cada carcasa y el archivador confirma que la ha guardado. Si cada anuncio tiene su confirmación, entre medias no se pierde nada. Alguna vez dos líneas salen en orden cruzado porque los dos diarios llegan a la pantalla por separado; no significa nada.
+
+Déjalo abierto: en el reto 2 lo usarás para ver cómo se pierden registros.
 
 ## Comprueba tu entendimiento
 
 **La misma pieza**
 
-Toma el `pieza_id` de la salida del paso 2 y búscalo en los mensajes de log del paso 3.
+Si el archivador dejara de confirmar las carcasas, ¿dónde se habrían perdido los registros: en la estación, en el broker o en el archivador?
 
-→ Aparece en la estación (la fabricó) y en el archivador (la guardó).
+→ No en la estación, que sigue anunciándolas. Se pierden porque el broker los reparte y nadie los recoge: el broker no guarda nada.
 
 ## Reto
 
@@ -187,7 +204,7 @@ docker compose start sensor
 
 ### 2 — Para el archivador con la estación fabricando
 
-Ahora la estación sigue fabricando, pero nadie guarda. Para el archivador 10 segundos, vuelve a arrancarlo y busca huecos en la numeración del histórico.
+Ahora la estación sigue fabricando, pero nadie guarda. Si tienes abierto el diario del paso 3, verás que la estación sigue anunciando carcasas y nadie las confirma. Para el archivador 10 segundos, vuelve a arrancarlo y busca huecos en la numeración del histórico.
 
 ```bash
 # La estación sigue: una carcasa por segundo
@@ -294,9 +311,52 @@ docker compose up -d mosquitto sensor archivador
 
 ## Conclusiones
 
-- **Una solución de datos en planta son piezas separadas.** Origen (la estación), transporte (el broker) y almacén (el archivador). Si una falta, el dato no llega.
-- **El broker reparte, no guarda.** Lo que se publica cuando nadie escucha se pierde.
-- **El histórico no es la realidad.** Puede faltar producción (reto 2) y puede haber identificadores repetidos (reto 3), sin que nada dé error.
-- **El identificador de pieza y la hora son lo que permite seguir un dato** desde la máquina hasta el histórico. Sin ellos no se puede unir una lectura con su resultado de calidad.
+### Qué es una arquitectura de datos industrial
 
-> 🔑 Antes de pensar en modelos, el dato tiene que llegar completo y cada registro tiene que ser de la pieza que crees.
+Es la cadena de componentes que lleva el dato de proceso desde la máquina hasta donde se usa. En este laboratorio tiene tres:
+
+```
+ ORIGEN                      TRANSPORTE               ALMACÉN
+ la estación emite ────────▶ el broker reparte ─────▶ el archivador guarda
+ un registro por carcasa     a quien escuche          una fila por registro
+```
+
+Cada componente tiene **una sola función** y es un proceso separado que puede fallar por su cuenta. Lo que permite seguir un dato de punta a punta es que cada registro lleva **estación, pieza y hora**.
+
+### Cómo debe ser para que sirva a la IA
+
+Un modelo aprende del histórico y decide sobre piezas reales. Por eso la arquitectura tiene que garantizar tres cosas:
+
+| Requisito | Qué significa | Por qué le importa a la IA |
+|-----------|---------------|----------------------------|
+| **Completa** | Cada carcasa fabricada tiene su registro | Si faltan piezas, el modelo aprende de una línea que no es la real |
+| **Identificable** | Cada registro es de una sola carcasa, y se sabe de cuál | Para entrenar hay que unir las señales de una pieza con su resultado de calidad |
+| **Comprobable** | Se puede verificar que lo anterior se cumple | Si nadie lo mira, los fallos no dan error y pasan al modelo |
+
+### Dónde se rompe esta arquitectura y cómo lo has detectado
+
+| Debilidad | Cómo la has detectado | Qué provoca |
+|-----------|-----------------------|-------------|
+| El broker no guarda: lo que se publica cuando nadie escucha se pierde | Reto 2: paras el archivador y aparece un hueco de 10 carcasas | Producción real sin registro, **sin ningún error** |
+| Un único archivador, sin respaldo | Reto 2 | Si se cae, no hay histórico de ese tramo |
+| El identificador lo pone un contador de la máquina, que se reinicia | Reto 3: tras reiniciar, cada `pieza_id` aparece varias veces | Varias carcasas distintas con el mismo nombre |
+| La tabla no tiene una clave de pieza única | Reto 3: el histórico acepta los repetidos | No se sabe a cuál pertenece un resultado de calidad |
+| Nadie compara lo fabricado con lo registrado | El total del paso 2 no cuadra con el número de pieza, y nada avisa | Los fallos anteriores pasan inadvertidos |
+
+La forma de detectar debilidades es siempre la misma: **provocar un fallo de un componente y comprobar qué le pasa al dato**.
+
+### Cómo se perfecciona
+
+| Debilidad | Cómo se resuelve en una arquitectura de planta |
+|-----------|-----------------------------------------------|
+| Pérdida si nadie escucha | Sesiones persistentes con QoS 1, o un bus con persistencia (Kafka) delante del histórico |
+| Caída del almacén o de la red | *Store-and-forward* en el equipo edge: guarda localmente y reenvía al volver |
+| Identificador que se repite | Identificador que no depende de la máquina (MES, DataMatrix grabado en la pieza), siempre con su hora |
+| Histórico que acepta duplicados | Clave única en la tabla (pieza + hora, o el identificador del MES) |
+| Fallos que nadie ve | Conciliación periódica entre las piezas producidas según el MES y los registros del histórico |
+
+En los módulos siguientes irás viendo piezas de esa arquitectura completa: calidad del dato (M02), edge (M06), servicio con versión (M07) y trazabilidad (M08).
+
+### En una frase
+
+> 🔑 Montar el camino del dato es fácil. Que el dato llegue completo y sea de la pieza que crees hay que diseñarlo y comprobarlo, porque todo lo que haga después la IA depende de ello.

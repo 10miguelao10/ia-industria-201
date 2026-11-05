@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Pasas el histórico crudo a una fila por pieza, en grados, con los huecos contados y los 9999 apartados.
+Comprender qué es la **preparación del dato para analítica**: qué problemas trae un histórico real, cómo debe quedar un dataset para entrenar, cómo se detectan los datos malos y cómo se tratan sin esconderlos.
 
 ### Prerrequisitos
 
@@ -139,9 +139,35 @@ La pieza no aparece en `limpio.csv`: se excluye, no se sustituye por la media. R
 
 ## Conclusiones
 
-- **El histórico real viene sucio:** huecos (sensor desconectado), unidades mezcladas (décimas) y valores imposibles (sensor clavado en 9999).
-- **Limpiar es decidir qué se queda y contarlo.** De 800 piezas quedaron 768: 32 sin temperatura y 6 imposibles se apartaron.
-- **Un hueco no se rellena con la media.** Rellenarlo escondería un sensor mudo y metería en el entrenamiento un dato que nadie midió.
-- **Una pieza, una fila:** es la condición para poder unir las señales con la etiqueta de calidad.
+### Qué es preparar el dato
 
-> 🔑 Un modelo aprende lo que hay en el fichero. Si el fichero tiene 9999 °C, el modelo «aprende» que el husillo puede estar a 9999 °C.
+Es convertir el histórico tal como llegó en un **dataset**: una tabla con una fila por pieza, señales en unidades correctas y solo con valores que la máquina pudo medir de verdad. Es el paso que más tiempo lleva en cualquier proyecto de IA industrial.
+
+### Cómo debe quedar un dataset para entrenar
+
+| Requisito | En `limpio.csv` |
+|-----------|-----------------|
+| Una fila por pieza | 768 filas y 768 identificadores distintos |
+| Unidades homogéneas | Todas las temperaturas entre 40 y 120 °C |
+| Sin valores imposibles | Los 9999 apartados en `imposibles.csv` |
+| Lo descartado, contado | 800 → 768: 32 huecos y 6 imposibles |
+
+### Cómo se detectan los datos malos
+
+| Problema | Qué pasó en la máquina | Cómo se detecta |
+|----------|------------------------|-----------------|
+| Hueco | Sensor desconectado | Campo vacío |
+| Unidad distinta | Un equipo reporta en décimas | Valores fuera de rango físico, del orden de 10 veces lo normal |
+| Sensor clavado | Valor de error del sensor | Un valor fijo imposible (9999) |
+| Pieza repetida | Identificador que se reinicia (M01-01) | Contar filas frente a identificadores distintos |
+
+### Cómo se tratan sin esconderlos
+
+- **No rellenar huecos con la media**: escondería un sensor mudo y metería en el entrenamiento un dato que nadie midió.
+- **Corregir solo lo que tiene una causa conocida**, como dividir entre 10 las décimas.
+- **Apartar, no borrar**: los imposibles se guardan aparte para poder revisarlos y avisar a mantenimiento.
+- **Dejar el recuento escrito** para que quien use el dataset sepa qué se quitó y por qué.
+
+### En una frase
+
+> 🔑 Un modelo aprende lo que hay en el fichero. Preparar el dato es decidir, y dejar escrito, qué parte del histórico es la realidad.

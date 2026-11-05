@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Publicas el clasificador como servicio y cada respuesta dice qué versión del modelo contestó.
+Comprender qué es **publicar un modelo como servicio**: por qué se hace, cómo debe ser su contrato, qué riesgos evita y cómo se mantiene bajo control cuando hay varias versiones.
 
 ### Prerrequisitos
 
@@ -124,9 +124,38 @@ Un error `HTTP 422` con la lista de campos que faltan (`temperatura_c`, `vibraci
 
 ## Conclusiones
 
-- **Publicar un modelo como servicio** evita que cada aplicación tenga su copia y su versión.
-- **Cada respuesta dice qué versión contestó**, y cada consulta queda registrada con su entrada y su salida.
-- **El servicio no se inventa datos:** una pieza sin señales se rechaza con un error.
-- **El servicio documenta su propio contrato** (`/docs`): qué recibe y qué devuelve.
+### Qué es un servicio de inferencia
 
-> 🔑 Si no sabes qué versión del modelo dio un dictamen, no puedes explicarlo ni corregirlo.
+Es un único proceso que tiene cargado el modelo y responde a cualquier aplicación que le mande las señales de una pieza. Las aplicaciones no tienen el modelo: le preguntan al servicio.
+
+```
+ MES ─────┐
+ calidad ─┼──▶ POST /predecir ──▶ servicio (modelo defecto-0.1) ──▶ dictamen + versión
+ tablet ──┘                                 └──▶ predicciones.jsonl
+```
+
+### Cómo debe ser su contrato
+
+| Requisito | En el lab |
+|-----------|-----------|
+| Documentado | `/docs` describe qué recibe y qué devuelve |
+| Dice si está listo y qué versión sirve | `/salud` → `defecto-0.1` |
+| Cada respuesta lleva la versión | `"version": "defecto-0.1"` |
+| Cada consulta queda registrada | Una línea en `predicciones.jsonl` con entrada y salida |
+| No se inventa datos | Una pieza sin señales se rechaza con `HTTP 422` |
+
+### Qué riesgos evita
+
+- **Versiones distintas en cada aplicación**: todas usan el mismo modelo.
+- **Dictámenes sin explicación**: cada uno queda con su entrada y su versión.
+- **Datos incompletos que pasan**: el servicio los rechaza.
+
+### Cómo se mantiene bajo control
+
+- Cambiar de modelo es **desplegar una versión nueva** del servicio, no copiar ficheros.
+- La versión se carga **al arrancar**, y un cambio de fichero no tiene efecto hasta reiniciar (lo comprobarás en M08-02).
+- Se vigila su **comportamiento** con el tiempo (M07-02).
+
+### En una frase
+
+> 🔑 Publicar el modelo como servicio da un único punto de decisión, con contrato, versión y registro. Si no sabes qué versión dio un dictamen, no puedes explicarlo.

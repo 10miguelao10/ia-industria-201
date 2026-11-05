@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-El agente lee la temperatura con una herramienta y se niega a escribir en el automatismo.
+Comprender qué es un **agente**: cómo usa herramientas para trabajar con datos vivos, cómo debe controlarse lo que puede hacer, cómo se detecta un mal uso y cómo se diseña para que no toque el proceso.
 
 ### Prerrequisitos
 
@@ -110,9 +110,35 @@ No. El agente de este curso solo lee. El paro lo decide el automatismo, y la for
 
 ## Conclusiones
 
-- **Un agente es un modelo con herramientas.** El dato vivo lo trae una herramienta (`leer_estacion`), no la memoria del modelo.
-- **El código decide qué herramienta se usa; el modelo solo redacta.** El número de la frase es el que leyó la herramienta.
-- **Todo queda en una traza**: qué herramienta se usó y qué devolvió.
-- **La seguridad está en qué herramientas existen.** El agente no puede escribir en el automatismo porque no tiene con qué.
+### Qué es un agente
 
-> 🔑 No se le pide a un agente que «no toque el proceso»: se le deja sin herramientas para tocarlo.
+Es un modelo al que se le dan **herramientas**: funciones que puede pedir que se ejecuten para traer datos o hacer acciones. Aquí hay una sola, `leer_estacion`, que lee la temperatura actual de EST-01.
+
+```
+ pregunta ──▶ el código llama a leer_estacion ──▶ apunta la traza ──▶ el modelo redacta la respuesta con ese número
+```
+
+### Cómo debe controlarse
+
+| Requisito | En el lab |
+|-----------|-----------|
+| El dato sale de la herramienta, no de la memoria | La frase contiene el número que leyó la herramienta |
+| Todo queda en una traza | `traza_agente.jsonl`: herramienta usada y valor devuelto |
+| Solo tiene las herramientas imprescindibles | Ninguna de escritura |
+| Lo peligroso es imposible, no solo prohibido | No puede escribir en el automatismo porque no existe con qué |
+
+### Cómo se detecta un mal uso
+
+- La respuesta contiene un dato que **no aparece en la traza**: se lo ha inventado.
+- La traza muestra una herramienta **que no debía usarse** para esa pregunta.
+- Se le pide una acción y la **intenta** en lugar de rechazarla.
+
+### Cómo se diseña para no tocar el proceso
+
+- **Mínimo privilegio**: solo herramientas de lectura, y solo las necesarias.
+- Si alguna vez hace falta una acción, que **la confirme una persona** y que pase por los mismos controles que cualquier otra orden.
+- **Nunca** una herramienta que escriba en el paro de seguridad o en la consigna del proceso.
+
+### En una frase
+
+> 🔑 No se le pide a un agente que «no toque el proceso»: se le deja sin herramientas para tocarlo, y se guarda la traza de todo lo que hace.

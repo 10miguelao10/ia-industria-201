@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comparas una regresión logística y un árbol poco profundo sobre el mismo corte, y eliges uno con una regla escrita de antemano.
+Comprender cómo se **elige el modelo que va a la línea**: cómo se comparan candidatos de forma justa, cómo debe ser la regla de elección, qué errores son típicos al comparar y cómo queda documentado el elegido.
 
 ### Prerrequisitos
 
@@ -114,9 +114,36 @@ Con el de menor tasa de falsas alarmas. Es la segunda clave de la regla.
 
 ## Conclusiones
 
-- **Para comparar modelos, todos se miden con la misma vara:** las mismas piezas de entrenamiento y de examen.
-- **La regla de elección se escribe antes de ver los resultados**, para que nadie la ajuste a su favor.
-- **El árbol ganó con claridad:** 16 de 21 defectos con 3 falsas alarmas, frente a 15 con 38.
-- **El elegido queda con nombre y versión** (`modelo_defecto.joblib`, `defecto-0.1`). Es lo que se despliega y lo que se audita después.
+### Qué es elegir un modelo
 
-> 🔑 Elegir un modelo es una decisión de proceso con una regla escrita, no una cuestión de «el que mejor parezca».
+Es decidir cuál de varios candidatos se pone en la línea. No es una cuestión técnica de cuál «parece mejor», sino una **decisión de proceso** con criterios que la planta acepta.
+
+### Cómo debe ser la comparación
+
+| Requisito | Cómo se cumple en el lab |
+|-----------|--------------------------|
+| Misma vara para todos | Mismas piezas de entrenamiento y de examen |
+| Regla escrita antes de ver resultados | Primero más defectos encontrados; si empatan, menos falsas alarmas |
+| Métricas de planta | Defectos encontrados y falsas alarmas |
+| El elegido queda identificado | `modelo_defecto.joblib`, versión `defecto-0.1` |
+
+Resultado:
+
+| | Defectos encontrados | Falsas alarmas |
+|--|----------------------|----------------|
+| Regresión logística | 15 de 21 | 38 de 210 |
+| **Árbol (elegido)** | **16 de 21** | **3 de 210** |
+
+### Errores típicos al comparar
+
+- Comparar con **cortes distintos**: un modelo parece mejor solo porque le tocaron piezas más fáciles.
+- Ajustar la regla **después de ver los resultados** para que gane el favorito.
+- Elegir por un **porcentaje global**, que esconde los defectos que se escapan.
+
+### Cómo queda documentado
+
+El modelo elegido es un fichero con **nombre y versión**. Esa versión viajará en cada dictamen (M07) y permitirá reconstruir decisiones (M08). Si mañana se entrena otro, será `defecto-0.2` y se podrá comparar con la misma regla.
+
+### En una frase
+
+> 🔑 El modelo que va a la línea se elige con una regla escrita de antemano, se mide igual que los demás y queda con nombre y versión.

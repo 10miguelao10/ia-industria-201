@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Lees la misma temperatura de EST-01 por OPC-UA y por Modbus, y compruebas que cuadra con el estado que publica MQTT.
+Comprender qué es la **integración mediante protocolos industriales**: cómo se accede al mismo dato por MQTT, OPC-UA y Modbus, cómo debe ser una integración fiable, qué riesgos tiene cada protocolo y cómo se reducen.
 
 ### Prerrequisitos
 
@@ -120,9 +120,36 @@ No. 0 es «paro en reposo»: nadie lo ha activado. Este laboratorio lo lee pero 
 
 ## Conclusiones
 
-- **La misma máquina se lee de varias formas** según quién pregunte: MQTT para la plataforma de datos, OPC-UA para el SCADA, Modbus para equipos antiguos.
-- **Integrar es conseguir que todos cuenten lo mismo.** Los tres caminos dieron la misma temperatura.
-- **OPC-UA da el dato con nombre; Modbus da un número en una posición.** Con Modbus, la escala y el significado (614 = 61,4 °C; registro 10 = paro) hay que saberlos por el manual.
-- **Leer no es escribir.** El paro de seguridad se puede consultar, pero ningún paso del curso lo toca.
+### Qué es integrar con protocolos industriales
 
-> 🔑 Si una cifra de Modbus parece absurda, lo primero es revisar la escala, no la máquina.
+En planta conviven equipos de épocas y fabricantes distintos, y cada uno habla un protocolo. Integrar es conseguir que todos los sistemas que leen una misma magnitud obtengan el mismo valor, venga por donde venga.
+
+| Protocolo | Cómo se pide | Qué devuelve | Uso típico |
+|-----------|--------------|--------------|------------|
+| MQTT | Suscripción a un tema | El registro completo, con nombres | Plataforma de datos, IT |
+| OPC-UA | Navegar hasta un nodo con nombre | Valor con nombre y tipo | SCADA, MES |
+| Modbus | Leer un registro por número | Un entero sin nombre ni unidad | PLC y equipos antiguos |
+
+### Cómo debe ser una integración fiable
+
+- Los tres caminos dan **el mismo valor**: aquí, la temperatura del husillo con menos de 1,5 °C de diferencia.
+- La **escala y el significado** de cada dato están documentados, sobre todo en Modbus (registro 0 en décimas; registro 10, paro de seguridad).
+- Se distingue claramente **qué se puede leer y qué no se debe escribir nunca**.
+
+### Sus riesgos y cómo los has visto
+
+| Riesgo | Cómo lo has visto | Qué provoca |
+|--------|-------------------|-------------|
+| Escala olvidada en Modbus | El registro 0 vale 632, no 63,2 | Un modelo que reciba 632 °C aprende algo que no existe |
+| Modbus no dice qué es cada registro | El significado está en el manual, no en el dato | Leer el registro equivocado da un número válido pero falso |
+| Acceso de escritura a OT | El registro 10 es el paro de seguridad | Un error de integración podría actuar sobre la máquina |
+
+### Cómo se mejora
+
+- Preferir **OPC-UA**, que lleva nombre, tipo y unidad, cuando el equipo lo permite.
+- Concentrar la traducción de Modbus en **una pasarela** con un mapa de registros documentado, y publicar desde ahí ya en grados.
+- Dar a los sistemas de datos **acceso de solo lectura** a OT, y comprobar periódicamente que los tres caminos siguen cuadrando.
+
+### En una frase
+
+> 🔑 Integrar no es solo conectarse: es garantizar que todos leen el mismo dato, con la misma unidad, y que nadie puede tocar lo que no debe.

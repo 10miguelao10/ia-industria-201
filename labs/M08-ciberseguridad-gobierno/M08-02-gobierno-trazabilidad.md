@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Reconstruyes la entrada, el dictamen y la versión de una pieza, y compruebas que cambiar el fichero `VERSION` no reescribe el pasado.
+Comprender qué es el **gobierno y la trazabilidad** de un modelo: qué hay que poder reconstruir de cada decisión, cómo debe ser un registro fiable, cómo se comprueba que no se puede alterar y cómo se clasifica el uso del sistema.
 
 ### Prerrequisitos
 
@@ -107,9 +107,37 @@ Asiste: recomienda seguir o revisar y no escribe el paro. No rechaza piezas por 
 
 ## Conclusiones
 
-- **Gobernar un modelo es poder reconstruir cada decisión:** qué entró, qué dictaminó, con qué versión y cuándo.
-- **El registro no se reescribe** aunque alguien cambie un fichero: las dos piezas conservaron la versión que de verdad contestó.
-- **El sistema asiste; no decide solo.** Recomienda seguir o revisar y no toca el paro. Esa clasificación es la que se documenta frente al Reglamento europeo de IA.
-- **La trazabilidad empieza en el M01**: sin identificador de pieza y hora desde el origen, aquí no habría nada que reconstruir.
+### Qué es gobernar un modelo
+
+Es poder responder, para cualquier pieza, a **por qué se tomó esa decisión**. Para eso, cada dictamen tiene que dejar rastro de cuatro cosas:
+
+| Qué | Dónde está |
+|-----|------------|
+| Qué entró | `entrada`: las señales de la pieza |
+| Qué se decidió | `dictamen` y `probabilidad` |
+| Con qué modelo | `version` |
+| Cuándo | `ts` |
+
+### Cómo debe ser un registro fiable
+
+| Requisito | En el lab |
+|-----------|-----------|
+| Lo escribe el servicio, no la aplicación | `predicciones.jsonl` lo llena `api` |
+| La versión es la que de verdad contestó | La que se cargó al arrancar el servicio |
+| No cambia si alguien toca un fichero | Con `VERSION` cambiado a `defecto-0.2`, AUD0007 y AUD0008 siguieron en `defecto-0.1` |
+
+### Cómo se comprueba
+
+Provocando el cambio y mirando el rastro: es lo que hace `m08-02`. Un auditor busca la pieza (`grep AUD0007 data/predicciones.jsonl`) y debe poder reconstruir la decisión sin preguntar a nadie.
+
+### Cómo se clasifica el uso
+
+El sistema del curso **asiste**: recomienda seguir o revisar, no rechaza piezas por sí solo y no toca el paro. Esa clasificación (quién decide, sobre qué, con qué supervisión) es la que se documenta al evaluar el uso frente al Reglamento europeo de IA.
+
+### Todo empieza en el M01
+
+Sin un identificador de pieza único y una hora desde el origen, aquí no habría nada que reconstruir. La trazabilidad no se añade al final: se diseña desde la primera pieza de la arquitectura.
+
+### En una frase
 
 > 🔑 Ante una reclamación, la pregunta es «¿por qué se aceptó esta pieza?». Si el registro no la responde, el modelo no está gobernado, por mucho que acierte.

@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Arrancas un modelo generativo en el puesto y compruebas que responde en local, sin salir a internet.
+Comprender qué es **ejecutar un modelo generativo en local**: qué hace falta para que funcione en el puesto, cómo debe dimensionarse, qué se gana y qué se pierde frente a un servicio externo, y cómo se decide el tamaño.
 
 ### Prerrequisitos
 
@@ -110,9 +110,33 @@ Sin GPU y con 2 GB para el contenedor no respondería a tiempo. El de 0,5B cabe 
 
 ## Conclusiones
 
-- **Un modelo de lenguaje puede ejecutarse en el propio puesto**, sin enviar nada fuera de la fábrica.
-- **Un modelo local es un fichero** (aquí, unos 470 MB) más un proceso que lo carga en memoria.
-- **El tamaño se elige por el puesto**: este modelo de 0,5B cabe en 2 GB y responde en menos de un segundo en CPU, a cambio de ser más limitado que uno grande.
-- **Lo que decide si es usable es el tiempo de respuesta** en el equipo real.
+### Qué es un modelo generativo local
 
-> 🔑 «Local» significa que la pregunta y la respuesta no salen del puesto. Eso se comprueba mirando a qué dirección se llama.
+Es un modelo de lenguaje que se ejecuta **en el propio equipo**, sin enviar nada fuera. Tiene dos partes: un **fichero** con el modelo (aquí, unos 470 MB) y un **proceso** que lo carga en memoria y responde por HTTP.
+
+### Cómo debe dimensionarse
+
+| Requisito | En el lab |
+|-----------|-----------|
+| Cabe en la memoria del puesto | Techo de 2 GB para el contenedor `llm` |
+| Responde a tiempo | Una respuesta corta en menos de un segundo en CPU |
+| No sale de la fábrica | La dirección es `http://llm:8088`, el propio puesto |
+
+### Qué se gana y qué se pierde
+
+| | Modelo local pequeño (este) | Servicio externo grande |
+|--|------------------------------|-------------------------|
+| Datos | No salen del puesto | Salen de la fábrica |
+| Disponibilidad | No depende de internet | Depende de la conexión y del proveedor |
+| Calidad de las respuestas | Limitada: se equivoca y no siempre obedece | Mucho mejor |
+| Coste | El del equipo | Por uso |
+
+### Cómo se decide el tamaño
+
+- Se empieza por la **condición de la planta** (aquí: ningún dato sale de la fábrica, sin GPU).
+- Se elige el **modelo más capaz que responda a tiempo** en el equipo real.
+- Se compensa su tamaño dándole **buen contexto** (los documentos de la planta, en M05-03) en lugar de esperar que lo sepa todo.
+
+### En una frase
+
+> 🔑 «Local» significa que la pregunta y la respuesta no salen del puesto. El precio es un modelo más pequeño, y eso se compensa con buen contexto.

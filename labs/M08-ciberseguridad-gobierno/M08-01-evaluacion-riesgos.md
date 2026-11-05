@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Listas las superficies de la arquitectura y dejas una medida para el dato, otra para el modelo y otra para el acceso.
+Comprender qué es una **evaluación de riesgos** de una solución de IA industrial: qué superficies expone, cómo deben definirse las medidas, cómo se comprueba que se cumplen y cómo se corrige lo que no.
 
 ### Prerrequisitos
 
@@ -121,9 +121,29 @@ Mínimo privilegio: el agente no puede escribir en el proceso porque no tiene co
 
 ## Conclusiones
 
-- **Cada servicio que escucha en un puerto es una superficie de ataque.** Lo primero es tener el inventario.
-- **Lo más delicado es lo que toca OT**, como el esclavo Modbus con el registro del paro.
-- **Las medidas tienen que ser concretas**: una para el dato, otra para el modelo y otra para el acceso.
-- **Lo escrito hay que comprobarlo.** La medida de acceso decía «solo localhost» y los puertos estaban abiertos en todas las interfaces.
+### Qué es evaluar riesgos
+
+Es responder a tres preguntas antes de llevar la solución a la red de planta: **qué está expuesto**, **qué puede salir mal** y **qué se ha hecho para evitarlo**. Cada servicio que escucha en un puerto es una superficie; los más delicados son los que tocan OT.
+
+### Cómo deben ser las medidas
+
+| Tipo | Medida declarada | ¿Concreta y comprobable? |
+|------|------------------|--------------------------|
+| Dato | El histórico y el procedimiento no salen del volumen local | Sí |
+| Modelo | Los modelos están en disco y cada respuesta lleva versión | Sí |
+| Acceso | Los puertos solo se publican en localhost | Sí, y se puede comprobar |
+
+### Cómo se comprueba que se cumplen
+
+Comparando lo escrito con lo real. En el paso 1, `docker compose ps` enseña `0.0.0.0:1883`: el puerto está abierto **en todas las interfaces**, no solo en localhost. La medida de acceso **no se cumple**, y el comando `m08-01` no lo detecta porque solo imprime el texto.
+
+### Cómo se corrige
+
+- **Cumplir la medida**: publicar los puertos solo en `127.0.0.1` (solución del reto 1).
+- **Mínimo privilegio** también en los agentes: sin herramientas de escritura (M05-04).
+- **Separar redes**: la de OT no debería ser accesible desde la de oficina sin pasar por un punto controlado.
+- **Repetir la comprobación** cada vez que cambie la arquitectura.
+
+### En una frase
 
 > 🔑 Una evaluación de riesgos no termina cuando se escriben las medidas, sino cuando se comprueba que se cumplen.

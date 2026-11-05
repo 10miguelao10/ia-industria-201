@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Lees la estación en indicadores (valor actual, serie y margen) y no en una lista cruda.
+Comprender qué es la **supervisión de un proceso**: cómo convierte el histórico en información que el turno entiende, cómo debe ser un panel útil, cuáles son los límites de supervisar con reglas fijas y cómo se mejora.
 
 ### Prerrequisitos
 
@@ -110,8 +110,37 @@ docker compose start panel
 
 ## Conclusiones
 
-- **Supervisar es leer indicadores, no listas.** El panel convierte el histórico en «qué pieza va, cómo está el husillo y si algo se sale del margen».
-- **El panel lee del histórico, no de la máquina.** Si se cae, no se pierde ningún dato; si se cae el archivador, el panel se queda congelado.
-- **El margen de 70 °C es una regla fija.** Avisa cuando una señal pasa un número, pero no ve combinaciones raras entre varias señales. Ese es el hueco que cubrirán los modelos.
+### Qué es supervisar un proceso
 
-> 🔑 Un panel informa a una persona; no decide. Y solo es tan bueno como el histórico que hay detrás.
+Es convertir el histórico en unos pocos indicadores que una persona entiende de un vistazo: qué está pasando ahora, cómo ha ido en los últimos minutos y si algo se sale de lo normal. El panel no habla con la máquina: lee el histórico.
+
+```
+ estación ──▶ broker ──▶ archivador ──▶ historial.sqlite ──▶ panel ──▶ jefe de turno
+```
+
+### Cómo debe ser un panel útil
+
+| Requisito | En el panel de EST-01 |
+|-----------|-----------------------|
+| Muestra el estado actual | Pieza, temperatura y vibración de la última carcasa |
+| Muestra la tendencia | Gráfica de las últimas 120 lecturas |
+| Avisa de lo anormal con un criterio explícito | Margen de 70 °C del procedimiento |
+| Cuadra con el dato | El número de lecturas fuera de margen coincide con el que cuenta `m01-02` en el histórico |
+
+### Sus límites y cómo los has visto
+
+| Límite | Cómo lo has visto | Qué provoca |
+|--------|-------------------|-------------|
+| Depende del histórico | Reto: paras el panel y el histórico sigue creciendo; al revés, si se para el archivador, el panel se queda congelado sin avisar | Un panel puede enseñar datos viejos como si fueran actuales |
+| Regla fija sobre una sola señal | El aviso solo mira si la temperatura pasa de 70 °C | No ve una combinación rara (temperatura normal, pero vibración y corriente altas a la vez) |
+| Informa, no decide | El panel no hace nada con el aviso | La acción depende de que alguien lo mire |
+
+### Cómo se mejora
+
+- Mostrar la **hora del último dato** y avisar si deja de llegar, para no confundir «todo normal» con «no llega nada».
+- Pasar de reglas fijas sobre una señal a **modelos que miran varias señales a la vez**: es lo que harás en M03.
+- Conectar el aviso con una **acción definida** (quién revisa y qué hace), no solo con un color en pantalla.
+
+### En una frase
+
+> 🔑 Un panel convierte el dato en información, pero solo es tan bueno como el histórico que lee y la regla que aplica.
