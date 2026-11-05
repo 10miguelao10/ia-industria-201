@@ -95,6 +95,7 @@ H0322,9999.0,0.244,4.15,5.95,1
 | M02-01 | [Captura de telemetría industrial](M02-01-telemetria.md) | Publicar lecturas y consumirlas como eventos. |
 | M02-02 | [Integración mediante protocolos industriales](M02-02-protocolos.md) | Leer la estación por MQTT, OPC-UA y Modbus. |
 | M02-03 | [Preparación de información para analítica](M02-03-preparacion-datos.md) | Limpiar y normalizar hasta tener un dataset usable. |
+| M02-04 | [Construir un dataset con datos de la línea](M02-04-dataset-linea.md) | Unir histórico y calidad en un dataset propio y descubrir el criterio de defecto. |
 
 → Empieza por **[M02-01 — Captura de telemetría industrial](M02-01-telemetria.md)**.
 
@@ -105,3 +106,4 @@ Al terminar los laboratorios de este módulo deberías tener claro que:
 - La misma señal llega por varios protocolos (MQTT, OPC-UA, Modbus); integrar es conseguir que cuenten lo mismo.
 - Un silencio de la máquina es un dato: no se rellena ni se confunde con un cero.
 - Antes de entrenar hay que limpiar el histórico y contar lo que se descarta.
+- Un dataset real se construye uniendo cómo se fabricó cada pieza con cómo salió, y la unión necesita una clave que no se repita.

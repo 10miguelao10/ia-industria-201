@@ -1,6 +1,6 @@
 # M04 — Visión artificial para control de calidad
 
-[← Página anterior](../M03-ml-prediccion-anomalias/M03-03-comparacion-modelos.md) · [Siguiente página →](M04-01-clasificacion-componentes.md)
+[← Página anterior](../M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md) · [Siguiente página →](M04-01-clasificacion-componentes.md)
 
 > [!NOTE]
 > **Cómo funciona este módulo.** Primero la **teoría**, luego la **demostración guiada**, y después **practicas tú** en los laboratorios.
@@ -97,6 +97,7 @@ OK m04-03: registro=6 revisar=2
 | M04-01 | [Clasificación automática de componentes](M04-01-clasificacion-componentes.md) | Separar imágenes de pieza correcta y defectuosa. |
 | M04-02 | [Detección automática de defectos](M04-02-deteccion-defectos.md) | Localizar el defecto, no solo clasificar la pieza. |
 | M04-03 | [Sistema de inspección basado en cámara](M04-03-inspeccion-camara.md) | Analizar imágenes y dejar un dictamen automático. |
+| M04-04 | [Entrenar una red neuronal](M04-04-red-neuronal.md) | Entrenar una red en CPU, leer su pérdida y provocar el sobreajuste. |
 
 → Empieza por **[M04-01 — Clasificación automática de componentes](M04-01-clasificacion-componentes.md)**.
 
@@ -107,3 +108,4 @@ Al terminar los laboratorios de este módulo deberías tener claro que:
 - Para un modelo, una imagen es una lista de números; aprende lo que diferencia a las fotos de entrenamiento.
 - Clasificar dice «mala»; localizar dice «dónde». Retrabajo necesita lo segundo.
 - En inspección, el umbral decide qué error se acepta: dejar pasar un defecto o parar una pieza buena.
+- Una red neuronal se juzga por cómo acierta con lo que no ha visto: con pocos ejemplos, memoriza en lugar de aprender.

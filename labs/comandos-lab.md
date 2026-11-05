@@ -68,7 +68,7 @@ docker compose --profile lab run --rm --no-deps lab sql "SELECT COUNT(*) FROM le
 | | |
 |--|--|
 | Necesita en marcha | Nada (solo `lab`). Para tener datos, antes `mosquitto`, `sensor` y `archivador` |
-| Lee | `historial.sqlite`, en **solo lectura** |
+| Lee | `historial.sqlite`, en **solo lectura**. Si existe `calidad.sqlite`, también, con sus tablas como `calidad.inspecciones` |
 | Escribe | Nada. Un `DELETE`, `UPDATE` o `DROP` se rechaza: no puedes estropear el histórico |
 | Termina bien si | La consulta es válida (enseña las filas, o `(ninguna fila)`) |
 | `FALLO` si | No hay histórico todavía o la consulta tiene un error |
@@ -94,7 +94,7 @@ def cmd_sql(args):
 
 </details>
 
-Se usa en [M01-01](M01-ia-industrial-arquitectura/M01-01-arquitectura-datos.md) y [M01-02](M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md).
+Se usa en [M01-01](M01-ia-industrial-arquitectura/M01-01-arquitectura-datos.md), [M01-02](M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md), [M01-03](M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) y [M02-04](M02-captura-integracion-datos/M02-04-dataset-linea.md).
 
 ---
 
@@ -327,6 +327,44 @@ def cmd_m02_03(_args):
 
 Se usa en [M02-03](M02-captura-integracion-datos/M02-03-preparacion-datos.md).
 
+### m02-04
+
+**Qué hace:** construye el dataset propio de la línea. Une el histórico (señales de cada carcasa) con la base de calidad (resultado de cada inspección) por **identificador + hora**, cuenta lo que no se ha podido unir y guarda el resultado.
+
+| | |
+|--|--|
+| Necesita en marcha | Nada (solo `lab`). Antes, unos minutos de `mosquitto`, `sensor`, `archivador` y `calidad` |
+| Lee | `historial.sqlite` y `calidad.sqlite`, en solo lectura |
+| Escribe | `dataset_linea.csv`: una fila por carcasa con temperatura, vibración, corriente y `defecto` |
+| `OK` si | Hay al menos 200 carcasas con señales y resultado |
+| `FALLO` si | No existe `calidad.sqlite` o hay menos de 200 carcasas unidas |
+
+<details>
+<summary>Código (<code>infra/linea/cli.py</code>, función <code>cmd_m02_04</code>)</summary>
+
+```python
+con = sqlite3.connect("file:/data/historial.sqlite?mode=ro", uri=True)
+con.execute("ATTACH DATABASE 'file:/data/calidad.sqlite?mode=ro' AS calidad")
+
+desde = ...   # primera carcasa inspeccionada: lo anterior no tiene resultado
+solo_id = "SELECT COUNT(*) FROM lecturas l JOIN calidad.inspecciones c ON l.pieza_id = c.pieza_id"
+df = pd.read_sql_query("""
+    SELECT l.pieza_id, l.ts, l.temperatura_c, l.vibracion_mm_s, l.corriente_a, c.defecto
+    FROM lecturas l
+    JOIN calidad.inspecciones c ON l.pieza_id = c.pieza_id AND l.ts = c.ts_pieza    -- pieza + hora
+""", con)
+
+print(f"unión por pieza_id={solo_id} filas   unión por pieza_id + hora={len(df)} filas")
+print(f"registros sin inspección=...  inspecciones sin registro=...")
+if len(df) < 200:
+    return fallo("solo ... piezas con señales y resultado de calidad; deja la línea fabricando unos minutos más")
+df.to_csv(DATA / "dataset_linea.csv", index=False)
+```
+
+</details>
+
+Se usa en [M02-04](M02-captura-integracion-datos/M02-04-dataset-linea.md).
+
 ---
 
 ## M03 — Predicción y anomalías
@@ -463,6 +501,74 @@ def cmd_m03_03(_args):
 
 Se usa en [M03-03](M03-ml-prediccion-anomalias/M03-03-comparacion-modelos.md). Los comandos de M06, M07 y M08 usan el modelo que deja.
 
+### m03-red
+
+**Qué hace:** entrena una red neuronal con el mismo corte que `m03-03` y la compara con el árbol. Sirve para experimentar: **no cambia** el modelo de la línea.
+
+```bash
+lab m03-red                 # red de dos capas (64 y 32 neuronas), señales escaladas
+lab m03-red 8               # una capa de 8 neuronas
+lab m03-red 64,32 sin-escalar
+```
+
+| | |
+|--|--|
+| Necesita en marcha | Nada (solo `lab`) |
+| Lee | `limpio.csv` |
+| Escribe | Nada |
+| `OK` si | Termina el entrenamiento (siempre, salvo error) |
+| `FALLO` si | Falta `limpio.csv` (error de Python) |
+
+<details>
+<summary>Código (<code>infra/linea/cli.py</code>, función <code>cmd_m03_red</code>)</summary>
+
+```python
+capas = (64, 32)                               # o las que se pasen: "8", "64,32"…
+red = MLPClassifier(hidden_layer_sizes=capas, max_iter=1000, random_state=0)
+if escalar:
+    red = make_pipeline(StandardScaler(), red)  # cada señal a media 0 y desviación 1 antes de la red
+red.fit(train[FEATURES], train["defecto"])
+
+arbol = DecisionTreeClassifier(max_depth=3, class_weight="balanced", random_state=7)
+...                                            # mismas piezas y mismas tasas que m03-03
+```
+
+</details>
+
+Se usa en [M03-03](M03-ml-prediccion-anomalias/M03-03-comparacion-modelos.md).
+
+### m03-04
+
+**Qué hace:** entrena un árbol y una red con el dataset propio de la línea, en orden de tiempo (70 % antiguo para entrenar, 30 % reciente para examinar), y dice cuánto ha usado el árbol cada señal.
+
+| | |
+|--|--|
+| Necesita en marcha | Nada (solo `lab`) |
+| Lee | `dataset_linea.csv` (de `m02-04`) |
+| Escribe | `modelo_linea.joblib` (el árbol) |
+| `OK` si | Termina el entrenamiento |
+| `FALLO` si | Falta `dataset_linea.csv` |
+
+<details>
+<summary>Código (<code>infra/linea/cli.py</code>, función <code>cmd_m03_04</code>)</summary>
+
+```python
+SENALES_VIVAS = ["temperatura_c", "vibracion_mm_s", "corriente_a"]   # sin presión: no se publica en vivo
+df = pd.read_csv(DATA / "dataset_linea.csv").sort_values("ts")
+train, test = df.iloc[:corte], df.iloc[corte:]                       # 70 / 30 en orden de tiempo
+
+arbol = DecisionTreeClassifier(max_depth=3, class_weight="balanced", random_state=7).fit(...)
+red = make_pipeline(StandardScaler(), MLPClassifier(hidden_layer_sizes=(32,), max_iter=1000)).fit(...)
+
+for senal, peso in zip(SENALES_VIVAS, arbol.feature_importances_):   # qué señales decide el árbol
+    print(senal, peso)
+joblib.dump(arbol, DATA / "modelo_linea.joblib")
+```
+
+</details>
+
+Se usa en [M03-04](M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md).
+
 ---
 
 ## M04 — Visión
@@ -594,6 +700,45 @@ def cmd_m04_03(_args):
 </details>
 
 Se usa en [M04-03](M04-vision-control-calidad/M04-03-inspeccion-camara.md).
+
+### m04-red
+
+**Qué hace:** entrena una red neuronal (256 entradas → N neuronas → 2 salidas) con las fotos de carcasas, enseña cómo baja la pérdida y compara el acierto en entrenamiento y en examen con la regresión logística.
+
+```bash
+lab m04-red                 # 64 neuronas, hasta 1000 iteraciones, todas las fotos
+lab m04-red 64 20           # solo 20 iteraciones
+lab m04-red 8               # 8 neuronas
+lab m04-red 64 1000 0.1     # solo el 10 % de las fotos de entrenamiento (sobreajuste)
+```
+
+| | |
+|--|--|
+| Necesita en marcha | Nada (solo `lab`) |
+| Lee | Las fotos y `imagenes/manifiesto.csv` (si faltan, las genera) |
+| Escribe | `modelo_vision_red.joblib` |
+| `OK` si | Termina el entrenamiento. Si agota las iteraciones sin converger, lo avisa |
+| `FALLO` si | Error al generar o leer las fotos |
+
+<details>
+<summary>Código (<code>infra/linea/cli.py</code>, función <code>cmd_m04_red</code>)</summary>
+
+```python
+neuronas, iteraciones, fraccion = 64, 1000, 1.0     # o los números que se pasen
+k = round(len(ent_ok) * fraccion)                   # cuántas fotos de cada clase para entrenar
+entreno = pd.concat([ent_ok.head(k), ent_ko.head(k)])
+
+red = MLPClassifier(hidden_layer_sizes=(neuronas,), max_iter=iteraciones, random_state=0)
+red.fit(X, y)                                       # entrenar
+curva = red.loss_curve_                             # pérdida en cada iteración
+print(red.score(X, y), red.score(Xp, yp))           # acierto en entrenamiento y en examen
+if red.n_iter_ >= iteraciones:
+    print("aviso: la red ha agotado las iteraciones sin terminar de aprender (no ha convergido)")
+```
+
+</details>
+
+Se usa en [M04-04](M04-vision-control-calidad/M04-04-red-neuronal.md).
 
 ---
 

@@ -1,6 +1,6 @@
 # M05 — Inteligencia artificial generativa en entornos industriales
 
-[← Página anterior](../M04-vision-control-calidad/M04-03-inspeccion-camara.md) · [Siguiente página →](M05-01-modelo-local.md)
+[← Página anterior](../M04-vision-control-calidad/M04-04-red-neuronal.md) · [Siguiente página →](M05-01-modelo-local.md)
 
 > [!NOTE]
 > **Cómo funciona este módulo.** Primero la **teoría**, luego la **demostración guiada**, y después **practicas tú** en los laboratorios.

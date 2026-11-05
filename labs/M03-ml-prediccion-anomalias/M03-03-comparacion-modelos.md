@@ -1,6 +1,6 @@
 # M03-03 — Comparación de modelos predictivos
 
-[← Página anterior](M03-02-anomalias.md) · [Siguiente página →](../M04-vision-control-calidad/README.md)
+[← Página anterior](M03-02-anomalias.md) · [Siguiente página →](M03-04-entrenar-datos-linea.md)
 
 > Práctica del módulo. La teoría y la demostración están en el [README del módulo](README.md).
 >
@@ -91,6 +91,63 @@ arbol
 ¿Coincide `modelo_elegido.txt` con lo que imprimió el `OK`?
 
 → Sí: los dos dicen `arbol`.
+
+## Experimenta: una red neuronal como tercer candidato
+
+**Qué ocurre:** añades a la comparación un tercer candidato, una **red neuronal**: un modelo formado por capas de «neuronas» que combinan las señales con unos pesos que se ajustan al entrenar. En el M04-04 la entrenarás paso a paso con fotos; aquí la usas como un candidato más, con el mismo corte y la misma regla.
+
+`lab m03-red` entrena una red y la compara con el árbol elegido. No cambia el modelo de la línea (`modelo_defecto.joblib`).
+
+📋 Ficha del comando [`m03-red`](../comandos-lab.md#m03-red).
+
+### 1 — La red con las señales escaladas
+
+```bash
+# Red con dos capas ocultas de 64 y 32 neuronas
+docker compose --profile lab run --rm --no-deps lab m03-red
+```
+
+**Resultado esperado:**
+
+```text
+árbol (M03-03)         defectos encontrados 16 de 21  falsas alarmas   3 de 210
+red (64, 32)           defectos encontrados 16 de 21  falsas alarmas   2 de 210
+OK m03-red: red recall=0.76 fpr=0.01; árbol recall=0.76 fpr=0.01
+```
+
+**Cómo se lee:** empatan en defectos encontrados (16 de 21) y la red da **una falsa alarma menos**. Por la regla del M03-03, la red ganaría por una pieza. Pero el árbol se puede leer y explicar a calidad («para cuando la vibración pasa de X…»), y la red no. Con una diferencia de una pieza en 210, la mayoría de las plantas se quedaría con el árbol. La regla de elección, en la realidad, también suele incluir «que se pueda explicar».
+
+### 2 — La misma red sin escalar las señales
+
+**Qué ocurre:** repites el entrenamiento sin poner cada señal en su escala. La corriente está en torno a 4, la temperatura en torno a 62 y la vibración en torno a 0,25.
+
+**Predice:** ¿importa?
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m03-red sin-escalar
+```
+
+**Resultado esperado:**
+
+```text
+red (64, 32) sin escalar defectos encontrados  0 de 21  falsas alarmas   0 de 210
+```
+
+**Cómo se lee:** la red **no encuentra ningún defecto**: ha aprendido a decir siempre «buena». Con señales de tamaños tan distintos, la temperatura (62) aplasta a la vibración (0,25) y la red no consigue ajustar sus pesos. Las redes necesitan que las entradas estén en escalas parecidas; el árbol no, porque compara cada señal por separado. Es un error típico y silencioso: el comando no falla, simplemente el modelo no sirve.
+
+### 3 — Una red más pequeña
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m03-red 8
+```
+
+**Resultado esperado:**
+
+```text
+red (8,)               defectos encontrados 13 de 21  falsas alarmas   1 de 210
+```
+
+Con 8 neuronas encuentra menos defectos. El tamaño de la red también se elige.
 
 ## Reto
 

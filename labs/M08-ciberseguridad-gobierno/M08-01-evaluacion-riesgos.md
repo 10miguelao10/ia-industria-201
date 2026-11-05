@@ -62,6 +62,7 @@ superficies:
   mosquitto puerto=1883 — transporte MQTT de los ciclos
   sensor puerto=- — origen: publica el estado de EST-01
   archivador puerto=- — almacén SQLite de ciclos
+  calidad puerto=- — inspección de calidad, con su propia base de datos
   opcua puerto=4840 — la misma señal, como servidor OPC-UA
   modbus puerto=1502 — la misma señal, como esclavo Modbus TCP
   panel puerto=8501 — indicadores del operario

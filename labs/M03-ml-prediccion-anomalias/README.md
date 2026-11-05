@@ -1,6 +1,6 @@
 # M03 — Machine learning para predicción y detección de incidencias
 
-[← Página anterior](../M02-captura-integracion-datos/M02-03-preparacion-datos.md) · [Siguiente página →](M03-01-prediccion-defectos.md)
+[← Página anterior](../M02-captura-integracion-datos/M02-04-dataset-linea.md) · [Siguiente página →](M03-01-prediccion-defectos.md)
 
 > [!NOTE]
 > **Cómo funciona este módulo.** Primero la **teoría**, luego la **demostración guiada**, y después **practicas tú** en los laboratorios.
@@ -85,7 +85,8 @@ El árbol encuentra 16 de 21 defectos con 3 falsas alarmas; la regresión logís
 |-----|--------|-----------|
 | M03-01 | [Predicción de defectos de fabricación](M03-01-prediccion-defectos.md) | Entrenar y evaluar un clasificador de defecto. |
 | M03-02 | [Detección temprana de anomalías](M03-02-anomalias.md) | Marcar ciclos raros y convertirlos en aviso. |
-| M03-03 | [Comparación de modelos predictivos](M03-03-comparacion-modelos.md) | Elegir entre enfoques con los mismos datos. |
+| M03-03 | [Comparación de modelos predictivos](M03-03-comparacion-modelos.md) | Elegir entre enfoques con los mismos datos, red neuronal incluida. |
+| M03-04 | [Entrenar con los datos de tu línea](M03-04-entrenar-datos-linea.md) | Entrenar con el dataset propio y comprobar que el modelo entiende el proceso. |
 
 → Empieza por **[M03-01 — Predicción de defectos de fabricación](M03-01-prediccion-defectos.md)**.
 
@@ -96,3 +97,4 @@ Al terminar los laboratorios de este módulo deberías tener claro que:
 - Un modelo se mide por los defectos que encuentra y por las piezas buenas que para, no por un porcentaje global.
 - Sin etiquetas también se puede avisar de lo raro, comparando con lo normal.
 - El modelo que va a la línea se elige con una regla escrita de antemano y queda con nombre y versión.
+- Con datos de la propia línea, un modelo puede descubrir el criterio del proceso; con pocos defectos, sus porcentajes no son fiables.

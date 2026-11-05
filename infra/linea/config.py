@@ -27,6 +27,7 @@ SERVICIOS = [
     {"nombre": "mosquitto", "puerto": 1883, "para": "transporte MQTT de los ciclos"},
     {"nombre": "sensor", "puerto": None, "para": "origen: publica el estado de EST-01"},
     {"nombre": "archivador", "puerto": None, "para": "almacén SQLite de ciclos"},
+    {"nombre": "calidad", "puerto": None, "para": "inspección de calidad, con su propia base de datos"},
     {"nombre": "opcua", "puerto": 4840, "para": "la misma señal, como servidor OPC-UA"},
     {"nombre": "modbus", "puerto": 1502, "para": "la misma señal, como esclavo Modbus TCP"},
     {"nombre": "panel", "puerto": 8501, "para": "indicadores del operario"},

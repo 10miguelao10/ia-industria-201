@@ -1,6 +1,6 @@
 # M02-03 — Preparación de información para analítica
 
-[← Página anterior](M02-02-protocolos.md) · [Siguiente página →](../M03-ml-prediccion-anomalias/README.md)
+[← Página anterior](M02-02-protocolos.md) · [Siguiente página →](M02-04-dataset-linea.md)
 
 > Práctica del módulo. La teoría y la demostración están en el [README del módulo](README.md).
 >

@@ -16,6 +16,8 @@ from PIL import Image
 from sklearn.covariance import EmpiricalCovariance
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix
+from sklearn.neural_network import MLPClassifier
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 
@@ -41,6 +43,8 @@ from linea.estado import leer as leer_estado
 
 # Aviso de scipy/scikit-learn sin efecto en el resultado; ensucia la salida del alumno.
 warnings.filterwarnings("ignore", message="Unknown solver options")
+# El aviso de convergencia de las redes lo da el propio comando, en español
+warnings.filterwarnings("ignore", message="Stochastic Optimizer: Maximum iterations")
 
 FEATURES = ["temperatura_c", "vibracion_mm_s", "corriente_a", "presion_bar"]
 
@@ -761,6 +765,146 @@ def cmd_m07_03(_args) -> int:
     return ok("m07-03", f"{len(activas)} incidencia(s) diagnosticada(s) en {registro.name}; ninguna acción ejecutada")
 
 
+# ---------------------------------------------------------------- redes neuronales (M03 y M04)
+def _numero(args, i, defecto, tipo=int):
+    try:
+        return tipo(args[i])
+    except (IndexError, ValueError):
+        return defecto
+
+
+def cmd_m04_red(args) -> int:
+    """lab m04-red [neuronas] [iteraciones] [fraccion_de_fotos]"""
+    neuronas = _numero(args, 0, 64)
+    iteraciones = _numero(args, 1, 1000)
+    fraccion = _numero(args, 2, 1.0, float)
+    if not (DATA / "imagenes" / "manifiesto.csv").exists():
+        generar_imagenes()
+    tabla = pd.read_csv(DATA / "imagenes" / "manifiesto.csv")
+
+    def partir(parte):
+        n = int(len(parte) * 0.7)
+        return parte.iloc[:n], parte.iloc[n:]
+
+    ent_ok, pru_ok = partir(tabla[tabla.defecto == 0])
+    ent_ko, pru_ko = partir(tabla[tabla.defecto == 1])
+    # fraccion < 1: se entrena solo con una parte de las fotos de entrenamiento (para ver el sobreajuste)
+    k = max(1, round(len(ent_ok) * fraccion))
+    entreno = pd.concat([ent_ok.head(k), ent_ko.head(k)])
+    prueba = pd.concat([pru_ok, pru_ko])
+    X = np.stack([_features_imagen(Path(r)) for r in entreno["ruta"]])
+    y = entreno["defecto"].to_numpy()
+    Xp = np.stack([_features_imagen(Path(r)) for r in prueba["ruta"]])
+    yp = prueba["defecto"].to_numpy()
+
+    # Red: 256 entradas (píxeles) → «neuronas» en la capa oculta → 2 salidas (buena / defectuosa)
+    red = MLPClassifier(hidden_layer_sizes=(neuronas,), max_iter=iteraciones, random_state=0)
+    t0 = time.time()
+    red.fit(X, y)
+    segundos = time.time() - t0
+    curva = red.loss_curve_
+    marcas = sorted({0, len(curva) // 4, len(curva) // 2, 3 * len(curva) // 4, len(curva) - 1})
+    print(f"red: 256 entradas -> {neuronas} neuronas -> 2 salidas; {len(entreno)} fotos de entrenamiento, {len(prueba)} de examen")
+    print("pérdida (más baja = se equivoca menos con las fotos de entrenamiento):")
+    for i in marcas:
+        print(f"  iteración {i + 1:4d}: {curva[i]:.3f}")
+    base = LogisticRegression(max_iter=400).fit(X, y).score(Xp, yp)
+    ent, exa = red.score(X, y), red.score(Xp, yp)
+    print(f"acierto en entrenamiento={ent:.2f}  en examen={exa:.2f}  (regresión logística en examen={base:.2f})")
+    print(f"tiempo de entrenamiento: {segundos:.2f} s en CPU")
+    if red.n_iter_ >= iteraciones:
+        print("aviso: la red ha agotado las iteraciones sin terminar de aprender (no ha convergido)")
+    joblib.dump(red, DATA / "modelo_vision_red.joblib")
+    return ok("m04-red", f"neuronas={neuronas} iteraciones={len(curva)} examen={exa:.2f}")
+
+
+def _tasas_texto(nombre, t):
+    return (f"{nombre:<22} defectos encontrados {t['tp']:>2} de {t['tp'] + t['fn']:<3} "
+            f"falsas alarmas {t['fp']:>3} de {t['fp'] + t['tn']}")
+
+
+def cmd_m03_red(args) -> int:
+    """lab m03-red [capas, p. ej. 64,32] [sin-escalar]"""
+    capas = tuple(int(c) for c in (args[0] if args and args[0] != "sin-escalar" else "64,32").split(","))
+    escalar = "sin-escalar" not in args
+    df = pd.read_csv(DATA / "limpio.csv")
+    train, test = _partir(df)
+    arbol = DecisionTreeClassifier(max_depth=3, class_weight="balanced", random_state=7)
+    arbol.fit(train[FEATURES], train["defecto"])
+    red = MLPClassifier(hidden_layer_sizes=capas, max_iter=1000, random_state=0)
+    if escalar:
+        red = make_pipeline(StandardScaler(), red)   # cada señal en su escala antes de entrar en la red
+    red.fit(train[FEATURES], train["defecto"])
+    t_arbol = _tasas(test["defecto"], arbol.predict(test[FEATURES]))
+    t_red = _tasas(test["defecto"], red.predict(test[FEATURES]))
+    print(_tasas_texto("árbol (M03-03)", t_arbol))
+    print(_tasas_texto(f"red {capas}{'' if escalar else ' sin escalar'}", t_red))
+    return ok("m03-red", f"red recall={t_red['recall']:.2f} fpr={t_red['fpr']:.2f}; árbol recall={t_arbol['recall']:.2f} fpr={t_arbol['fpr']:.2f}")
+
+
+# ---------------------------------------------------------------- dataset propio (M02-04 y M03-04)
+SENALES_VIVAS = ["temperatura_c", "vibracion_mm_s", "corriente_a"]
+
+
+def cmd_m02_04(_args) -> int:
+    if not (DATA / "calidad.sqlite").exists():
+        return fallo("no hay inspecciones; arranca el contenedor calidad y deja la línea fabricando")
+    con = sqlite3.connect(f"file:{DATA / 'historial.sqlite'}?mode=ro", uri=True)
+    con.execute(f"ATTACH DATABASE 'file:{DATA / 'calidad.sqlite'}?mode=ro' AS calidad")
+    # Solo cuenta lo fabricado desde que calidad empezó a inspeccionar
+    desde = con.execute("SELECT MIN(ts_pieza) FROM calidad.inspecciones").fetchone()[0]
+    n_hist = con.execute("SELECT COUNT(*) FROM lecturas WHERE ts >= ?", (desde,)).fetchone()[0]
+    n_insp = con.execute("SELECT COUNT(*) FROM calidad.inspecciones").fetchone()[0]
+    # Unir solo por identificador: con identificadores repetidos, cada pieza se cruza con varias inspecciones
+    solo_id = con.execute(
+        "SELECT COUNT(*) FROM lecturas l JOIN calidad.inspecciones c ON l.pieza_id = c.pieza_id"
+    ).fetchone()[0]
+    print(f"calidad inspecciona desde {desde}")
+    # Unir por identificador + hora: cada registro con SU inspección
+    df = pd.read_sql_query(
+        """
+        SELECT l.pieza_id, l.ts, l.temperatura_c, l.vibracion_mm_s, l.corriente_a, c.defecto
+        FROM lecturas l JOIN calidad.inspecciones c ON l.pieza_id = c.pieza_id AND l.ts = c.ts_pieza
+        ORDER BY l.ts
+        """,
+        con,
+    )
+    con.close()
+    sin_inspeccion = n_hist - len(df)
+    print(f"registros en el histórico desde entonces={n_hist}  inspecciones de calidad={n_insp}")
+    print(f"unión por pieza_id={solo_id} filas   unión por pieza_id + hora={len(df)} filas")
+    print(f"registros sin inspección={sin_inspeccion}  inspecciones sin registro={n_insp - len(df)}")
+    if len(df):
+        print(f"defectuosas={int(df.defecto.sum())} de {len(df)} ({df.defecto.mean():.0%})")
+    if len(df) < 200:
+        return fallo(f"solo {len(df)} piezas con señales y resultado de calidad; deja la línea fabricando unos minutos más")
+    df.to_csv(DATA / "dataset_linea.csv", index=False)
+    return ok("m02-04", f"dataset_linea.csv con {len(df)} piezas y {int(df.defecto.sum())} defectuosas")
+
+
+def cmd_m03_04(_args) -> int:
+    ruta = DATA / "dataset_linea.csv"
+    if not ruta.exists():
+        return fallo("falta dataset_linea.csv; haz antes M02-04")
+    df = pd.read_csv(ruta).sort_values("ts")
+    corte = int(len(df) * 0.7)
+    train, test = df.iloc[:corte], df.iloc[corte:]
+    arbol = DecisionTreeClassifier(max_depth=3, class_weight="balanced", random_state=7)
+    arbol.fit(train[SENALES_VIVAS], train["defecto"])
+    red = make_pipeline(StandardScaler(), MLPClassifier(hidden_layer_sizes=(32,), max_iter=1000, random_state=0))
+    red.fit(train[SENALES_VIVAS], train["defecto"])
+    t_arbol = _tasas(test["defecto"], arbol.predict(test[SENALES_VIVAS]))
+    t_red = _tasas(test["defecto"], red.predict(test[SENALES_VIVAS]))
+    print(f"{len(train)} piezas para entrenar, {len(test)} para examinar (las más recientes)")
+    print(_tasas_texto("árbol", t_arbol))
+    print(_tasas_texto("red (32)", t_red))
+    print("qué señales usa el árbol (importancia):")
+    for senal, peso in sorted(zip(SENALES_VIVAS, arbol.feature_importances_), key=lambda x: -x[1]):
+        print(f"  {senal:<16} {peso:.2f}")
+    joblib.dump(arbol, DATA / "modelo_linea.joblib")
+    return ok("m03-04", f"árbol recall={t_arbol['recall']:.2f} fpr={t_arbol['fpr']:.2f}; red recall={t_red['recall']:.2f} fpr={t_red['fpr']:.2f}")
+
+
 def cmd_sql(args) -> int:
     """Consulta de solo lectura al histórico. Sin argumentos, enseña las columnas de la tabla."""
     ruta = DATA / "historial.sqlite"
@@ -768,6 +912,8 @@ def cmd_sql(args) -> int:
         return fallo("todavía no hay histórico; arranca mosquitto, sensor y archivador")
     consulta = " ".join(args).strip() or "PRAGMA table_info(lecturas)"
     con = sqlite3.connect(f"file:{ruta}?mode=ro", uri=True)   # solo lectura: no se puede romper el histórico
+    if (DATA / "calidad.sqlite").exists():                    # la base de calidad, como «calidad.inspecciones»
+        con.execute(f"ATTACH DATABASE 'file:{DATA / 'calidad.sqlite'}?mode=ro' AS calidad")
     try:
         df = pd.read_sql_query(consulta, con)
     except Exception as exc:
@@ -789,12 +935,16 @@ COMANDOS = {
     "m02-01-pausa": cmd_m02_01_pausa,
     "m02-02": cmd_m02_02,
     "m02-03": cmd_m02_03,
+    "m02-04": cmd_m02_04,
     "m03-01": cmd_m03_01,
     "m03-02": cmd_m03_02,
     "m03-03": cmd_m03_03,
+    "m03-red": cmd_m03_red,
+    "m03-04": cmd_m03_04,
     "m04-01": cmd_m04_01,
     "m04-02": cmd_m04_02,
     "m04-03": cmd_m04_03,
+    "m04-red": cmd_m04_red,
     "m05-01": cmd_m05_01,
     "m05-02": cmd_m05_02,
     "m05-03": cmd_m05_03,

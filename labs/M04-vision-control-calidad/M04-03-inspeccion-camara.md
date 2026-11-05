@@ -1,6 +1,6 @@
 # M04-03 — Sistema de inspección basado en cámara
 
-[← Página anterior](M04-02-deteccion-defectos.md) · [Siguiente página →](../M05-ia-generativa/README.md)
+[← Página anterior](M04-02-deteccion-defectos.md) · [Siguiente página →](M04-04-red-neuronal.md)
 
 > Práctica del módulo. La teoría y la demostración están en el [README del módulo](README.md).
 >

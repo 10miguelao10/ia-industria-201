@@ -16,6 +16,7 @@ docker compose --profile lab run --rm --no-deps lab m01-01
 | `mosquitto` | Broker MQTT | 1883 | El transporte de eventos de la estación |
 | `sensor` | Publica un ciclo por segundo y escribe `/data/estado.json` | — | El origen: husillo, vibración y corriente |
 | `archivador` | Se suscribe a `linea/est01/ciclo` y guarda SQLite | — | El histórico del turno |
+| `calidad` | Se suscribe a `linea/est01/ciclo`, inspecciona cada carcasa con un criterio oculto y guarda el resultado en `calidad.sqlite` | — | El sistema de calidad de la planta |
 | `opcua` | Servidor OPC-UA que lee el mismo estado | 4840 | Un equipo que ya habla OPC-UA |
 | `modbus` | Esclavo Modbus TCP. La temperatura va en décimas en el registro 0. El registro 10 es el paro de seguridad y **nadie lo escribe** | 1502 (en planta el puerto habitual es 502) | Un automatismo sencillo |
 | `panel` | Streamlit sobre el SQLite | 8501 | El panel del turno |
@@ -97,8 +98,10 @@ En el M05, detén el panel (`docker compose stop panel`) antes de arrancar `llm`
 | M02-01 | mosquitto, sensor | ~0,3 GB | — | no |
 | M02-02 | los anteriores + opcua + modbus | ~0,7 GB | — | no |
 | M02-03 | solo `lab` (genera CSV) | ~0,4 GB en el run | < 5 MB | no |
+| M02-04 | mosquitto, sensor, archivador + calidad, unos minutos | ~0,7 GB | `calidad.sqlite` y `dataset_linea.csv`, pocos MB | no |
 | M03-01 a M03-03 | `lab` y el CSV de M02-03 | ~0,5 GB | el `.joblib` | no |
-| M04-01 a M04-03 | `lab` | ~0,5 GB | ~80 PNG pequeñas | no |
+| M03-04 | `lab` y el `dataset_linea.csv` de M02-04 | ~0,5 GB | el `.joblib` | no |
+| M04-01 a M04-04 | `lab` | ~0,5 GB | ~80 PNG pequeñas | no |
 | M05-01 a M05-04 | `llm` (+ sensor en M05-04) | hasta 2 GB | ~470 MB del GGUF | solo la primera descarga |
 | M06-01 | `lab` con el modelo de M03 | ~0,4 GB | — | no |
 | M06-02 | `lab` + mosquitto + modbus + sensor | ~0,7 GB | — | no |

@@ -38,6 +38,14 @@ services:
     volumes: *datos
     mem_limit: 192m
 
+  calidad:
+    build: .
+    command: ["linea.calidad"]
+    depends_on: [mosquitto]
+    environment: *entorno
+    volumes: *datos
+    mem_limit: 192m
+
   opcua:
     build: .
     command: ["linea.opcua_server"]
