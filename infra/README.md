@@ -21,6 +21,7 @@ docker compose --profile lab run --rm --no-deps lab m01-01
 | `panel` | Streamlit sobre el SQLite | 8501 | El panel del turno |
 | `llm` | Modelo generativo en local (Qwen2.5 0.5B, GGUF Q4) | 8088 | Asistencia, sin salir a una API |
 | `api` | FastAPI con el clasificador entrenado en M03 | 8000 | El servicio de inferencia en operación |
+| `prometheus` | Recoge métricas de `sensor` (:9102) y `archivador` (:9101) cada 5 s y evalúa las alertas de `prometheus/alertas.yml` | 9090 | El sistema de monitorización y alarmas |
 | `lab` | No se queda arrancado. `docker compose run` ejecuta un paso | — | Tus comandos de laboratorio |
 
 El estado vivo está en `infra/data/` (no se versiona). El modelo generativo está en `infra/modelos/` (el fichero `.gguf` tampoco se versiona).
@@ -92,6 +93,7 @@ En el M05, detén el panel (`docker compose stop panel`) antes de arrancar `llm`
 |-----|------------------------------------------|--------------------------|-------------|-----|
 | M01-01 | mosquitto, sensor, archivador | ~0,5 GB | el histórico crece unos KB/s | no |
 | M01-02 | los anteriores + panel | ~1 GB | igual | no |
+| M01-03 | mosquitto, sensor, archivador + prometheus | ~0,8 GB | las métricas, unos MB | no |
 | M02-01 | mosquitto, sensor | ~0,3 GB | — | no |
 | M02-02 | los anteriores + opcua + modbus | ~0,7 GB | — | no |
 | M02-03 | solo `lab` (genera CSV) | ~0,4 GB en el run | < 5 MB | no |
@@ -101,7 +103,8 @@ En el M05, detén el panel (`docker compose stop panel`) antes de arrancar `llm`
 | M06-01 | `lab` con el modelo de M03 | ~0,4 GB | — | no |
 | M06-02 | `lab` + mosquitto + modbus + sensor | ~0,7 GB | — | no |
 | M07-01, M07-02 | `api` + el `.joblib` | ~0,8 GB | el registro jsonl | no |
+| M07-03 | mosquitto, sensor, archivador, prometheus, llm | hasta 3 GB | `incidencias.jsonl` | no |
 | M08-01 | modbus (registro de paro) | ~0,2 GB | — | no |
 | M08-02 | `api` | ~0,8 GB | el jsonl de predicciones | no |
 
-Para el panel: <http://localhost:8501>. Para el servicio de inferencia: <http://localhost:8000/salud>. Para el modelo generativo: <http://localhost:8088/salud>.
+Para el panel: <http://localhost:8501>. Para el servicio de inferencia: <http://localhost:8000/salud>. Para el modelo generativo: <http://localhost:8088/salud>. Para Prometheus: <http://localhost:9090>.

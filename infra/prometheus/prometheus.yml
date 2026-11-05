@@ -1,0 +1,15 @@
+# Prometheus de la línea EST-01: recoge métricas cada 5 s y evalúa las alertas.
+global:
+  scrape_interval: 5s        # cada cuánto va a preguntar a cada contenedor
+  evaluation_interval: 5s    # cada cuánto revisa las reglas de alerta
+
+rule_files:
+  - /etc/prometheus/alertas.yml
+
+scrape_configs:
+  - job_name: sensor          # la estación: piezas fabricadas y medidas
+    static_configs:
+      - targets: ["sensor:9102"]
+  - job_name: archivador      # el histórico: registros guardados
+    static_configs:
+      - targets: ["archivador:9101"]

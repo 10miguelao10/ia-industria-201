@@ -1,6 +1,6 @@
 # M08 — Ciberseguridad y gobierno de IA
 
-[← Página anterior](../M07-mlops-observabilidad/M07-02-monitorizacion.md) · [Siguiente página →](M08-01-evaluacion-riesgos.md)
+[← Página anterior](../M07-mlops-observabilidad/M07-03-incidencias-agente.md) · [Siguiente página →](M08-01-evaluacion-riesgos.md)
 
 > [!NOTE]
 > **Cómo funciona este módulo.** Primero la **teoría**, luego la **demostración guiada**, y después **practicas tú** en los laboratorios.

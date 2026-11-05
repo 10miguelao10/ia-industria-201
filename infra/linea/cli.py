@@ -29,6 +29,7 @@ from linea.config import (
     MQTT_PORT,
     OPCUA_ENDPOINT,
     PANEL_URL,
+    PROMETHEUS_URL,
     SERVICIOS,
     TOPIC_CICLO,
     TOPIC_DICTAMEN,
@@ -652,6 +653,114 @@ def cmd_m08_02(_args) -> int:
     return ok("m08-02", f"rastro de AUD0007 con version={primera['version']} aunque el fichero cambió")
 
 
+# ---------------------------------------------------------------- M07-03: agente de incidencias
+def _promql(consulta: str) -> list:
+    respuesta = httpx.get(f"{PROMETHEUS_URL}/api/v1/query", params={"query": consulta}, timeout=10)
+    return respuesta.json()["data"]["result"]
+
+
+# Herramientas del agente. Todas LEEN; ninguna escribe ni reinicia nada.
+def _h_estado_servicios() -> dict:
+    return {r["metric"]["job"]: ("vivo" if r["value"][1] == "1" else "caído") for r in _promql("up")}
+
+
+def _h_retraso_historico() -> dict:
+    r = _promql("time() - archivador_ultimo_registro_timestamp_seconds")
+    return {"segundos_sin_guardar": round(float(r[0]["value"][1])) if r else "sin dato (archivador caído)"}
+
+
+def _h_perdida_ultimo_minuto() -> dict:
+    r = _promql("sum(increase(estacion_piezas_fabricadas_total[1m])) - sum(increase(archivador_registros_guardados_total[1m]))")
+    return {"carcasas_sin_guardar_ultimo_minuto": round(float(r[0]["value"][1])) if r else "sin dato"}
+
+
+def _h_ultimo_registro() -> dict:
+    ruta = DATA / "historial.sqlite"
+    if not ruta.exists():
+        return {"ultimo_registro": "no hay histórico"}
+    con = sqlite3.connect(f"file:{ruta}?mode=ro", uri=True)
+    fila = con.execute("SELECT pieza_id, ts FROM lecturas ORDER BY id DESC LIMIT 1").fetchone()
+    con.close()
+    return {"ultimo_registro": f"{fila[0]} a las {fila[1]}" if fila else "vacío"}
+
+
+def _h_temperatura_actual() -> dict:
+    r = _promql("estacion_temperatura_husillo_celsius")
+    return {"temperatura_husillo_c": float(r[0]["value"][1]) if r else "sin dato"}
+
+
+HERRAMIENTAS = {
+    "estado_servicios": _h_estado_servicios,
+    "retraso_historico": _h_retraso_historico,
+    "perdida_ultimo_minuto": _h_perdida_ultimo_minuto,
+    "ultimo_registro": _h_ultimo_registro,
+    "temperatura_actual": _h_temperatura_actual,
+}
+
+# Qué herramientas usa el agente para cada alerta. Lo decide el código, no el modelo.
+PLAN = {
+    "ArchivadorCaido": ["estado_servicios", "ultimo_registro"],
+    "HistoricoSinDatos": ["estado_servicios", "retraso_historico", "perdida_ultimo_minuto", "ultimo_registro"],
+    "RegistrosPerdidos": ["estado_servicios", "retraso_historico", "perdida_ultimo_minuto"],
+    "EstacionCaida": ["estado_servicios"],
+    "TemperaturaHusilloAlta": ["temperatura_actual"],
+}
+
+
+def _runbook(alerta: str) -> str:
+    texto = Path("/opt/linea/docs/runbook-est01.md").read_text(encoding="utf-8")
+    for seccion in texto.split("\n## ")[1:]:
+        titulo, _, cuerpo = seccion.partition("\n")
+        if titulo.strip() == alerta:
+            return cuerpo.strip()
+    return ""
+
+
+def cmd_m07_03(_args) -> int:
+    try:
+        alertas = httpx.get(f"{PROMETHEUS_URL}/api/v1/alerts", timeout=10).json()["data"]["alerts"]
+    except httpx.HTTPError as exc:
+        return fallo(f"Prometheus no responde: {exc}")
+    activas = [a for a in alertas if a["state"] == "firing"]
+    if not activas:
+        return fallo("no hay alertas activas; provoca una incidencia primero")
+
+    registro = DATA / "incidencias.jsonl"
+    for alerta in activas:
+        nombre = alerta["labels"]["alertname"]
+        # 1. El código elige las herramientas según la alerta y las ejecuta
+        hechos = {}
+        for herramienta in PLAN.get(nombre, ["estado_servicios"]):
+            hechos.update(HERRAMIENTAS[herramienta]())
+        # 2. El runbook dice qué hacer ante esa alerta
+        procedimiento = _runbook(nombre) or "No hay entrada en el runbook para esta alerta."
+        # 3. El modelo local solo redacta el diagnóstico con esos datos
+        diagnostico = _chat(
+            f"Alerta: {nombre}.\nDatos medidos: {json.dumps(hechos, ensure_ascii=False)}\n"
+            f"Runbook:\n{procedimiento}\n\n"
+            "Escribe en español, en dos frases, qué está pasando y qué acción propone el runbook.",
+            "Eres el asistente de mantenimiento de la línea. Usa solo los datos y el runbook. "
+            "No inventes cifras. No ejecutes nada: solo propones.",
+            max_tokens=120,
+        )
+        informe = {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "alerta": nombre,
+            "severidad": alerta["labels"].get("severidad"),
+            "herramientas": PLAN.get(nombre, ["estado_servicios"]),
+            "hechos": hechos,
+            "diagnostico": diagnostico,
+            "estado": "propuesta pendiente de una persona",
+        }
+        with registro.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(informe, ensure_ascii=False) + "\n")
+        print(f"== {nombre} ({informe['severidad']})")
+        print(f"herramientas: {', '.join(informe['herramientas'])}")
+        print(f"hechos: {json.dumps(hechos, ensure_ascii=False)}")
+        print(f"diagnóstico: {diagnostico}")
+    return ok("m07-03", f"{len(activas)} incidencia(s) diagnosticada(s) en {registro.name}; ninguna acción ejecutada")
+
+
 def cmd_sql(args) -> int:
     """Consulta de solo lectura al histórico. Sin argumentos, enseña las columnas de la tabla."""
     ruta = DATA / "historial.sqlite"
@@ -695,6 +804,7 @@ COMANDOS = {
     "m06-02": cmd_m06_02,
     "m07-01": cmd_m07_01,
     "m07-02": cmd_m07_02,
+    "m07-03": cmd_m07_03,
     "m08-01": cmd_m08_01,
     "m08-02": cmd_m08_02,
     "sql": cmd_sql,

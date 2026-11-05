@@ -100,6 +100,7 @@ El panel no «es la IA». Solo demuestra que el dato ya es información operativ
 |-----|--------|-----------|
 | M01-01 | [Arquitectura básica de datos](M01-01-arquitectura-datos.md) | Montar origen, transporte, almacén y una primera vista. |
 | M01-02 | [Visualización y supervisión de procesos](M01-02-visualizacion-supervision.md) | Leer la estación en indicadores, no en una lista cruda. |
+| M01-03 | [Métricas y alertas de la arquitectura](M01-03-metricas-alertas.md) | Vigilar con Prometheus que la arquitectura hace su trabajo y detectar un fallo silencioso. |
 
 → Empieza por **[M01-01 — Arquitectura básica de datos](M01-01-arquitectura-datos.md)**.
 
@@ -111,3 +112,4 @@ Al terminar los laboratorios de este módulo deberías tener claro que:
 - Cada pieza de ese camino es un componente separado, con su función, y que puede fallar por separado.
 - El histórico puede tener huecos y repetidos sin dar error. Hay que comprobarlo antes de usarlo.
 - Un panel con reglas fijas informa, pero no ve combinaciones raras. Ahí empiezan a aportar los modelos.
+- La arquitectura también hay que vigilarla: métricas y alertas detectan fallos que no dan ningún error.

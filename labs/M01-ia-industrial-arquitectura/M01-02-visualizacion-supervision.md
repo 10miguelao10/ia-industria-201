@@ -1,6 +1,6 @@
 # M01-02 — Visualización y supervisión de procesos
 
-[← Página anterior](M01-01-arquitectura-datos.md) · [Siguiente página →](../M02-captura-integracion-datos/README.md)
+[← Página anterior](M01-01-arquitectura-datos.md) · [Siguiente página →](M01-03-metricas-alertas.md)
 
 > Práctica del módulo. La teoría y la demostración están en el [README del módulo](README.md).
 >

@@ -23,6 +23,7 @@ services:
       PANEL_URL: http://panel:8501
       API_URL: http://api:8000
       LLM_URL: http://llm:8088
+      PROMETHEUS_URL: http://prometheus:9090
       MODELO_PATH: /modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf
     volumes: &datos
       - ./data:/data
@@ -84,6 +85,16 @@ services:
     environment: *entorno
     volumes: *datos
     mem_limit: 768m
+
+  prometheus:
+    image: prom/prometheus:v2.53.2
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=2d"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alertas.yml:/etc/prometheus/alertas.yml:ro
+    ports:
+      - "9090:9090"
+    mem_limit: 256m
 
   lab:
     build: .

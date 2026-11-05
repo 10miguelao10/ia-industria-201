@@ -6,6 +6,7 @@ import time
 import paho.mqtt.client as mqtt
 
 from linea.config import DATA, MQTT_HOST, MQTT_PORT, TOPIC_CICLO
+from linea.metricas import Metricas
 
 
 def conectar_db() -> sqlite3.Connection:
@@ -31,6 +32,12 @@ def conectar_db() -> sqlite3.Connection:
 def main() -> None:
     con = conectar_db()
 
+    # Métricas para Prometheus en http://archivador:9101/metrics
+    metricas = Metricas()
+    metricas.definir("archivador_registros_guardados_total", "counter", "Registros guardados en el histórico desde que arrancó el archivador")
+    metricas.definir("archivador_ultimo_registro_timestamp_seconds", "gauge", "Hora (epoch) en que se guardó el último registro")
+    metricas.servir(9101)
+
     def on_message(_client, _userdata, msg):
         estado = json.loads(msg.payload.decode())
         con.execute(
@@ -45,6 +52,8 @@ def main() -> None:
             ),
         )
         con.commit()
+        metricas.sumar("archivador_registros_guardados_total")
+        metricas.poner("archivador_ultimo_registro_timestamp_seconds", time.time())
         print(f"archivador: {estado.get('pieza_id')}", flush=True)
 
     cliente = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="archivador-est01")

@@ -1,0 +1,43 @@
+# Reglas de alerta de la línea EST-01.
+groups:
+  - name: est01
+    rules:
+      # La estación no responde a Prometheus: está parada o caída
+      - alert: EstacionCaida
+        expr: up{job="sensor"} == 0
+        for: 10s
+        labels: {severidad: aviso}
+        annotations:
+          resumen: "La estación EST-01 no responde"
+
+      # El archivador no responde: se están perdiendo registros
+      - alert: ArchivadorCaido
+        expr: up{job="archivador"} == 0
+        for: 10s
+        labels: {severidad: critica}
+        annotations:
+          resumen: "El archivador no responde: la producción no se está guardando"
+
+      # El archivador está vivo pero no guarda nada desde hace más de 15 s
+      - alert: HistoricoSinDatos
+        expr: time() - archivador_ultimo_registro_timestamp_seconds > 15
+        for: 5s
+        labels: {severidad: critica}
+        annotations:
+          resumen: "El histórico no recibe registros desde hace más de 15 s"
+
+      # La estación fabrica más de lo que se guarda en el último minuto
+      - alert: RegistrosPerdidos
+        expr: sum(increase(estacion_piezas_fabricadas_total[1m])) - sum(increase(archivador_registros_guardados_total[1m])) > 3
+        for: 10s
+        labels: {severidad: critica}
+        annotations:
+          resumen: "Se fabrican carcasas que no llegan al histórico"
+
+      # El husillo pasa del margen del procedimiento
+      - alert: TemperaturaHusilloAlta
+        expr: estacion_temperatura_husillo_celsius > 70
+        for: 5s
+        labels: {severidad: aviso}
+        annotations:
+          resumen: "El husillo de EST-01 supera 70 °C"

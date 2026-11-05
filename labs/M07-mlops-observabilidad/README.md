@@ -80,6 +80,7 @@ Si la estación «se ha ido» 8 °C, casi todo va a revisión. El modelo no avis
 |-----|--------|-----------|
 | M07-01 | [Publicación de servicios de inferencia](M07-01-servicio-inferencia.md) | Dejar el modelo llamable por otras aplicaciones. |
 | M07-02 | [Monitorización y seguimiento operacional](M07-02-monitorizacion.md) | Ver rendimiento y degradación del modelo desplegado. |
+| M07-03 | [Gestión de incidencias con un agente local](M07-03-incidencias-agente.md) | Diagnosticar alertas con un agente y un modelo local que propone y no ejecuta. |
 
 → Empieza por **[M07-01 — Publicación de servicios de inferencia](M07-01-servicio-inferencia.md)**.
 
@@ -90,3 +91,4 @@ Al terminar los laboratorios de este módulo deberías tener claro que:
 - Un modelo en operación se publica como servicio, con versión en cada respuesta y registro de cada consulta.
 - Un modelo no avisa de que ha dejado de servir: hay que vigilar su comportamiento frente a una línea base.
 - Que el servicio esté caído y que el modelo esté desfasado son problemas distintos, con soluciones distintas.
+- Un agente local puede diagnosticar incidencias y proponer la acción del runbook; la persona comprueba los hechos y decide.

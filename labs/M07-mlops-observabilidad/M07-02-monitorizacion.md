@@ -1,6 +1,6 @@
 # M07-02 — Monitorización y seguimiento operacional
 
-[← Página anterior](M07-01-servicio-inferencia.md) · [Siguiente página →](../M08-ciberseguridad-gobierno/README.md)
+[← Página anterior](M07-01-servicio-inferencia.md) · [Siguiente página →](M07-03-incidencias-agente.md)
 
 > Práctica del módulo. La teoría y la demostración están en el [README del módulo](README.md).
 >

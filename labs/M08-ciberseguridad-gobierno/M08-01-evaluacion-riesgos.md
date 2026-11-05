@@ -64,9 +64,10 @@ superficies:
   archivador puerto=- — almacén SQLite de ciclos
   opcua puerto=4840 — la misma señal, como servidor OPC-UA
   modbus puerto=1502 — la misma señal, como esclavo Modbus TCP
-  panel puerto=8501 — indicadores del turno
+  panel puerto=8501 — indicadores del operario
   llm puerto=8088 — inferencia del modelo generativo, solo en M05
   api puerto=8000 — servicio de inferencia del clasificador, desde M07
+  prometheus puerto=9090 — métricas y alertas de la arquitectura
 medida_dato: el histórico y el procedimiento se quedan en el volumen local; no hay URL externa
 medida_modelo: el fichero joblib y el GGUF están en disco y la respuesta lleva versión
 medida_acceso: los puertos del laboratorio solo se publican en localhost del puesto

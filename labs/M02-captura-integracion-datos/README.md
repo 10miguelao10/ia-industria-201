@@ -1,6 +1,6 @@
 # M02 — Captura, integración y preparación de datos
 
-[← Página anterior](../M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md) · [Siguiente página →](M02-01-telemetria.md)
+[← Página anterior](../M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) · [Siguiente página →](M02-01-telemetria.md)
 
 > [!NOTE]
 > **Cómo funciona este módulo.** Primero la **teoría**, luego la **demostración guiada**, y después **practicas tú** en los laboratorios.

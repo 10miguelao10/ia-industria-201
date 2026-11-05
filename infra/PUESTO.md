@@ -38,9 +38,9 @@ Salida HTTPS a:
 - `github.com`
 - `huggingface.co`
 
-La primera preparación baja las imágenes y un fichero de unos 470 MB. En clase no hay más descargas. No hace falta abrir puertos hacia internet: el navegador usa `localhost`.
+La primera preparación baja las imágenes (Mosquitto, Prometheus y la de la línea) y un fichero de unos 470 MB. En clase no hay más descargas. No hace falta abrir puertos hacia internet: el navegador usa `localhost`.
 
-En el equipo tienen que estar libres los puertos 1883, 4840, 1502, 8501, 8000 y 8088.
+En el equipo tienen que estar libres los puertos 1883, 4840, 1502, 8501, 8000, 8088 y 9090.
 
 ## Cómo se comprueba
 
@@ -60,7 +60,7 @@ Si algo no cumple, el script sale con código 1 y escribe `FALLO` y el motivo. N
 
 La prueba hace tres cosas, en este orden:
 
-1. Equipo. Ubuntu x86_64 en el equipo, en WSL2 o en una máquina virtual; 4 núcleos, 16 GB, 20 GB libres, Docker 24 accesible sin `sudo`, Compose v2, los seis puertos libres y salida HTTPS a los tres sitios.
+1. Equipo. Ubuntu x86_64 en el equipo, en WSL2 o en una máquina virtual; 4 núcleos, 16 GB, 20 GB libres, Docker 24 accesible sin `sudo`, Compose v2, los siete puertos libres y salida HTTPS a los tres sitios.
 2. Memoria que ve Docker. Al menos 12 GB. Si WSL o la máquina virtual se crearon con menos, la prueba para.
 3. Desempeño. Arranca la estación y el modelo, pide una respuesta corta y ejecuta un paso de laboratorio con todo eso en marcha. Falla si un contenedor muere por falta de memoria, si el modelo no responde en 45 segundos o si el paso de laboratorio no responde en 120 segundos.
 

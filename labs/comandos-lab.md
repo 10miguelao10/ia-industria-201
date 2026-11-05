@@ -969,6 +969,67 @@ def cmd_m07_02(_args):
 
 Se usa en [M07-02](M07-mlops-observabilidad/M07-02-monitorizacion.md).
 
+### m07-03
+
+**Qué hace:** hace de agente de incidencias. Lee las alertas activas de Prometheus y, para cada una, ejecuta las herramientas de lectura que le corresponden, busca su sección en el runbook y pide al modelo local que redacte un diagnóstico con la acción propuesta. Guarda cada informe y **no ejecuta ninguna acción**.
+
+| | |
+|--|--|
+| Necesita en marcha | `prometheus`, `llm` y, para que haya algo que diagnosticar, `mosquitto`, `sensor` y `archivador` |
+| Lee | `http://prometheus:9090/api/v1/alerts` y consultas PromQL · `historial.sqlite` (solo lectura) · `linea/docs/runbook-est01.md` · la respuesta del modelo |
+| Escribe | `incidencias.jsonl`: una línea por alerta, con hechos, diagnóstico y estado «propuesta pendiente de una persona» |
+| `OK` si | Hay al menos una alerta activa y se ha diagnosticado |
+| `FALLO` si | Prometheus no responde, o no hay alertas activas (esto último es lo esperado con la línea sana) |
+
+<details>
+<summary>Código (<code>infra/linea/cli.py</code>, función <code>cmd_m07_03</code>)</summary>
+
+```python
+# Herramientas: todas LEEN; ninguna escribe ni reinicia nada
+HERRAMIENTAS = {
+    "estado_servicios": _h_estado_servicios,          # PromQL: up → vivo / caído por servicio
+    "retraso_historico": _h_retraso_historico,        # PromQL: segundos desde el último registro guardado
+    "perdida_ultimo_minuto": _h_perdida_ultimo_minuto,  # PromQL: fabricadas - guardadas en 1 min
+    "ultimo_registro": _h_ultimo_registro,            # SQLite en solo lectura: última pieza y hora
+    "temperatura_actual": _h_temperatura_actual,      # PromQL: temperatura del husillo
+}
+
+# Qué herramientas usa para cada alerta. Lo decide el código, no el modelo
+PLAN = {
+    "ArchivadorCaido": ["estado_servicios", "ultimo_registro"],
+    "HistoricoSinDatos": ["estado_servicios", "retraso_historico", "perdida_ultimo_minuto", "ultimo_registro"],
+    "RegistrosPerdidos": ["estado_servicios", "retraso_historico", "perdida_ultimo_minuto"],
+    "EstacionCaida": ["estado_servicios"],
+    "TemperaturaHusilloAlta": ["temperatura_actual"],
+}
+
+def cmd_m07_03(_args):
+    alertas = httpx.get(f"{PROMETHEUS_URL}/api/v1/alerts").json()["data"]["alerts"]
+    activas = [a for a in alertas if a["state"] == "firing"]
+    if not activas:
+        return fallo("no hay alertas activas; provoca una incidencia primero")
+
+    for alerta in activas:
+        nombre = alerta["labels"]["alertname"]
+        hechos = {}
+        for herramienta in PLAN.get(nombre, ["estado_servicios"]):   # 1. medir
+            hechos.update(HERRAMIENTAS[herramienta]())
+        procedimiento = _runbook(nombre)                              # 2. la sección «## <alerta>» del runbook
+        diagnostico = _chat(                                          # 3. el modelo solo redacta
+            f"Alerta: {nombre}. Datos medidos: {hechos}. Runbook: {procedimiento} ...",
+            "Usa solo los datos y el runbook. No inventes cifras. No ejecutes nada: solo propones.",
+            max_tokens=120,
+        )
+        informe = {"alerta": nombre, "hechos": hechos, "diagnostico": diagnostico,
+                   "estado": "propuesta pendiente de una persona", ...}
+        ...                                                           # se añade a incidencias.jsonl
+    return ok("m07-03", f"{len(activas)} incidencia(s) diagnosticada(s) ...; ninguna acción ejecutada")
+```
+
+</details>
+
+Se usa en [M07-03](M07-mlops-observabilidad/M07-03-incidencias-agente.md).
+
 ---
 
 ## M08 — Seguridad y gobierno

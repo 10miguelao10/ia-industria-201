@@ -22,7 +22,7 @@ LLM_MAX_S=45
 LAB_MAX_S=120
 MODELO="modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf"
 URL_MODELO="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
-PUERTOS=(1883 4840 1502 8501 8000 8088)
+PUERTOS=(1883 4840 1502 8501 8000 8088 9090)
 
 ok() { printf 'OK  %s\n' "$1"; }
 fallo() {
@@ -173,6 +173,13 @@ comprobar_desempeno() {
     return
   fi
   ok "imagen construida"
+
+  echo "+ docker pull prom/prometheus:v2.53.2"
+  if ! docker pull prom/prometheus:v2.53.2; then
+    fallo "no se pudo bajar prom/prometheus:v2.53.2 desde Docker Hub"
+    return
+  fi
+  ok "imagen prometheus"
 
   asegurar_modelo || return
 
