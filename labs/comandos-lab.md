@@ -55,6 +55,49 @@ def _tasas(y_real, y_pred):        # matriz de confusión y sus dos tasas
 
 ---
 
+## Herramientas
+
+### sql
+
+**Qué hace:** lanza una consulta SQL contra el histórico (`historial.sqlite`) y enseña el resultado como tabla. Es la herramienta para investigar el dato por tu cuenta. Sin consulta, enseña las columnas de la tabla `lecturas`.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql "SELECT COUNT(*) FROM lecturas"
+```
+
+| | |
+|--|--|
+| Necesita en marcha | Nada (solo `lab`). Para tener datos, antes `mosquitto`, `sensor` y `archivador` |
+| Lee | `historial.sqlite`, en **solo lectura** |
+| Escribe | Nada. Un `DELETE`, `UPDATE` o `DROP` se rechaza: no puedes estropear el histórico |
+| Termina bien si | La consulta es válida (enseña las filas, o `(ninguna fila)`) |
+| `FALLO` si | No hay histórico todavía o la consulta tiene un error |
+
+<details>
+<summary>Código (<code>infra/linea/cli.py</code>, función <code>cmd_sql</code>)</summary>
+
+```python
+def cmd_sql(args):
+    ruta = DATA / "historial.sqlite"
+    if not ruta.exists():
+        return fallo("todavía no hay histórico; arranca mosquitto, sensor y archivador")
+    consulta = " ".join(args).strip() or "PRAGMA table_info(lecturas)"   # sin consulta: las columnas
+    con = sqlite3.connect(f"file:{ruta}?mode=ro", uri=True)              # SOLO LECTURA
+    try:
+        df = pd.read_sql_query(consulta, con)
+    except Exception as exc:
+        return fallo(f"la consulta no es válida: {exc}")                 # incluye intentos de escribir
+    ...
+    print(df.to_string(index=False))                                     # el resultado como tabla
+    return 0
+```
+
+</details>
+
+Se usa en [M01-01](M01-ia-industrial-arquitectura/M01-01-arquitectura-datos.md) y [M01-02](M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md).
+
+---
+
 ## M01 — Arquitectura y supervisión
 
 ### m01-01

@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué es la **supervisión de un proceso**: cómo convierte el histórico en información que el turno entiende, cómo debe ser un panel útil, cuáles son los límites de supervisar con reglas fijas y cómo se mejora.
+Comprender qué es la **observabilidad de un proceso**: qué señales tiene que emitir para poder entender su estado, cómo se convierten en indicadores que se interpretan de un vistazo, qué límites tiene vigilar con un umbral fijo y cómo se completa.
 
 ### Prerrequisitos
 
@@ -17,20 +17,34 @@ Comprender qué es la **supervisión de un proceso**: cómo convierte el histór
 
 ### Qué está pasando
 
-El jefe de turno no lee los registros uno a uno. Necesita mirar una pantalla y saber en dos segundos qué carcasa está saliendo, cómo va el husillo y si algo se ha salido de lo normal.
+Para saber si el proceso va bien no basta con que la máquina funcione: tiene que **emitir señales** (sus registros, con pieza, hora y medidas) y alguien tiene que poder **interpretarlas**. A esa capacidad de entender el estado de un sistema a partir de lo que emite se la llama **observabilidad**.
 
-Eso es el **panel**: la pantalla del puesto de supervisión. No escucha al broker; lee el **histórico** que llena el archivador y lo convierte en tres indicadores, un aviso y una gráfica de las últimas lecturas.
+En este lab trabajas la capa que convierte esas señales en **indicadores**: el **panel** del puesto de supervisión. Se coloca al final de la arquitectura del M01-01:
 
-El aviso usa un **margen fijo de 70 °C**, el que marca el procedimiento de la estación. Es una regla que escribió una persona, no un modelo: avisa cuando una señal pasa un número, y no ve combinaciones raras de varias señales. Eso llegará en M03.
+```
+ estación ──▶ broker ──▶ archivador ──▶ historial.sqlite ──▶ panel ──▶ operario
+```
+
+El panel **no escucha al broker**: lee el histórico. Enseña tres indicadores de la última carcasa, la tendencia de las últimas 120 lecturas y un aviso con un **margen fijo de 70 °C**, el del procedimiento de la estación. Es una regla escrita por una persona, no un modelo.
+
+Conviene distinguir tres cosas que se parecen:
+
+| | Pregunta que responde | Cuándo | En el curso |
+|--|-----------------------|--------|-------------|
+| **Supervisión** | ¿Está todo dentro de lo normal ahora? | En tiempo real | Este panel |
+| **Observabilidad** | ¿Puedo entender qué le pasa al proceso con lo que emite, incluso ante preguntas no previstas? | En tiempo real y después | Panel + logs (M01-01, paso 3) + histórico consultable con `lab sql` |
+| **Análisis a posteriori** | ¿Qué pasó, por qué y con qué se relaciona? | Después | Preparación de datos y modelos (M02 y M03) |
+
+Y una precisión: el panel enseña **indicadores de proceso** (temperatura, vibración, lecturas fuera de margen). No enseña **KPI de producción** como el OEE, el tiempo de ciclo o la tasa de rechazo. Vigila la salud del proceso, no el rendimiento de la línea.
 
 | En la realidad | En este laboratorio |
 |----------------|---------------------|
-| SCADA, HMI o un panel tipo Grafana sobre el histórico | Contenedor `panel` (Streamlit) sobre `historial.sqlite` |
-| Margen de operación del procedimiento | 70 °C fijos en el código del panel |
+| SCADA, HMI o un panel tipo Grafana sobre el histórico | Contenedor `panel` (Streamlit), código en `infra/linea/panel.py` |
+| Margen de operación del procedimiento | 70 °C, en `infra/linea/config.py` |
 
 ### 1 — Arrancar el panel
 
-Vas a levantar el puesto de supervisión y abrirlo en el navegador. Supervisar es mirar un indicador, no una tabla.
+**Qué ocurre:** enciendes la pantalla del puesto de supervisión. Cada vez que se abre o se recarga, lee las últimas 120 lecturas del histórico y las convierte en indicadores.
 
 ```bash
 # Arranca el panel
@@ -43,12 +57,23 @@ Abre <http://localhost:8501> en Chrome.
 
 ![Panel de EST-01 con pieza, temperatura, vibración, margen y serie](../img/M01-02-panel.png)
 
+**Cómo se lee:**
+
+| Elemento | Qué es |
+|----------|--------|
+| Pieza, Temperatura, Vibración | La última carcasa guardada en el histórico |
+| Recuadro verde o rojo | Si **la última** lectura está por debajo o por encima del margen |
+| «Lecturas fuera en esta ventana» | Cuántas de las **últimas 120** lecturas pasan del margen |
+| Gráfica | Temperatura y vibración de las últimas 120 lecturas |
+
+El panel no se actualiza solo: recarga la página para ver la carcasa más reciente.
+
 ### 2 — Comprobar el dato detrás del dibujo
 
-Vas a confirmar que el panel responde y a contar, directamente en el almacén, cuántas lecturas superan 70 °C. El número tiene que cuadrar con lo que enseña el panel.
+**Qué ocurre:** confirmas que el panel responde y cuentas, directamente en el histórico, cuántas lecturas pasan de 70 °C.
 
 ```bash
-# Pide la página del panel y cuenta lecturas en el SQLite
+# Pide la página del panel y cuenta lecturas por encima del margen en el histórico
 docker compose --profile lab run --rm --no-deps lab m01-02
 ```
 
@@ -61,24 +86,146 @@ panel_http=200 lecturas=29 fuera_de_margen=0 umbral=70.0
 OK m01-02: panel vivo, 29 lecturas, 0 fuera de 70 C
 ```
 
+Fíjate en que `m01-02` cuenta en **todo el histórico**, y el panel solo en las **últimas 120**. Con el margen en 70 °C los dos dan 0, porque la estación nunca pasa de 63 °C. En el apartado «Experimenta» verás qué pasa cuando no es así.
+
 <details>
 <summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
 
 ```python
 respuesta = httpx.get(PANEL_URL)                       # el panel tiene que contestar (200)
-df = pd.read_sql_query("SELECT temperatura_c FROM lecturas", con)
-fuera = int((df["temperatura_c"] > UMBRAL_TEMPERATURA).sum())   # regla fija: 70 °C
+df = pd.read_sql_query("SELECT temperatura_c FROM lecturas", con)   # TODO el histórico
+fuera = int((df["temperatura_c"] > UMBRAL_TEMPERATURA).sum())       # regla fija: 70 °C
 ```
 
 </details>
 
 ## Comprueba tu entendimiento
 
-**Margen visible**
+**Qué mira el recuadro**
 
-Lee en el panel cuántas lecturas fuera de margen declara el recuadro verde.
+Si la carcasa anterior pasó de 70 °C pero la última no, ¿de qué color está el recuadro?
 
-→ Coincide con `fuera_de_margen` de la salida de `m01-02`.
+→ Verde. El color solo mira **la última** lectura. La anterior aparece en el contador «Lecturas fuera en esta ventana».
+
+## Investiga: calcula tú los indicadores
+
+Un indicador no es magia: es una consulta sobre el histórico. Vas a calcular con `lab sql` lo mismo que enseña el panel.
+
+📋 Ficha del comando [`sql`](../comandos-lab.md#sql).
+
+### 1 — La última carcasa
+
+**Qué ocurre:** pides la fila más reciente del histórico, que es la que enseñan los tres indicadores de arriba.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT pieza_id, ts, temperatura_c, vibracion_mm_s FROM lecturas ORDER BY id DESC LIMIT 1"
+```
+
+**Resultado esperado** (cambian los valores):
+
+```text
+pieza_id                        ts  temperatura_c  vibracion_mm_s
+   P0153 2026-11-05T12:12:27+00:00          62.97            0.22
+```
+
+Recarga el panel: enseña la misma carcasa, o una posterior si ha pasado algún segundo.
+
+### 2 — La ventana del panel
+
+**Qué ocurre:** reproduces el contador del panel: cuántas de las últimas 120 lecturas pasan del margen, y la temperatura media de esa ventana.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT COUNT(*) AS lecturas, ROUND(AVG(temperatura_c), 2) AS media, SUM(temperatura_c > 70) AS fuera_de_margen
+   FROM (SELECT temperatura_c FROM lecturas ORDER BY id DESC LIMIT 120)"
+```
+
+**Resultado esperado:**
+
+```text
+ lecturas  media  fuera_de_margen
+      120  62.04                0
+```
+
+### 3 — Leer la gráfica
+
+**Qué ocurre:** miras la gráfica del panel con atención. La temperatura dibuja una línea con dientes entre 61 y 63 °C. La vibración parece una línea plana pegada al 0.
+
+**Pregunta:** ¿la vibración no cambia?
+
+<details>
+<summary>Ver solución</summary>
+
+Sí cambia, entre 0,22 y 0,28 mm/s, pero la gráfica usa **la misma escala** para las dos señales, de 0 a 63. Con esa escala, una variación de 0,06 no se ve.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT MIN(vibracion_mm_s) AS minima, MAX(vibracion_mm_s) AS maxima FROM lecturas"
+```
+
+```text
+ minima  maxima
+   0.22   0.28
+```
+
+Interpretar un panel también es desconfiar de cómo está dibujado: dos señales con unidades distintas necesitan escalas distintas.
+
+</details>
+
+## Experimenta: mueve el margen
+
+**Qué ocurre:** el margen de 70 °C está tan lejos de lo que hace la estación (61–63 °C) que nunca salta. Vas a bajarlo a **62,5 °C** para ver cómo se comporta el panel cuando sí hay lecturas fuera.
+
+**Antes de hacerlo, predice:**
+1. ¿De qué color se pondrá el recuadro?
+2. ¿Darán el mismo número el panel y `m01-02`?
+
+Abre `infra/linea/config.py` en VS Code y cambia esta línea:
+
+```python
+UMBRAL_TEMPERATURA = 70.0
+```
+
+por:
+
+```python
+UMBRAL_TEMPERATURA = 62.5
+```
+
+Reinicia el panel para que lea el valor nuevo, y lanza la comprobación:
+
+```bash
+docker compose restart panel
+docker compose --profile lab run --rm --no-deps lab m01-02
+```
+
+**Resultado esperado** (cambian los números):
+
+```text
+panel_http=200 lecturas=181 fuera_de_margen=51 umbral=62.5
+OK m01-02: panel vivo, 181 lecturas, 51 fuera de 62 C
+```
+
+Recarga el panel:
+
+![Panel con el margen en 62,5 °C: recuadro verde y 35 lecturas fuera en la ventana](../img/M01-02-margen-625.png)
+
+**Cómo se lee:**
+
+- **El recuadro puede seguir verde** aunque haya decenas de lecturas por encima: solo mira la última carcasa, y la temperatura sube y baja en dientes de sierra. Recarga varias veces y lo verás cambiar entre verde y rojo.
+- **El panel dice 35 y `m01-02` dice 51.** No es un error: el panel cuenta en las últimas 120 lecturas, y `m01-02` en todo el histórico. Dos indicadores con el mismo nombre y distinta ventana dan números distintos.
+- **El panel escribe «62 °C»** en lugar de 62,5 °C: redondea al mostrar. Un detalle así, en planta, genera discusiones sobre si una pieza estaba dentro o fuera.
+
+**Deja el margen como estaba** antes de seguir:
+
+```python
+UMBRAL_TEMPERATURA = 70.0
+```
+
+```bash
+docker compose restart panel
+```
 
 ## Reto
 
@@ -93,7 +240,7 @@ docker compose stop panel
 <details>
 <summary>Ver solución</summary>
 
-La página deja de abrir, pero los ciclos siguen archivándose: el panel no es el origen. Para recuperarlo:
+La página deja de abrir, pero los registros siguen archivándose: el panel no es el origen. Para recuperarlo:
 
 ```bash
 docker compose start panel
@@ -101,21 +248,85 @@ docker compose start panel
 
 </details>
 
+### 2 — Quita el archivador
+
+Ahora para el archivador, espera 20 segundos y recarga el panel varias veces. ¿Qué ve el operario?
+
+```bash
+docker compose stop archivador
+```
+
+<details>
+<summary>Ver solución</summary>
+
+El panel **sigue en verde**, con la misma pieza y la misma temperatura cada vez que recargas. Parece que todo va bien, pero los datos están congelados: el histórico no crece y el panel enseña lo último que hubo. Nada avisa de que los indicadores no son actuales.
+
+Es el fallo más peligroso de un sistema de supervisión: **un «todo normal» que en realidad es «no sé nada»**. Vuelve a arrancarlo:
+
+```bash
+docker compose start archivador
+```
+
+</details>
+
+## Mejora el panel: ¿el dato está vivo?
+
+**Qué ocurre:** vas a añadir al panel lo que le faltaba en el reto 2: la **hora del último dato** y un aviso si lleva más de 10 segundos sin llegar nada. Es una mejora de observabilidad: el panel no solo vigila el proceso, también vigila que su propia información esté al día.
+
+Abre `infra/linea/panel.py` en VS Code. Busca esta línea:
+
+```python
+c3.metric("Vibración (mm/s)", f"{ultimo['vibracion_mm_s']:.3f}")
+```
+
+y añade debajo:
+
+```python
+# ¿El dato está vivo? Hora del último registro y aviso si lleva más de 10 s sin llegar
+from datetime import datetime, timezone
+retraso = (datetime.now(timezone.utc) - datetime.fromisoformat(ultimo["ts"])).total_seconds()
+if retraso > 10:
+    st.warning(f"Sin datos nuevos desde hace {retraso:.0f} s (último: {ultimo['ts']}). Los indicadores no son actuales.")
+else:
+    st.caption(f"Último dato: {ultimo['ts']} (hace {retraso:.0f} s)")
+```
+
+Reinicia el panel y repite el reto 2:
+
+```bash
+docker compose restart panel
+docker compose stop archivador
+# … espera unos 15 segundos y recarga el panel …
+docker compose start archivador
+```
+
+**Resultado esperado** con el archivador parado:
+
+![Panel con aviso amarillo: sin datos nuevos desde hace 16 s](../img/M01-02-sin-datos.png)
+
+**Cómo se lee:** el aviso amarillo dice lo que antes nadie decía: los indicadores no son actuales. Fíjate en que el recuadro de margen sigue en verde debajo. Son dos preguntas distintas: «¿el proceso va bien?» y «¿me puedo fiar de lo que veo?».
+
+Con el archivador en marcha, el aviso desaparece y aparece una línea gris con la hora del último dato.
+
+Si quieres volver al panel original: `git checkout linea/panel.py` y `docker compose restart panel`.
+
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
 | <http://localhost:8501> no abre | el panel no está en marcha o el puerto está ocupado | `docker compose ps` y `docker compose logs panel` |
 | El panel dice que no hay histórico | el archivador acaba de crear la base | espera unos segundos y recarga |
+| El cambio de margen no se ve | el panel no se reinició | `docker compose restart panel` |
+| El panel da un error en rojo tras editar `panel.py` | falta un paréntesis o la sangría no cuadra | compara con el bloque del lab, o `git checkout linea/panel.py` |
 
 ## Conclusiones
 
-### Qué es supervisar un proceso
+### Qué es la observabilidad de un proceso
 
-Es convertir el histórico en unos pocos indicadores que una persona entiende de un vistazo: qué está pasando ahora, cómo ha ido en los últimos minutos y si algo se sale de lo normal. El panel no habla con la máquina: lee el histórico.
+Es poder entender el estado del proceso a partir de lo que emite. Necesita tres cosas: que la máquina **emita señales** con identidad y hora, que se **guarden** y que haya una capa que las **interprete**. El panel es esa última capa: convierte el histórico en indicadores que se entienden de un vistazo.
 
 ```
- estación ──▶ broker ──▶ archivador ──▶ historial.sqlite ──▶ panel ──▶ jefe de turno
+ señales (registros) ──▶ histórico ──▶ indicadores (panel) ──▶ interpretación (persona)
 ```
 
 ### Cómo debe ser un panel útil
@@ -124,23 +335,30 @@ Es convertir el histórico en unos pocos indicadores que una persona entiende de
 |-----------|-----------------------|
 | Muestra el estado actual | Pieza, temperatura y vibración de la última carcasa |
 | Muestra la tendencia | Gráfica de las últimas 120 lecturas |
-| Avisa de lo anormal con un criterio explícito | Margen de 70 °C del procedimiento |
-| Cuadra con el dato | El número de lecturas fuera de margen coincide con el que cuenta `m01-02` en el histórico |
+| Avisa con un criterio explícito | Margen del procedimiento, en `config.py` |
+| Cada indicador se puede reproducir | Lo has calculado tú con `lab sql` |
+| Dice si se puede fiar de él | Solo después de tu mejora: hora del último dato |
 
 ### Sus límites y cómo los has visto
 
 | Límite | Cómo lo has visto | Qué provoca |
 |--------|-------------------|-------------|
-| Depende del histórico | Reto: paras el panel y el histórico sigue creciendo; al revés, si se para el archivador, el panel se queda congelado sin avisar | Un panel puede enseñar datos viejos como si fueran actuales |
-| Regla fija sobre una sola señal | El aviso solo mira si la temperatura pasa de 70 °C | No ve una combinación rara (temperatura normal, pero vibración y corriente altas a la vez) |
-| Informa, no decide | El panel no hace nada con el aviso | La acción depende de que alguien lo mire |
+| El color solo mira la última lectura | Con 62,5 °C, verde con 35 lecturas fuera | Un vistazo rápido no ve que el proceso roza el margen |
+| Indicadores con distinta ventana | Panel 35, `m01-02` 51 | Dos personas discuten con números «del mismo indicador» |
+| Escala compartida | La vibración parece plana | Una variación real no se ve |
+| Datos congelados sin aviso | Reto 2: archivador parado y panel en verde | «Todo normal» cuando en realidad no llega nada |
+| Regla fija sobre una sola señal | Solo mira la temperatura | No ve combinaciones raras de varias señales |
 
 ### Cómo se mejora
 
-- Mostrar la **hora del último dato** y avisar si deja de llegar, para no confundir «todo normal» con «no llega nada».
-- Pasar de reglas fijas sobre una señal a **modelos que miran varias señales a la vez**: es lo que harás en M03.
-- Conectar el aviso con una **acción definida** (quién revisa y qué hace), no solo con un color en pantalla.
+| Límite | Mejora |
+|--------|--------|
+| Datos congelados | Hora del último dato y aviso de dato no actual (lo has hecho) |
+| Ventanas distintas | Decir siempre en qué ventana se calcula cada indicador |
+| Escala compartida | Una gráfica por señal, cada una con su escala |
+| Aviso que solo ve quien mira | Alertas que llegan a alguien y se registran (M03-02 y M07-02) |
+| Regla fija sobre una señal | Detectores y modelos que miran varias señales a la vez (M03) |
 
 ### En una frase
 
-> 🔑 Un panel convierte el dato en información, pero solo es tan bueno como el histórico que lee y la regla que aplica.
+> 🔑 Un panel solo es observabilidad si cada indicador se puede reproducir y si te dice cuándo no te puedes fiar de él.

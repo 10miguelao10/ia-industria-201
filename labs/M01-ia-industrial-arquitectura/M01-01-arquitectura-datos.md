@@ -176,6 +176,95 @@ Si el archivador dejara de confirmar las carcasas, ¿dónde se habrían perdido 
 
 → No en la estación, que sigue anunciándolas. Se pierden porque el broker los reparte y nadie los recoge: el broker no guarda nada.
 
+## Investiga el histórico
+
+Ahora haces tú las preguntas. `lab sql` lanza una consulta SQL contra el histórico en **solo lectura**: puedes probar lo que quieras sin estropear nada.
+
+📋 Ficha del comando [`sql`](../comandos-lab.md#sql).
+
+### 1 — Qué columnas tiene la tabla
+
+**Qué ocurre:** sin consulta, `lab sql` enseña la estructura de la tabla `lecturas`.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql
+```
+
+**Resultado esperado:**
+
+```text
+ cid           name    type  notnull dflt_value  pk
+   0             id INTEGER        0       None   1
+   1       pieza_id    TEXT        0       None   0
+   2             ts    TEXT        0       None   0
+   3  temperatura_c    REAL        0       None   0
+   4 vibracion_mm_s    REAL        0       None   0
+   5    corriente_a    REAL        0       None   0
+   6        payload    TEXT        0       None   0
+```
+
+`pk = 1` marca la clave primaria: solo `id`. Ninguna columna obliga a que `pieza_id` sea único.
+
+### 2 — ¿Cuántas carcasas tiene el histórico y cuántos nombres distintos?
+
+**Qué ocurre:** cuentas las filas y los identificadores distintos. Si cada carcasa tuviera un nombre único, los dos números serían iguales.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT COUNT(*) AS registros, COUNT(DISTINCT pieza_id) AS identificadores FROM lecturas"
+```
+
+**Resultado esperado** (con un histórico recién vaciado; los números cambian):
+
+```text
+ registros  identificadores
+       136              136
+```
+
+Antes de seguir, **predice**: ¿qué pasará con estos dos números después del reto 3, cuando reinicies la estación?
+
+### 3 — ¿Está completo? Carcasas por minuto
+
+**Qué ocurre:** la estación fabrica una carcasa por segundo, así que un minuto completo debe tener 60 registros. Agrupas el histórico por minuto y cuentas.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT substr(ts, 12, 5) AS minuto, COUNT(*) AS registros
+   FROM lecturas GROUP BY substr(ts, 1, 16) ORDER BY substr(ts, 1, 16)"
+```
+
+**Resultado esperado:**
+
+```text
+minuto  registros
+ 12:09          5
+ 12:10         60
+ 12:11         60
+ 12:12         24
+```
+
+El primer y el último minuto están incompletos porque el histórico empieza y termina a mitad de minuto. Los de en medio, con 60, están completos. Repite esta consulta después del reto 2.
+
+### 4 — ¿Cómo trabaja la estación?
+
+**Qué ocurre:** calculas las medidas de referencia del proceso. Es lo primero que se mira para saber qué es «normal».
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT ROUND(AVG(temperatura_c), 2) AS media, MIN(temperatura_c) AS minima, MAX(temperatura_c) AS maxima,
+          ROUND(AVG(vibracion_mm_s), 3) AS vib_media, ROUND(AVG(corriente_a), 2) AS corriente_media
+   FROM lecturas"
+```
+
+**Resultado esperado:**
+
+```text
+ media  minima  maxima  vib_media  corriente_media
+ 62.03   60.87   63.24       0.25             4.05
+```
+
+El husillo trabaja entre 61 y 63 °C, lejos del margen de 70 °C del procedimiento.
+
 ## Reto
 
 ### 1 — Para la estación
@@ -234,6 +323,14 @@ hueco: después de P0022 viene P0033; faltan 10 carcasas
 ```
 
 Esas 10 carcasas **se fabricaron**, y la estación publicó su registro, pero el broker no las guarda y el archivador no estaba escuchando. No están en el histórico y nada dio error. En planta pasa igual cuando se cae el servidor del histórico o se corta la red: hay piezas reales sin registro.
+
+Repite la consulta de carcasas por minuto (Investiga, punto 3): el minuto en que paraste el archivador tiene menos de 60.
+
+```text
+minuto  registros
+ 12:10         60
+ 12:11         49
+```
 
 </details>
 
@@ -300,6 +397,49 @@ docker compose stop sensor archivador mosquitto
 docker compose --profile lab run --rm --no-deps --entrypoint rm lab -f /data/historial.sqlite /data/estado.json
 docker compose up -d mosquitto sensor archivador
 ```
+
+## Mejora la arquitectura
+
+Has visto dónde se rompe. Ahora compruebas dos mejoras que no necesitan cambiar nada de la arquitectura: elegir una clave mejor y conciliar lo fabricado con lo registrado.
+
+### 1 — Buscar una clave que sí identifique la carcasa
+
+**Qué ocurre:** `pieza_id` se repite. Compruebas si la combinación de **identificador + hora** es única en el histórico. Si lo es, sirve como clave de pieza.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT pieza_id, ts, COUNT(*) AS veces FROM lecturas GROUP BY pieza_id, ts HAVING COUNT(*) > 1"
+```
+
+**Resultado esperado:**
+
+```text
+(ninguna fila)
+```
+
+Ninguna combinación se repite: `pieza_id` + `ts` identifica cada carcasa aunque la estación se reinicie. En una base de datos de planta se declara como clave única para que el histórico rechace un duplicado.
+
+### 2 — Conciliar lo fabricado con lo registrado
+
+**Qué ocurre:** comparas cuántas carcasas ha fabricado la estación desde su último arranque (lo dice la `secuencia` que viaja en cada registro) con cuántas hay en el histórico. Es la comprobación que una planta hace a diario entre el MES y el histórico.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql \
+  "WITH inicio AS (SELECT MAX(id) AS id FROM lecturas WHERE json_extract(payload, '$.secuencia') <= 3)
+   SELECT MAX(json_extract(payload, '$.secuencia')) AS fabricadas,
+          COUNT(*) AS registradas,
+          MAX(json_extract(payload, '$.secuencia')) - COUNT(*) AS sin_registro
+   FROM lecturas, inicio WHERE lecturas.id >= inicio.id"
+```
+
+**Resultado esperado** (después del reto 2, sin el reto 3):
+
+```text
+ fabricadas  registradas  sin_registro
+        155          142            13
+```
+
+**Cómo se lee:** desde que arrancó, la estación ha fabricado 155 carcasas y el histórico tiene 142. Faltan 13: las 10 del reto 2 y unas pocas del arranque, emitidas antes de que el archivador estuviera escuchando. Esta consulta detecta la pérdida **sin saber de antemano que la hubo**; por eso la conciliación es la mejor alarma contra la pérdida silenciosa.
 
 ## Errores frecuentes
 

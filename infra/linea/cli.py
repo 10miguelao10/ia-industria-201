@@ -652,6 +652,27 @@ def cmd_m08_02(_args) -> int:
     return ok("m08-02", f"rastro de AUD0007 con version={primera['version']} aunque el fichero cambió")
 
 
+def cmd_sql(args) -> int:
+    """Consulta de solo lectura al histórico. Sin argumentos, enseña las columnas de la tabla."""
+    ruta = DATA / "historial.sqlite"
+    if not ruta.exists():
+        return fallo("todavía no hay histórico; arranca mosquitto, sensor y archivador")
+    consulta = " ".join(args).strip() or "PRAGMA table_info(lecturas)"
+    con = sqlite3.connect(f"file:{ruta}?mode=ro", uri=True)   # solo lectura: no se puede romper el histórico
+    try:
+        df = pd.read_sql_query(consulta, con)
+    except Exception as exc:
+        return fallo(f"la consulta no es válida: {exc}")
+    finally:
+        con.close()
+    if df.empty:
+        print("(ninguna fila)")
+    else:
+        with pd.option_context("display.max_rows", 50, "display.width", 200, "display.max_colwidth", 60):
+            print(df.to_string(index=False))
+    return 0
+
+
 COMANDOS = {
     "m01-01": cmd_m01_01,
     "m01-02": cmd_m01_02,
@@ -676,6 +697,7 @@ COMANDOS = {
     "m07-02": cmd_m07_02,
     "m08-01": cmd_m08_01,
     "m08-02": cmd_m08_02,
+    "sql": cmd_sql,
 }
 
 
