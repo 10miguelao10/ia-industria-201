@@ -70,12 +70,12 @@ cat data/VERSION
 **Resultado esperado:**
 
 ```text
-{"pieza_id": "AUD0007", "version": "defecto-0.1", "entrada": {"pieza_id": "AUD0007", "temperatura_c": 63.19, "vibracion_mm_s": 0.246, "corriente_a": 3.88, "presion_bar": 6.1}, "dictamen": "seguir", "probabilidad": 0.0798, "ts": "…"}
-{"pieza_id": "AUD0008", "version": "defecto-0.1", "entrada": {"pieza_id": "AUD0008", "temperatura_c": 63.19, "vibracion_mm_s": 0.246, "corriente_a": 3.88, "presion_bar": 6.1}, "dictamen": "seguir", "probabilidad": 0.0798, "ts": "…"}
+{"pieza_id": "AUD0007", "version": "defecto-0.1", "huella_modelo": "69a897cdf955", "entrada": {"pieza_id": "AUD0007", "temperatura_c": 63.19, "vibracion_mm_s": 0.246, "corriente_a": 3.88, "presion_bar": 6.1}, "dictamen": "seguir", "probabilidad": 0.0798, "ts": "2026-11-06T03:06:36+00:00"}
+{"pieza_id": "AUD0008", "version": "defecto-0.1", "huella_modelo": "69a897cdf955", "entrada": {"pieza_id": "AUD0008", "temperatura_c": 63.19, "vibracion_mm_s": 0.246, "corriente_a": 3.88, "presion_bar": 6.1}, "dictamen": "seguir", "probabilidad": 0.0798, "ts": "2026-11-06T03:06:36+00:00"}
 defecto-0.1
 ```
 
-De cada pieza sabes qué entró, qué se decidió, con qué versión y cuándo.
+De cada pieza sabes qué entró, qué se decidió, con qué versión, con qué modelo exacto (la huella) y cuándo. Si has repetido el comando, verás también las líneas de ejecuciones anteriores: el registro no se borra.
 
 ## Comprueba tu entendimiento
 
@@ -97,6 +97,27 @@ Lee la frase que imprime el comando antes del `OK`. ¿Es un sistema que decide o
 Asiste: recomienda seguir o revisar y no escribe el paro. No rechaza piezas por sí solo. Esa clasificación es la que se documenta cuando se evalúa el uso frente al Reglamento de IA.
 
 </details>
+
+## Mejora: verificar el modelo del rastro
+
+**Qué ocurre:** un auditor no se fía de la etiqueta de versión (M07-01). Comprueba que la huella que aparece en el rastro es la del modelo que hay en disco.
+
+```bash
+# La huella del rastro de AUD0007 (la última vez que se dictaminó)
+grep AUD0007 data/predicciones.jsonl | tail -1 | grep -o '"huella_modelo": "[^"]*"'
+
+# La huella del fichero del modelo en disco
+sha256sum data/modelo_defecto.joblib | cut -c1-12
+```
+
+**Resultado esperado:**
+
+```text
+"huella_modelo": "69a897cdf955"
+69a897cdf955
+```
+
+**Cómo se lee:** coinciden: la pieza la dictaminó el modelo que está hoy en disco. Si mañana se entrena y se despliega otro, las piezas nuevas tendrán otra huella y las antiguas conservarán la suya. Así, ante una reclamación de una pieza de hace tres meses, se sabe qué modelo exacto la dictaminó, aunque ese fichero ya no esté en producción. En una plataforma real se guardan **todos** los modelos desplegados con su huella, para poder reproducir cualquier decisión.
 
 ## Errores frecuentes
 
