@@ -24,14 +24,18 @@ desde cada bloque).
 
 En los laboratorios vas a modificar ficheros: el panel, el archivador, las reglas de alerta, los prompts… Para no perder esos cambios y llevártelos al acabar el curso, trabaja sobre **tu propia copia del repositorio en GitHub** (un *fork*). Necesitas una cuenta de GitHub.
 
-**1. Una sola vez, al empezar.** Desde la carpeta del repositorio:
+**1. Una sola vez, al empezar.**
+
+En el navegador, entra en <https://github.com/my-it-labs/ia-industria-201> y pulsa **Fork** → **Create fork**. GitHub crea tu copia en `https://github.com/<tu-usuario>/ia-industria-201`.
+
+Después, en la terminal, desde la carpeta del repositorio, haz que tu copia local apunte a tu fork:
 
 ```bash
-# Inicia sesión en GitHub desde la terminal (sigue las instrucciones del navegador)
-gh auth login
+# El repositorio del curso pasa a llamarse «upstream»
+git remote rename origin upstream
 
-# Crea tu fork en GitHub y lo deja como «origin»; el repositorio del curso pasa a llamarse «upstream»
-gh repo fork --remote
+# Tu fork pasa a ser «origin» (cambia <tu-usuario> por tu usuario de GitHub)
+git remote add origin https://github.com/<tu-usuario>/ia-industria-201.git
 
 # Comprueba los dos remotos
 git remote -v
@@ -51,8 +55,10 @@ upstream  https://github.com/my-it-labs/ia-industria-201.git (push)
 ```bash
 git add -A
 git commit -m "M01-02: el panel avisa cuando los datos no son actuales"
-git push
+git push -u origin main     # la primera vez; después basta con git push
 ```
+
+La primera vez que subas, GitHub te pedirá iniciar sesión. GitHub no acepta la contraseña de la cuenta desde la terminal: lo más sencillo es hacer el *push* desde **VS Code** (icono de control de código fuente → **Sync Changes**), que abre el navegador para iniciar sesión. A partir de ahí, `git push` funciona también en la terminal de VS Code.
 
 Lo que generan los laboratorios en `infra/data/` (histórico, modelos, CSV) y el fichero del modelo de lenguaje **no se suben**: están excluidos a propósito. Solo se guarda lo que tú cambias.
 
