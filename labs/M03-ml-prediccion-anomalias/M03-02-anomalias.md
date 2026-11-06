@@ -115,25 +115,6 @@ umbral=25.0 averias_simuladas=20 avisadas=20 avisos_sobre_normales=0 de 180
 
 **Cómo se lee:** con anomalías tan claras, un umbral alto las sigue viendo todas y elimina las falsas alarmas. Pero ese umbral de 25 solo es «mejor» porque estas anomalías están a 235. Si el rodamiento empezara a fallar poco a poco, con distancias de 15, el umbral de 25 **no avisaría hasta que fuera tarde**. Se elige con anomalías realistas, no con las más fáciles.
 
-## Reto
-
-### 1 — Subir el umbral para que no moleste
-
-**La situación:** el detector del paso 1 avisa con una distancia de 13,3 o más. Con ese umbral da 7 falsas alarmas en 180 ciclos normales, y el jefe de turno se queja de que la pantalla «no para de pitar». Propone subir el umbral a 25, porque con 25 los 20 ciclos con avería simulada del lab se siguen avisando y las falsas alarmas bajan a 0 (lo has visto en «Experimenta»).
-
-**La pregunta:** ¿qué ganas y qué pierdes con el umbral de 25? Piensa en una avería que **empieza**, con la vibración solo algo por encima de lo normal, en vez de la de este lab, que está a una distancia de más de 200.
-
-<details>
-<summary>Ver solución</summary>
-
-**Ganas** silencio: 0 falsas alarmas.
-
-**Pierdes** las averías tempranas, que son las que interesa ver. En el paso 8 de «Constrúyelo tú», con una vibración de 0,55 mm/s, el umbral de 25 avisa **2 de 20** ciclos con avería simulada; el de 13,3, los 20.
-
-**La regla:** el umbral se elige con las averías que se quieren ver **a tiempo**, no con las más evidentes. Si el problema son demasiados avisos, la solución no es subir el umbral, sino avisar cuando se repite en varios ciclos seguidos o cuando la señal tiende a salirse.
-
-</details>
-
 ## Constrúyelo tú: tu propio detector
 
 **Qué está pasando:** `lab m03-02` usa un detector ya hecho de una librería. Ahora lo construyes tú, **pieza a pieza**, con cuentas que puedes seguir: primero aprendes cómo es un ciclo normal, luego pruebas una regla sencilla señal a señal, después calculas tú la distancia con todas las señales a la vez y, al final, traduces las falsas alarmas a lo que importa en planta: **cuántos avisos recibiría el turno**. Como el código es tuyo, podrás probar lo que el comando no deja: una avería que empieza poco a poco.
@@ -363,7 +344,94 @@ umbral=8: averías avisadas=18 de 20  falsas alarmas=34 de 180
 falsas alarmas: 18.9% de los ciclos normales -> ~5440 avisos falsos por turno
 ```
 
-**Cómo se lee:** con una avería metida en el ruido normal, **ningún umbral la resuelve**: o se escapa (4 de 20) o el turno recibe más de cinco mil avisos falsos. Mirar un solo ciclo no da para más. Lo que funciona es mirar **la tendencia de muchos ciclos**: una vibración que sube poco a poco durante una hora es una señal clara, aunque cada ciclo suelto parezca normal. Vuelve a dejar `UMBRAL = 13.3` y `VIBRACION_AVERIA = None`.
+**Cómo se lee:** con una avería metida en el ruido normal, **ningún umbral la resuelve**: o se escapa (4 de 20) o el turno recibe más de cinco mil avisos falsos. Mirar un solo ciclo no da para más. Lo que funciona es mirar **la tendencia de muchos ciclos**: una vibración que sube poco a poco durante una hora es una señal clara, aunque cada ciclo suelto parezca normal. En el reto 2 lo pruebas con una regla de repetición. Vuelve a dejar `UMBRAL = 13.3` y `VIBRACION_AVERIA = None`.
+
+## Reto
+
+Los dos retos se hacen con tu script de «Constrúyelo tú»: cambias algo, ejecutas y compruebas el resultado. Al acabar, vuelve a dejar `UMBRAL = 13.3` y `VIBRACION_AVERIA = None`.
+
+### 1 — El umbral más alto que no pierde la avería que empieza
+
+**La situación:** con el umbral de 13,3, el detector da ~1 120 avisos falsos por turno (paso 7), y el jefe de turno quiere subirlo. Mantenimiento pone una condición: no se puede perder la avería que empieza, la de vibración 0,55 mm/s del paso 8.
+
+**Qué haces:** arriba del fichero pones `VIBRACION_AVERIA = 0.55` y pruebas, uno tras otro, `UMBRAL = 15`, `17`, `18` y `20`. Ejecuta después de cada cambio y apunta, de las líneas `umbral=…` y `falsas alarmas: …`, cuántas averías avisa y cuántos avisos falsos daría por turno.
+
+**Lo que buscas:** el umbral **más alto** que todavía avisa las **20 de 20**. ¿Cuántos avisos falsos por turno quedan con él?
+
+<details>
+<summary>Ver solución</summary>
+
+Las dos líneas de cada ejecución, juntas en una:
+
+```text
+umbral=15: averías avisadas=20 de 20  falsas alarmas=4 de 180    -> ~640 avisos falsos por turno
+umbral=17: averías avisadas=20 de 20  falsas alarmas=3 de 180    -> ~480 avisos falsos por turno
+umbral=18: averías avisadas=17 de 20  falsas alarmas=3 de 180    -> ~480 avisos falsos por turno
+umbral=20: averías avisadas=13 de 20  falsas alarmas=2 de 180    -> ~320 avisos falsos por turno
+```
+
+**El umbral más alto es 17**: avisa las 20 y deja **~480 avisos falsos por turno**. A partir de 18 empiezan a escaparse averías.
+
+**Cómo se lee:** subir el umbral solo te lleva de 1 120 a 480 avisos falsos antes de empezar a perder averías. Siguen siendo uno por minuto: el umbral, por sí solo, no resuelve el problema. Hace falta otra idea, la del reto 2.
+
+</details>
+
+### 2 — Avisar solo si se repite
+
+**La situación:** una falsa alarma es un ciclo normal que, por azar, sale algo lejos de lo normal; el siguiente ciclo vuelve a ser normal. Una avería, en cambio, **dura**: en tus datos, los 20 ciclos con avería simulada van seguidos, al final (H0181 a H0200), como pasaría con un rodamiento que empieza a fallar.
+
+**Qué haces:** añades al final del script una regla nueva: **avisar solo cuando el ciclo y los dos anteriores pasan el umbral**. Y la pruebas con el caso que en el paso 9 no tenía arreglo: `VIBRACION_AVERIA = 0.45` y `UMBRAL = 8`, que daba más de 5 000 avisos falsos por turno.
+
+**Pistas:**
+
+- `aviso` (del paso 5) tiene un valor por ciclo: `True` si ese ciclo pasa el umbral.
+- `aviso.shift(1, fill_value=False)` da, para cada ciclo, el aviso **del ciclo anterior**; con `shift(2, …)`, el de dos ciclos antes.
+- `&` es «y»: `a & b` es `True` solo si los dos lo son.
+- Imprime las averías avisadas y las falsas alarmas igual que en el paso 5.
+
+**Lo que buscas:** que las falsas alarmas bajen mucho sin dejar de ver la avería.
+
+<details>
+<summary>Ver solución</summary>
+
+Al final del fichero:
+
+```python
+# Reto 2: avisar solo si el ciclo y los dos anteriores pasan el umbral
+seguidos = aviso & aviso.shift(1, fill_value=False) & aviso.shift(2, fill_value=False)
+print(f"umbral={UMBRAL} con 3 seguidos: averías avisadas={int((seguidos & averia).sum())} de {int(averia.sum())}"
+      f"  falsas alarmas={int((seguidos & ~averia).sum())} de {int((~averia).sum())}")
+
+# En un turno: tres falsas alarmas sueltas seguidas, si caen al azar, pasan con probabilidad tasa³
+print(f"  en un turno: ~{tasa_falsas ** 3 * CICLOS_POR_TURNO:.0f} avisos falsos con la regla de 3 seguidos "
+      f"(frente a ~{tasa_falsas * CICLOS_POR_TURNO:.0f} sin ella)")
+```
+
+**Resultado** (con `VIBRACION_AVERIA = 0.45` y `UMBRAL = 8`):
+
+```text
+umbral=8: averías avisadas=18 de 20  falsas alarmas=34 de 180
+falsas alarmas: 18.9% de los ciclos normales -> ~5440 avisos falsos por turno
+umbral=8 con 3 seguidos: averías avisadas=13 de 20  falsas alarmas=0 de 180
+  en un turno: ~194 avisos falsos con la regla de 3 seguidos (frente a ~5440 sin ella)
+```
+
+Y con el detector del lab (`VIBRACION_AVERIA = None`, `UMBRAL = 13.3`):
+
+```text
+umbral=13.3 con 3 seguidos: averías avisadas=18 de 20  falsas alarmas=0 de 180
+  en un turno: ~2 avisos falsos con la regla de 3 seguidos (frente a ~1120 sin ella)
+```
+
+**Cómo se lee:**
+
+- **La avería que no tenía arreglo ahora se ve**: 13 ciclos avisados de 20, y ninguna falsa alarma en los 200 ciclos.
+- **El precio es un pequeño retraso**: los dos primeros ciclos de la avería no pueden avisar, porque la regla espera a tres seguidos. Con un ciclo por segundo, son 2 segundos.
+- **Cero en 200 ciclos no es cero en un turno.** La última línea lo calcula para 28 800 ciclos: con el umbral de 8 quedan ~194 avisos falsos, frente a ~5 440; con el de 13,3, **~2 por turno frente a ~1 120**, y la avería del lab se sigue viendo.
+
+**La regla:** un detector útil combina **cuánto se aleja** un ciclo (el umbral) con **cuánto dura** (la repetición). Es la misma idea que el tiempo `for` de las [alertas](../glosario/02-observabilidad.md#alerta) de Prometheus del M01-03: la condición tiene que mantenerse un rato antes de avisar.
+
+</details>
 
 ## Errores frecuentes
 
