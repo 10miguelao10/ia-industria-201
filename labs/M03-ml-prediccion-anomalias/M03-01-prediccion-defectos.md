@@ -170,14 +170,31 @@ umbral=0.5 equilibrar=no
 
 ## Reto
 
-### 1 — Columna que llega tarde
+### 1 — Una columna que llega tarde
 
-Si añadieras la propia columna `defecto` como entrada, el acierto sería perfecto. ¿Sirve?
+**La situación:** cada fila de `limpio.csv` tiene dos tipos de columnas que nacen en momentos distintos:
+
+| Columna | Quién la escribe | Cuándo |
+|---------|------------------|--------|
+| `temperatura_c`, `vibracion_mm_s`, `corriente_a`, `presion_bar` | La estación EST-01 | **Durante** el ciclo, mientras se fabrica la carcasa |
+| `defecto` | Calidad | **Después**, cuando inspecciona la carcasa en su puesto |
+
+El modelo entrena con las cuatro primeras como entrada y aprende a predecir `defecto`. En el código, la lista de entradas es `FEATURES` (en `cmd_m03_01`) o `SENALES` (en tu script de «Constrúyelo tú»).
+
+Un compañero propone: «Añade `defecto` a esa lista de entradas, junto a las cuatro señales. El modelo acertará el 100 %».
+
+**La pregunta:** ¿acertaría de verdad el 100 % en el examen? Y, sobre todo, ¿serviría en la línea, cuando una carcasa acaba de salir de EST-01 y hay que decidir si se manda a revisar?
 
 <details>
 <summary>Ver solución</summary>
 
-No predice: lee la respuesta. Las entradas permitidas son solo las señales que existen antes del control de calidad: temperatura, vibración, corriente y presión.
+**En el examen, sí, acierta el 100 %.** Lo comprobarás en el paso 8 de «Constrúyelo tú»: 21 defectos encontrados de 21 y 0 falsas alarmas. Pero no ha aprendido nada del proceso: ha aprendido «si la columna `defecto` vale 1, es defecto». Copia la respuesta.
+
+**En la línea, no sirve.** El modelo tiene que decidir cuando la carcasa sale de la estación, y en ese momento calidad todavía no la ha inspeccionado: la columna `defecto` **aún no existe**. Al modelo le faltaría una de sus entradas justo cuando hace falta. Y, si ya tuvieras ese dato, no necesitarías el modelo.
+
+**La regla:** como entrada del modelo solo vale lo que **ya se conoce en el momento de decidir**. Meter un dato que llega después se llama [fuga de información](../glosario/03-aprendizaje-automatico.md#fuga).
+
+**Cómo se detecta:** un resultado demasiado bueno, como un 100 % en un problema real, es sospechoso. Ante cada columna de entrada, pregúntate **quién la escribe y cuándo**.
 
 </details>
 
@@ -397,6 +414,30 @@ OK construye m03-01: el modelo ahorra 6700 € frente a revisar todo
 ```
 
 **Cómo se lee:** con el mismo modelo y los mismos datos, el umbral bueno pasa de 0,05 a **0,7**, y el modelo pasa de ahorrar 110 € a ahorrar **6 700 €**. Lo que vale un modelo no lo deciden solo sus datos: lo decide **lo que cuesta cada error en tu planta**. Por eso quien fija el umbral es calidad, con sus números.
+
+### 8 — Haz trampa a propósito
+
+**Qué ocurre:** compruebas con tu código el Reto 1. Añades `defecto`, la columna que escribe calidad después de inspeccionar, a la lista de entradas del modelo. Vuelve a poner `COSTE_REVISION = 5` y cambia la lista `SENALES`, al principio del fichero:
+
+```python
+# TRAMPA: "defecto" no existe todavía cuando la carcasa sale de la estación
+SENALES = ["temperatura_c", "vibracion_mm_s", "corriente_a", "presion_bar", "defecto"]
+```
+
+```bash
+docker compose --profile lab run --rm --no-deps lab construye m03_01_mi_modelo.py
+```
+
+**Resultado esperado** (líneas principales):
+
+```text
+umbral 0.5 -> encontrados=21 escapados=0 falsas_alarmas=0 correctas=210
+...
+mejor umbral=0.1 coste=0 € | revisar todo=1050 €
+OK construye m03-01: el modelo ahorra 1050 € frente a revisar todo
+```
+
+**Cómo se lee:** un modelo «perfecto», con coste cero, que no se puede usar en la línea, porque una de sus entradas llega cuando ya ha pasado el momento de decidir. El código da `OK`: **ningún programa detecta esta trampa por ti**, solo quien sabe cuándo nace cada dato. Vuelve a dejar las cuatro señales.
 
 ## Errores frecuentes
 
