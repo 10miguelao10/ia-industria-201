@@ -81,6 +81,47 @@ El acierto que imprime el comando, ¿de qué imágenes es?
 
 → Del 30 % apartado, no de las del entrenamiento.
 
+## Experimenta: ¿cuánto detalle hace falta?
+
+**Qué ocurre:** el modelo ve cada foto reducida a 16×16 píxeles. Vas a probar con menos y con más detalle. El parámetro `lado` cambia el tamaño al que se reduce la foto (estas pruebas no sustituyen el modelo guardado, que sigue siendo el de 16×16).
+
+**Predice:** con fotos de 4×4 (16 números), ¿se verá el rayón?
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m04-01 lado=4
+docker compose --profile lab run --rm --no-deps lab m04-01 lado=8
+docker compose --profile lab run --rm --no-deps lab m04-01 lado=32
+```
+
+**Resultado esperado:**
+
+```text
+lado=4: 16 píxeles por foto (no se guarda el modelo)
+acierto_prueba=0.79
+FALLO: el clasificador visual no separa las piezas
+```
+
+```text
+lado=8: 64 píxeles por foto (no se guarda el modelo)
+acierto_prueba=0.83
+FALLO: el clasificador visual no separa las piezas
+```
+
+```text
+lado=32: 1024 píxeles por foto (no se guarda el modelo)
+acierto_prueba=0.92
+OK m04-01: acierto=0.92 en imágenes no usadas al entrenar
+```
+
+| Lado | Números por foto | Acierto en examen |
+|------|------------------|-------------------|
+| 4 | 16 | 0,79 |
+| 8 | 64 | 0,83 |
+| 16 | 256 | 0,88 |
+| 32 | 1 024 | 0,92 |
+
+**Cómo se lee:** al reducir tanto la foto, el rayón (una línea de 2 píxeles en una foto de 64) se mezcla con el resto y casi desaparece. Con más detalle, el modelo acierta más, a cambio de procesar cuatro veces más números. En planta pasa lo mismo con la **resolución de la cámara**: tiene que ser suficiente para que el defecto más pequeño que importa ocupe varios píxeles.
+
 ## Reto
 
 ### 1 — Atajo
@@ -130,6 +171,7 @@ Un 88 % significa que algunas fotos se clasifican mal: en la línea, defectos qu
 ### Cómo se mejora
 
 - Fotos **en las condiciones reales** del puesto: misma cámara, luz y posición.
+- **Resolución suficiente** para el defecto más pequeño que importe (en el experimento, de 0,79 con 4×4 a 0,92 con 32×32).
 - **Más ejemplos de defecto** y de variaciones normales.
 - Modelos de visión más capaces (redes convolucionales) cuando el defecto no es tan simple como una línea clara.
 

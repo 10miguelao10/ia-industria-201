@@ -37,7 +37,7 @@ docker compose --profile lab run --rm --no-deps lab m04-02
 **Resultado esperado:**
 
 ```text
-errores_zona=0 falsos_en_buenas=0
+brillo=230.0 errores_zona=0 falsos_en_buenas=0 de 3
 OK m04-02: zona correcta en 5 defectos; buenas sin marca=0
 ```
 
@@ -67,6 +67,23 @@ if img.mean(axis=1).max() > 230:
 Abre `infra/data/imagenes/defectuosas/ko_00.png` y busca la línea clara.
 
 → Es la fila más brillante de toda la imagen. El borde de la pieza es un contorno, no una fila clara entera.
+
+## Experimenta: bajar el umbral de brillo
+
+**Qué ocurre:** para decir que una pieza buena «no tiene rayón», la regla comprueba que ninguna fila llegue a un brillo medio de 230 (de 255). Vas a bajar ese umbral a 180, como si quisieras «pillar más» defectos.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m04-02 brillo=180
+```
+
+**Resultado esperado:**
+
+```text
+brillo=180.0 errores_zona=0 falsos_en_buenas=1 de 3
+OK m04-02: zona correcta en 5 defectos; buenas sin marca=1
+```
+
+**Cómo se lee:** con 180, **una de las tres piezas buenas** ya tiene una fila «sospechosa»: una fila que es todo fondo, y en esa foto el fondo es algo más claro (entre 170 y 185). La regla empieza a inventarse defectos. Bajar un umbral para no perder nada se paga en falsas alarmas, igual que en el M03-01.
 
 ## Reto
 

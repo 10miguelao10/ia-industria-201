@@ -80,16 +80,40 @@ Cuenta filas del CSV (sin la cabecera) y ficheros en `lote_entrada`.
 
 → Seis y seis: cada imagen tiene su dictamen.
 
+## Experimenta: mover el umbral
+
+**Qué ocurre:** `ko_00.png` se escapa por 0,007. Vas a bajar el umbral de revisión de 0,5 a 0,4.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m04-03 umbral=0.4
+```
+
+**Resultado esperado:**
+
+```text
+umbral=0.4 duda=±0.0
+   imagen  probabilidad_defecto decision
+ok_00.png                 0.345  aceptar
+ok_01.png                 0.269  aceptar
+ok_02.png                 0.314  aceptar
+ko_00.png                 0.493  revisar
+ko_01.png                 0.657  revisar
+ko_02.png                 0.714  revisar
+OK m04-03: registro=6 revisar=3
+```
+
+**Cómo se lee:** las tres defectuosas van a revisión y las tres buenas siguen aceptándose. Con este lote, 0,4 es mejor. Pero la buena con más probabilidad está en 0,345: con un umbral de 0,3 empezarías a parar piezas buenas. El margen entre «la mala más baja» (0,493) y «la buena más alta» (0,345) es estrecho, y con miles de piezas habrá solapes.
+
 ## Reto
 
-### 1 — El umbral
+### 1 — Quién decide el umbral
 
-¿Qué pasaría con `ko_00.png` si el umbral de `revisar` bajara de 0,5 a 0,4? ¿Y con las buenas?
+El modelo lo has entrenado tú. ¿Debes decidir tú también el umbral y el tamaño de la zona de duda?
 
 <details>
 <summary>Ver solución</summary>
 
-`ko_00.png` (0,493) pasaría a `revisar`. Las buenas siguen en `aceptar` porque la más alta está en 0,345. Bajar el umbral recupera defectos a cambio de mandar más piezas a revisión: la misma balanza que el recall y las falsas alarmas de M03.
+No solo. El umbral decide cuántos defectos se escapan y cuántas piezas buenas se paran, y eso cuesta dinero y carga de trabajo. Lo decide **calidad**, con los números que tú le das (como el coste del M03-01) y con la capacidad del turno para revisar piezas dudosas.
 
 </details>
 
@@ -103,6 +127,30 @@ Si falta la imagen de una pieza, ¿se acepta?
 No. Sin imagen no hay fila de aceptación. En planta, una pieza sin dictamen iría a revisión por ausencia.
 
 </details>
+
+## Mejora: una zona de duda
+
+**Qué ocurre:** en lugar de obligar al umbral a decidir siempre, defines una **zona de duda**: las piezas cuya probabilidad esté a menos de 0,1 del umbral no se aceptan ni se rechazan: van a una persona. El parámetro `duda` lo activa.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m04-03 duda=0.1
+```
+
+**Resultado esperado:**
+
+```text
+umbral=0.5 duda=±0.1
+   imagen  probabilidad_defecto decision
+ok_00.png                 0.345  aceptar
+ok_01.png                 0.269  aceptar
+ok_02.png                 0.314  aceptar
+ko_00.png                 0.493   dudosa
+ko_01.png                 0.657  revisar
+ko_02.png                 0.714  revisar
+OK m04-03: registro=6 revisar=2
+```
+
+**Cómo se lee:** `ko_00.png` ya no se acepta: queda como **dudosa**, para que la mire un operario. Las claras siguen decidiéndose solas. Es el diseño habitual de los puestos de inspección con IA: el modelo resuelve lo evidente y la persona, lo dudoso. El tamaño de la zona de duda se ajusta según cuántas piezas puede revisar el turno.
 
 ## Errores frecuentes
 
