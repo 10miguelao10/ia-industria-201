@@ -37,9 +37,11 @@ docker compose --profile lab run --rm --no-deps lab m03-02
 **Resultado esperado:**
 
 ```text
-inyectados=20 detectados=20
+umbral=13.3 inyectados=20 detectados=20 avisos_sobre_normales=7 de 180
 OK m03-02: avisos sobre inyectados 20/20
 ```
+
+**Cómo se lee:** avisa los **20 ciclos alterados** y, además, **7 de los 180 normales** (un 4 %): son falsas alarmas. Un detector de anomalías siempre da alguna, porque lo normal también tiene sus extremos.
 
 <details>
 <summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
@@ -64,6 +66,54 @@ marcas = np.where(distancias >= 13.3, -1, 1)        # -1 = aviso
 ¿El modelo recibe la columna `inyectada`?
 
 → No. Si la recibiera, no estaría detectando: estaría leyendo la respuesta.
+
+## Investiga: cuánto se alejan
+
+**Qué ocurre:** el comando deja los 200 ciclos que ha puntuado en `infra/data/vigilancia.csv`, con su distancia y si dio aviso. Ábrelo en VS Code y después resume con `lab sql`:
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT inyectada, COUNT(*) AS ciclos, ROUND(AVG(vibracion_mm_s), 3) AS vib,
+          ROUND(AVG(distancia), 1) AS distancia_media, SUM(aviso) AS avisos
+   FROM vigilancia GROUP BY inyectada"
+```
+
+**Resultado esperado:**
+
+```text
+ inyectada  ciclos   vib  distancia_media  avisos
+         0     180 0.249              4.8       7
+         1      20 1.338            235.4      20
+```
+
+**Cómo se lee:** los ciclos normales están a una distancia media de 4,8 de «lo normal»; los alterados, a **235**: su vibración es cinco veces la habitual. Aquí la anomalía es muy evidente. En planta, un rodamiento que empieza a fallar da distancias de 15 o 20, muy cerca del límite, y ahí se nota de verdad dónde se pone el umbral.
+
+## Experimenta: mover el umbral
+
+**Qué ocurre:** el umbral de 13,3 sale de la estadística: con cuatro señales, un ciclo normal solo lo supera 1 de cada 100 veces. Vas a probar uno más bajo y uno más alto.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m03-02 umbral=8
+docker compose --profile lab run --rm --no-deps lab m03-02 umbral=25
+```
+
+**Resultado esperado:**
+
+```text
+umbral=8.0 inyectados=20 detectados=20 avisos_sobre_normales=34 de 180
+```
+
+```text
+umbral=25.0 inyectados=20 detectados=20 avisos_sobre_normales=0 de 180
+```
+
+| Umbral | Alterados avisados | Falsas alarmas sobre normales |
+|--------|--------------------|-------------------------------|
+| 8 | 20 de 20 | 34 de 180 (19 %) |
+| 13,3 | 20 de 20 | 7 de 180 (4 %) |
+| 25 | 20 de 20 | 0 de 180 |
+
+**Cómo se lee:** con anomalías tan claras, un umbral alto las sigue viendo todas y elimina las falsas alarmas. Pero ese umbral de 25 solo es «mejor» porque estas anomalías están a 235. Si el rodamiento empezara a fallar poco a poco, con distancias de 15, el umbral de 25 **no avisaría hasta que fuera tarde**. Se elige con anomalías realistas, no con las más fáciles.
 
 ## Reto
 
@@ -95,12 +145,12 @@ Es avisar cuando un ciclo **no se parece a lo normal**, aunque nunca se haya vis
 
 | Requisito | Cómo se cumple en el lab |
 |-----------|--------------------------|
-| Aprender solo de lo normal | Se ajusta con piezas sin defecto |
+| Aprender solo de lo normal | Se ajusta con piezas sin defecto. Si se ajustara con anomalías dentro, aprendería que son normales (lo verás en el M06-03) |
 | Mirar las señales juntas | La distancia de Mahalanobis tiene en cuenta cómo varían juntas |
 | Un umbral con sentido | 13,3: un ciclo normal solo lo supera 1 de cada 100 veces |
 | Evaluarlo sin hacer trampa | La marca de ciclo alterado solo se usa al final, para contar aciertos |
 
-Resultado: avisó los **20 ciclos** con la vibración alterada.
+Resultado: avisó los **20 ciclos** con la vibración alterada, con 7 falsas alarmas sobre 180 normales.
 
 ### Sus límites
 

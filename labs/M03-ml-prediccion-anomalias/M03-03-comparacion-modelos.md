@@ -92,6 +92,50 @@ arbol
 
 → Sí: los dos dicen `arbol`.
 
+## Investiga: leer las reglas del árbol
+
+**Qué ocurre:** el árbol ganó. A diferencia de la regresión logística o de una red, un árbol **se puede leer**: son reglas del tipo «si… entonces…». El comando de ayuda `lab arbol` las enseña en texto.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab arbol
+```
+
+📋 Ficha del comando [`arbol`](../comandos-lab.md#arbol).
+
+**Resultado esperado:**
+
+```text
+reglas de modelo_defecto.joblib (class: 1 = defecto, 0 = buena):
+|--- temperatura_c <= 65.490
+|   |--- vibracion_mm_s <= 0.412
+|   |   |--- presion_bar <= 5.735
+|   |   |   |--- class: 1
+|   |   |--- presion_bar >  5.735
+|   |   |   |--- class: 0
+|   |--- vibracion_mm_s >  0.412
+|   |   |--- temperatura_c <= 60.080
+|   |   |   |--- class: 1
+|   |   |--- temperatura_c >  60.080
+|   |   |   |--- class: 1
+|--- temperatura_c >  65.490
+|   |--- presion_bar <= 6.250
+|   |   |--- class: 1
+|   |--- presion_bar >  6.250
+|   |   |--- class: 0
+
+OK arbol: 6 hojas, profundidad 3
+```
+
+**Cómo se lee:** cada línea es una pregunta; cada `class` final, la decisión. Traducido a lenguaje de planta, el árbol ha aprendido tres reglas de defecto:
+
+| Regla | En palabras |
+|-------|-------------|
+| Temperatura > 65,5 °C **y** presión ≤ 6,25 bar | Husillo caliente con presión normal o baja |
+| Temperatura ≤ 65,5 °C **y** vibración > 0,41 mm/s | Vibra mucho, aunque la temperatura sea normal |
+| Temperatura ≤ 65,5 °C, vibración normal **y** presión ≤ 5,7 bar | Presión baja |
+
+Estas reglas se pueden **enseñar a calidad y a proceso** y discutir: «¿tiene sentido que la presión baja dé defecto?». Con una regresión logística o una red, esa conversación no es posible. Fíjate también en una rareza: bajo `vibracion_mm_s > 0.412`, las dos ramas dicen `class: 1`. Esa pregunta sobre la temperatura no sirve para nada: un árbol puede hacer preguntas inútiles.
+
 ## Experimenta: una red neuronal como tercer candidato
 
 **Qué ocurre:** añades a la comparación un tercer candidato, una **red neuronal**: un modelo formado por capas de «neuronas» que combinan las señales con unos pesos que se ajustan al entrenar. En el M04-04 la entrenarás paso a paso con fotos; aquí la usas como un candidato más, con el mismo corte y la misma regla.

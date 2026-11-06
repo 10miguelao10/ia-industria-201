@@ -103,6 +103,37 @@ docker compose --profile lab run --rm --no-deps lab m03-04
 
 → Porque así se usará el modelo: aprendiendo del pasado para decidir sobre lo que viene. Si el proceso cambia con el tiempo, examinar al azar lo escondería.
 
+## Investiga: las reglas que ha aprendido de tu línea
+
+**Qué ocurre:** lees las reglas del árbol entrenado con tu dataset, con el mismo comando de ayuda que en el M03-03.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab arbol linea
+```
+
+**Resultado esperado** (cambia con tu producción):
+
+```text
+reglas de modelo_linea.joblib (class: 1 = defecto, 0 = buena):
+|--- corriente_a <= 4.085
+|   |--- …                         (todas las ramas: class: 0)
+|--- corriente_a >  4.085
+|   |--- vibracion_mm_s <= 0.257
+|   |   |--- temperatura_c <= 60.920
+|   |   |   |--- class: 1
+|   |   |--- temperatura_c >  60.920
+|   |   |   |--- class: 0
+|   |--- vibracion_mm_s >  0.257
+|   |   |--- temperatura_c <= 60.975
+|   |   |   |--- class: 0
+|   |   |--- temperatura_c >  60.975
+|   |   |   |--- class: 1
+
+OK arbol: 8 hojas, profundidad 3
+```
+
+**Cómo se lee:** las dos primeras preguntas son **el criterio de calidad** que encontraste a mano en el M02-04: corriente por encima de 4,08 y vibración por encima de ~0,26. El modelo lo ha descubierto solo. Pero la tercera pregunta, sobre la temperatura (60,92 y 60,98 °C), **no tiene sentido**: el criterio real no mira la temperatura. Es el árbol aprendiendo el **ruido** de unas pocas piezas, probablemente las que calidad inspeccionó mal. Con más datos o un árbol menos profundo, desaparecería.
+
 ## Experimenta: el modelo explica el proceso
 
 **Qué ocurre:** el árbol se puede leer, y eso permite comparar lo que ha aprendido con lo que sabes del proceso. Repasa los dos resultados:

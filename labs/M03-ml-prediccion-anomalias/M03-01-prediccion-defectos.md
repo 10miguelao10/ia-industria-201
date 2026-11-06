@@ -28,6 +28,12 @@ En planta lo que importa son dos números:
 
 El modelo no ve la columna `defecto` como entrada: esa información llega tarde, después de la inspección.
 
+### 0 — Mirar los datos con los que va a aprender
+
+**Qué ocurre:** antes de entrenar nada, abres en VS Code el fichero del que aprenderá el modelo: `infra/data/limpio.csv`.
+
+**Qué ves:** una fila por pieza, con cuatro señales (`temperatura_c`, `vibracion_mm_s`, `corriente_a`, `presion_bar`), la columna `defecto` (1 = calidad la marcó como mala) y `hueco`. Desplázate: casi todas tienen `defecto` a 0. El modelo tendrá muy pocos ejemplos de lo que más interesa encontrar.
+
 ### 1 — Entrenar y evaluar con piezas nuevas
 
 Vas a entrenar con el pasado y evaluar con piezas que el modelo no ha visto. El porcentaje global engaña cuando el defecto es la clase pequeña, así que el paso imprime los cuatro casos de la matriz de confusión, el recall y las falsas alarmas.
@@ -100,6 +106,56 @@ En el JSON, lee `recall` y `fn`.
 
 → `fn` son defectos reales que el modelo dejó pasar. `recall` es la fracción que sí encontró.
 
+## Experimenta: mover el umbral
+
+**Qué ocurre:** el modelo no dice «defecto» o «buena»: da una **probabilidad**, y el código decide con un **umbral** (0,5 por defecto). Vas a probar con un umbral más bajo (más desconfiado) y uno más alto (más permisivo).
+
+**Predice:** con un umbral de 0,3, ¿encontrará más o menos defectos? ¿Y las falsas alarmas?
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m03-01 umbral=0.3
+docker compose --profile lab run --rm --no-deps lab m03-01 umbral=0.7
+```
+
+**Resultado esperado:**
+
+```text
+umbral=0.3 equilibrar=si
+{"tp": 17, "fp": 78, "fn": 4, "tn": 132, "recall": 0.8095238095238095, "fpr": 0.37142857142857144}
+OK m03-01: recall_defecto=0.81 falsas_alarmas=0.37
+```
+
+```text
+umbral=0.7 equilibrar=si
+{"tp": 14, "fp": 6, "fn": 7, "tn": 204, "recall": 0.6666666666666666, "fpr": 0.02857142857142857}
+OK m03-01: recall_defecto=0.67 falsas_alarmas=0.03
+```
+
+| Umbral | Defectos encontrados | Defectos escapados | Falsas alarmas |
+|--------|----------------------|--------------------|----------------|
+| 0,3 | 17 de 21 | 4 | 78 |
+| 0,5 | 15 de 21 | 6 | 38 |
+| 0,7 | 14 de 21 | 7 | 6 |
+
+**Cómo se lee:** es el mismo modelo; solo cambia dónde se corta. Bajar el umbral encuentra más defectos a cambio de muchas más falsas alarmas; subirlo, al revés. **No hay un umbral correcto**: hay uno que encaja con lo que le cuesta a la planta cada error.
+
+### Sin avisar de que el defecto es raro
+
+**Qué ocurre:** el modelo se entrena con `class_weight="balanced"`, que da más peso a las pocas piezas defectuosas. Vas a quitarlo.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m03-01 equilibrar=no
+```
+
+**Resultado esperado:**
+
+```text
+umbral=0.5 equilibrar=no
+{"tp": 12, "fp": 0, "fn": 9, "tn": 210, "recall": 0.5714285714285714, "fpr": 0.0}
+```
+
+**Cómo se lee:** cero falsas alarmas, pero **9 defectos escapados**. Sin equilibrar, al modelo le compensa decir «buena» casi siempre: acierta más en global y deja pasar más defectos. Es el mismo engaño del acierto global de la demo.
+
 ## Reto
 
 ### 1 — Columna que llega tarde
@@ -112,6 +168,20 @@ Si añadieras la propia columna `defecto` como entrada, el acierto sería perfec
 No predice: lee la respuesta. Las entradas permitidas son solo las señales que existen antes del control de calidad: temperatura, vibración, corriente y presión.
 
 </details>
+
+## Mejora: elegir el umbral por lo que cuesta
+
+**Qué ocurre:** conviertes los errores en dinero para elegir el umbral con un criterio que la planta entiende. Supón que un **defecto que llega al cliente cuesta 500 €** (reclamación, devolución) y **revisar una pieza buena cuesta 5 €** (unos minutos de un operario).
+
+Con los números de «Experimenta», calcula el coste de cada umbral: `coste = 500 × escapados + 5 × falsas alarmas`.
+
+| Umbral | Escapados | Falsas alarmas | Coste |
+|--------|-----------|----------------|-------|
+| 0,3 | 4 | 78 | 500 × 4 + 5 × 78 = **2 390 €** |
+| 0,5 | 6 | 38 | 500 × 6 + 5 × 38 = **3 190 €** |
+| 0,7 | 7 | 6 | 500 × 7 + 5 × 6 = **3 530 €** |
+
+**Cómo se lee:** con estos costes, el mejor umbral es **0,3**, aunque dé 78 falsas alarmas, porque cada defecto escapado cuesta cien veces más que una revisión. Si revisar costara 50 € (una pieza que hay que desmontar), el resultado cambiaría. Prueba a recalcularlo. El umbral **no lo decide quien entrena el modelo**: lo decide calidad con estos números.
 
 ## Errores frecuentes
 
@@ -149,7 +219,8 @@ El acierto global sería (15 + 172) / 231 = 81 %, un número que no dice que 6 d
 ### Cómo se mejora
 
 - **Comparar con otros modelos** sobre el mismo corte (lo harás en M03-03).
-- **Mover el umbral de decisión** según qué error sea más caro para la planta: dejar pasar un defecto o revisar una pieza buena.
+- **Mover el umbral de decisión** según qué error sea más caro para la planta (lo has hecho: con 500 € por defecto y 5 € por revisión, gana 0,3).
+- **Equilibrar las clases** al entrenar: sin hacerlo, el modelo dejó escapar 9 defectos.
 - **Añadir señales** que expliquen el defecto, y **más piezas defectuosas** de ejemplo, que son las que escasean.
 
 ### En una frase
