@@ -36,8 +36,10 @@ curl -s http://localhost:8000/salud
 **Resultado esperado:**
 
 ```json
-{"estado":"ok","version":"defecto-0.1"}
+{"estado":"ok","version":"defecto-0.1","huella_modelo":"69a897cdf955"}
 ```
+
+`huella_modelo` es un código calculado a partir del fichero del modelo (los primeros 12 caracteres de su SHA-256): si cambia un solo byte del modelo, cambia la huella. La tuya puede ser distinta de la del ejemplo si tu modelo se entrenó de otra forma. Lo usarás en «Experimenta».
 
 El servicio documenta su propio contrato en <http://localhost:8000/docs>:
 
@@ -62,11 +64,11 @@ curl -s -X POST http://localhost:8000/predecir \
 **Resultado esperado:**
 
 ```json
-{"pieza_id":"DEMO1","version":"defecto-0.1","entrada":{…},"dictamen":"seguir","probabilidad":0.0798,"ts":"…"}
-{"pieza_id":"DEMO2","version":"defecto-0.1","entrada":{…},"dictamen":"revisar","probabilidad":1.0,"ts":"…"}
+{"pieza_id":"DEMO1","version":"defecto-0.1","huella_modelo":"69a897cdf955","entrada":{…},"dictamen":"seguir","probabilidad":0.0798,"ts":"…"}
+{"pieza_id":"DEMO2","version":"defecto-0.1","huella_modelo":"69a897cdf955","entrada":{…},"dictamen":"revisar","probabilidad":1.0,"ts":"…"}
 ```
 
-Cada respuesta lleva la versión del modelo que la dio.
+Cada respuesta lleva la versión y la huella del modelo que la dio. Fíjate: con 8 °C más, la misma pieza pasa de 0,08 a 1,0 de probabilidad.
 
 ### 3 — Comprobar el contrato completo
 
@@ -81,7 +83,7 @@ docker compose --profile lab run --rm --no-deps lab m07-01
 **Resultado esperado:**
 
 ```text
-{"pieza_id": "SRV0001", "version": "defecto-0.1", "entrada": {"pieza_id": "SRV0001", "temperatura_c": 61.39, "vibracion_mm_s": 0.286, "corriente_a": 4.07, "presion_bar": 5.96}, "dictamen": "seguir", "probabilidad": 0.0798, "ts": "…"}
+{"pieza_id": "SRV0001", "version": "defecto-0.1", "huella_modelo": "69a897cdf955", "entrada": {"pieza_id": "SRV0001", "temperatura_c": 61.39, "vibracion_mm_s": 0.286, "corriente_a": 4.07, "presion_bar": 5.96}, "dictamen": "seguir", "probabilidad": 0.0798, "ts": "…"}
 OK m07-01: version=defecto-0.1 dictamen=seguir
 ```
 
@@ -96,6 +98,39 @@ tail -1 data/predicciones.jsonl
 ```
 
 → `"version": "defecto-0.1"`, la misma que `/salud`.
+
+## Experimenta: cambiar la versión
+
+**Qué ocurre:** la versión la lee el servicio del fichero `infra/data/VERSION` al arrancar. Vas a cambiar ese fichero a `defecto-0.2` **sin cambiar el modelo**, recrear el servicio y mirar qué dice.
+
+```bash
+# Cambia la etiqueta de versión (el fichero es del contenedor: se escribe desde uno)
+docker compose --profile lab run --rm --no-deps --entrypoint sh lab -c "echo defecto-0.2 > /data/VERSION"
+
+# Antes de recrear: el servicio sigue con lo que leyó al arrancar
+curl -s http://localhost:8000/salud
+
+# Recrea el servicio para que vuelva a leer el fichero
+docker compose up -d --force-recreate api
+sleep 5
+curl -s http://localhost:8000/salud
+```
+
+**Resultado esperado:**
+
+```json
+{"estado":"ok","version":"defecto-0.1","huella_modelo":"69a897cdf955"}
+{"estado":"ok","version":"defecto-0.2","huella_modelo":"69a897cdf955"}
+```
+
+**Cómo se lee:** después de recrearlo, el servicio dice `defecto-0.2`, pero la **huella es la misma**: el modelo es exactamente el mismo. La versión es una etiqueta que cualquiera puede cambiar; la huella sale del propio fichero. Si un auditor solo mirara la versión, creería que la línea usa un modelo nuevo.
+
+Vuelve a dejarlo como estaba:
+
+```bash
+docker compose --profile lab run --rm --no-deps --entrypoint sh lab -c "echo defecto-0.1 > /data/VERSION"
+docker compose up -d --force-recreate api
+```
 
 ## Reto
 
@@ -114,6 +149,27 @@ curl -s -w '\nHTTP %{http_code}\n' -X POST http://localhost:8000/predecir \
 Un error `HTTP 422` con la lista de campos que faltan (`temperatura_c`, `vibracion_mm_s`…). No hay dictamen: el servicio no se inventa las señales.
 
 </details>
+
+## Mejora: comprobar la huella tú
+
+**Qué ocurre:** compruebas que la huella que dice el servicio es la del fichero que hay en disco. Es lo que haría un auditor para confirmar qué modelo está en producción.
+
+```bash
+# SHA-256 del fichero del modelo; los primeros 12 caracteres
+sha256sum data/modelo_defecto.joblib | cut -c1-12
+
+# Lo que dice el servicio
+curl -s http://localhost:8000/salud
+```
+
+**Resultado esperado:**
+
+```text
+69a897cdf955
+{"estado":"ok","version":"defecto-0.1","huella_modelo":"69a897cdf955"}
+```
+
+**Cómo se lee:** coinciden: el modelo que contesta es el del fichero. Si alguien sustituyera el fichero (por ejemplo, volviendo a lanzar `m03-03` con otros datos) y no recreara el servicio, la huella del disco y la del servicio dejarían de coincidir: el servicio seguiría contestando con el modelo anterior. En una plataforma de MLOps, cada modelo se registra con su huella, sus datos de entrenamiento y sus métricas, y la versión se asigna a esa huella, no a mano.
 
 ## Errores frecuentes
 

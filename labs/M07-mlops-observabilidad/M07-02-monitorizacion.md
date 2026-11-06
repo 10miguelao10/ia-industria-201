@@ -77,6 +77,71 @@ Si `api` se cae a mitad de un lote, ¿hay que reentrenar?
 
 → No. Eso es una caída del servicio. La deriva es el servicio funcionando con datos que ya no se parecen a los del entrenamiento.
 
+## Experimenta: ¿cuánta deriva hace falta?
+
+**Qué ocurre:** 8 °C es mucho. Pruebas con desplazamientos más pequeños.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m07-02 grados=2
+docker compose --profile lab run --rm --no-deps lab m07-02 grados=4
+```
+
+**Resultado esperado:**
+
+```text
+tasa_base=0.08 tasa_desplazada=0.28 (+2 °C)
+```
+
+```text
+tasa_base=0.08 tasa_desplazada=0.56 (+4 °C)
+```
+
+| Desplazamiento | Piezas a revisión |
+|----------------|-------------------|
+| 0 °C (base) | 8 % |
+| +2 °C | 28 % |
+| +4 °C | 56 % |
+| +8 °C | 96 % |
+
+**Cómo se lee:** con solo **2 °C** más, el modelo manda a revisión **tres veces más piezas**. Un cambio así (un verano, otro refrigerante) puede pasar desapercibido en el panel, y en una semana el puesto de revisión estaría desbordado sin que nadie supiera por qué. La tasa de piezas a revisión es la señal: hay que vigilarla cada día.
+
+## Investiga: la deriva en la línea en vivo
+
+**Qué ocurre:** hasta ahora la deriva era simulada (sumando grados al examen). Ahora mides la tasa con **las últimas 120 carcasas reales** de la línea, con la opción `vivo`.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m07-02 vivo
+```
+
+**Resultado esperado** (con la línea normal):
+
+```text
+tasa_base=0.08 tasa_linea_ahora=0.15 (últimas 120 carcasas, temperatura media 63.13 °C)
+```
+
+Ahora provoca un fallo de refrigeración (el del M06-03), espera un minuto y medio y repite:
+
+```bash
+docker compose --profile lab run --rm --no-deps lab evento fallo-refrigeracion
+# … espera unos 100 segundos …
+docker compose --profile lab run --rm --no-deps lab m07-02 vivo
+```
+
+**Resultado esperado:**
+
+```text
+tasa_base=0.08 tasa_linea_ahora=0.28 (últimas 120 carcasas, temperatura media 64.26 °C)
+```
+
+**Cómo se lee:** la línea real ya no es la del entrenamiento: con el fallo, la tasa sube al 28 %. Un sistema de MLOps calcularía esta tasa cada pocos minutos y avisaría si se aleja de la base, igual que una alerta de Prometheus. Termina el fallo antes de seguir:
+
+```bash
+docker compose --profile lab run --rm --no-deps lab evento fin
+docker compose --profile lab run --rm --no-deps lab consigna 3
+# … cuando baje de 63 °C:
+docker compose --profile lab run --rm --no-deps lab consigna 1
+```
+
 ## Reto
 
 ### 1 — Volver a la base
@@ -112,7 +177,7 @@ Es que **la línea cambie** y el modelo siga contestando como si nada. El modelo
 | Un umbral de alarma | Avisar si sube más de 0,10 |
 | Un registro | `seguimiento.json` con las dos tasas |
 
-Resultado: con el husillo 8 °C más caliente, la tasa pasó del **8 % al 96 %**.
+Resultado: con el husillo 8 °C más caliente, la tasa pasó del **8 % al 96 %**; con solo 2 °C, al 28 %. En la línea en vivo, durante un fallo de refrigeración, al 28 %.
 
 ### Cómo se detecta
 
