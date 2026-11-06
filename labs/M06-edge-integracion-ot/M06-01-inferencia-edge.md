@@ -44,11 +44,11 @@ docker compose --profile lab run --rm --no-deps lab m06-01
 **Resultado esperado** (el tiempo depende del puesto; tiene que quedar por debajo de 200 ms):
 
 ```text
-ms_por_pieza=0.39 fichero=modelo_defecto.joblib
-OK m06-01: 0.39 ms por pieza, modelo en disco
+ms_por_pieza=0.35 fichero=modelo_defecto.joblib tamaño=2.5 KB tipo=DecisionTreeClassifier
+OK m06-01: 0.35 ms por pieza, modelo en disco
 ```
 
-Menos de medio milisegundo frente a un ciclo de estación de 1 segundo: cabe de sobra.
+Menos de medio milisegundo frente a un ciclo de estación de alrededor de 1 segundo: cabe de sobra. El modelo ocupa 2,5 KB.
 
 <details>
 <summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
@@ -73,6 +73,23 @@ ms = (time.perf_counter() - t0) * 1000 / 20             # media por pieza
 ¿A qué dirección se conecta este paso para predecir?
 
 → A ninguna. Lee `modelo_defecto.joblib` del disco.
+
+## Experimenta: otro modelo, el mismo tiempo
+
+**Qué ocurre:** mides la latencia del otro candidato del M03, la regresión logística. El parámetro `modelo` elige el fichero.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m06-01 modelo=modelo_logreg.joblib
+```
+
+**Resultado esperado:**
+
+```text
+ms_por_pieza=0.35 fichero=modelo_logreg.joblib tamaño=1.2 KB tipo=LogisticRegression
+OK m06-01: 0.35 ms por pieza, modelo en disco
+```
+
+**Cómo se lee:** el mismo tiempo, con un modelo distinto. Con modelos tan pequeños, casi todo ese tiempo **no es el modelo**: es preparar la entrada (convertir la fila en una tabla) y devolver el resultado. En un equipo edge real, lo que suele tardar es leer el dato y comunicarse, no el modelo. Por eso se mide la cadena completa, no solo el modelo.
 
 ## Reto
 
@@ -106,7 +123,7 @@ Es ejecutar el modelo **en el equipo que está junto a la máquina**, cargándol
 |-----------|-----------|
 | Medir la pieza siguiente, no el arranque | La primera predicción no cuenta |
 | Medir varias veces | Media de 20 dictámenes |
-| Comparar con el ciclo de la máquina | 0,39 ms por pieza frente a 1 s de ciclo |
+| Comparar con el ciclo de la máquina | 0,35 ms por pieza frente a ~1 s de ciclo |
 | Medir en el equipo real | El tiempo depende del puesto |
 
 ### Sus riesgos

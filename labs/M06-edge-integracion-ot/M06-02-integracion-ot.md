@@ -1,6 +1,6 @@
 # M06-02 — Integración con sistemas industriales
 
-[← Página anterior](M06-01-inferencia-edge.md) · [Siguiente página →](../M07-mlops-observabilidad/README.md)
+[← Página anterior](M06-01-inferencia-edge.md) · [Siguiente página →](M06-03-prediccion-actuacion.md)
 
 > Práctica del módulo. La teoría y la demostración están en el [README del módulo](README.md).
 >
@@ -92,6 +92,23 @@ if paro.registers[0] != 0:
 
 → Sí: el `pieza_id` sale de `estado.json` en el momento del dictamen.
 
+## Experimenta: un umbral mal puesto
+
+**Qué ocurre:** el umbral que convierte la probabilidad en `revisar` está en el código del modelo, no en el PLC. Vas a ponerlo en 0,05, como si alguien lo hubiera bajado «por precaución».
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m06-02 umbral=0.05
+```
+
+**Resultado esperado:**
+
+```text
+{"evento": {"pieza_id": "P0072", "decision": "revisar", "probabilidad": 0.08}, "paro_seguridad": 0}
+OK m06-02: P0072 -> revisar; paro=0
+```
+
+**Cómo se lee:** una carcasa normal, con un 8 % de probabilidad de defecto, va a **revisión**. Con ese umbral, **casi todas** irían. El automatismo desviaría la producción entera a un puesto de revisión que no da abasto. El modelo es el mismo; el cambio de una cifra en una configuración ha parado la línea en la práctica. Por eso el umbral se versiona y se cambia con el mismo cuidado que el modelo.
+
 ## Reto
 
 ### 1 — Confianza baja
@@ -104,6 +121,38 @@ La decisión pasa a `revisar` con una probabilidad de 0,5 o más. ¿Dónde está
 En el código del paso, no en el PLC. Dudar manda a revisión: es una decisión de proceso, que el automatismo recibe como evento y aplica con sus propias protecciones.
 
 </details>
+
+## Mejora: un dictamen que se pueda rastrear
+
+**Qué ocurre:** el evento actual dice la pieza, la decisión y la probabilidad. Le falta **cuándo** se fabricó la pieza (para no confundirla con otra del mismo nombre, M01-01) y **qué versión del modelo** decidió. Lo añades en el código.
+
+Abre `infra/linea/cli.py` en VS Code, busca la función `cmd_m06_02` y esta línea:
+
+```python
+    evento = {"pieza_id": estado["pieza_id"], "decision": dictamen, "probabilidad": round(proba, 3)}
+```
+
+Cámbiala por:
+
+```python
+    evento = {"pieza_id": estado["pieza_id"], "decision": dictamen, "probabilidad": round(proba, 3),
+              "ts": estado["ts"], "version": (DATA / "VERSION").read_text().strip()}
+```
+
+No hace falta reiniciar nada: `lab` lee el código cada vez.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m06-02
+```
+
+**Resultado esperado:**
+
+```text
+{"evento": {"pieza_id": "P0145", "decision": "seguir", "probabilidad": 0.08, "ts": "2026-11-06T02:50:25+00:00", "version": "defecto-0.1"}, "paro_seguridad": 0}
+OK m06-02: P0145 -> seguir; paro=0
+```
+
+**Cómo se lee:** ahora el automatismo, y cualquiera que escuche el tema, sabe **qué carcasa exacta** (pieza + hora) y **qué modelo** la dictaminó. Si mañana se reclama esa pieza, el dictamen se puede rastrear. Es la base de la trazabilidad del M08-02.
 
 ## Errores frecuentes
 

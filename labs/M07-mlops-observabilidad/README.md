@@ -1,6 +1,6 @@
 # M07 — Operación, MLOps y observabilidad
 
-[← Página anterior](../M06-edge-integracion-ot/M06-02-integracion-ot.md) · [Siguiente página →](M07-01-servicio-inferencia.md)
+[← Página anterior](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md) · [Siguiente página →](M07-01-servicio-inferencia.md)
 
 > [!NOTE]
 > **Cómo funciona este módulo.** Primero la **teoría**, luego la **demostración guiada**, y después **practicas tú** en los laboratorios.
