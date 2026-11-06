@@ -1,113 +1,264 @@
-# M05 — Inteligencia artificial generativa en entornos industriales
+# M05 — Inteligencia artificial generativa
 
 [← Página anterior](../M04-vision-control-calidad/M04-04-red-neuronal.md) · [Siguiente página →](M05-01-modelo-local.md)
 
 > [!NOTE]
-> **Cómo funciona este módulo.** Primero la **teoría**, luego la **demostración guiada**, y después **practicas tú** en los laboratorios.
+> **Cómo funciona este módulo.** Tiene cuatro bloques, uno por laboratorio. En cada bloque: primero la **teoría** y una **demostración** que se proyecta en clase, paso a paso; después **practicas tú** con el laboratorio, a tu ritmo.
 
 ## Qué aprenderás
 
-- Arrancar un modelo generativo en local y conocer qué pide la máquina.
-- Llamarlo desde una aplicación.
-- Consultar documentación técnica con recuperación.
-- Dejar que un agente use una herramienta externa acotada.
+- Qué es un **modelo de lenguaje** y qué supone ejecutarlo **en el propio puesto**.
+- Cómo se **integra** en una aplicación y cómo debe comportarse esa aplicación cuando el modelo falla.
+- Por qué un modelo **se inventa** respuestas y cómo se le hace responder desde los **documentos** de la planta.
+- Qué es un **agente** y cómo se limita lo que puede hacer.
 
-## Teoría
+| Bloque | Concepto | Laboratorio |
+|--------|----------|-------------|
+| 1 | Un modelo de lenguaje en local | [M05-01](M05-01-modelo-local.md) |
+| 2 | Integración en aplicaciones | [M05-02](M05-02-integracion-aplicacion.md) |
+| 3 | Asistente basado en documentación | [M05-03](M05-03-asistente-documentacion.md) |
+| 4 | Agentes con herramientas | [M05-04](M05-04-agentes.md) |
 
-Un modelo generativo completa texto (o imagen) a partir de un contexto. No consulta solo la planta: consulta lo que tú le pones delante. Si no le das el procedimiento, se lo inventa con fluidez.
+## Antes de empezar
 
-### Piezas
-
-| Pieza | Qué es aquí |
-|-------|-------------|
-| Modelo fundacional | Red grande ya entrenada, que tú no reentrenas en este curso |
-| LLM | Modelo de lenguaje con el que escribes y lees instrucciones |
-| Inferencia | Pasar una pregunta y obtener una respuesta, sin volver a entrenar |
-| Recuperación | Buscar fragmentos de tus documentos y adjuntarlos a la pregunta |
-| Agente | Un bucle que puede llamar una herramienta (por ejemplo, leer una señal) y seguir |
-
-### Por qué en local
-
-En una planta, el procedimiento y la telemetría no deben salir a un servicio externo por defecto. Ejecutar en el puesto enseña el coste: memoria, disco y tiempo de respuesta. Un modelo pequeño cabe en un portátil; uno grande, no.
-
-### Límite
-
-La respuesta puede sonar correcta y estar mal. En operación, el asistente propone y la persona contrasta con el procedimiento oficial. El agente solo llama herramientas que tú has definido, no «hace lo que quiera» en la red.
-
-## Demostración guiada
-
-Se arranca un modelo ya descargado, se le pregunta desde una aplicación, se le da un procedimiento para que conteste citándolo y se cierra con un agente que solo lee.
-
-Todo se lanza desde `infra/`.
-
-**1. Arrancar el modelo local y ver lo que ocupa.**
+El modelo es un fichero de unos 470 MB en `infra/modelos/`. Lo deja la prueba del puesto. El contenedor que lo ejecuta necesita hasta 2 GB de memoria: si tienes el panel o Prometheus en marcha y vas justo de memoria, páralos.
 
 ```bash
-docker compose stop panel          # libera memoria
+cd infra
+ls -lh modelos/
+docker compose stop panel
 docker compose up -d llm
-curl -s http://localhost:8088/salud
-docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}'
 ```
+
+## Introducción: un modelo que escribe
+
+Un **modelo de lenguaje** (como los que hay detrás de los asistentes de chat) es una red neuronal muy grande entrenada para **continuar texto**: dado un texto, predice qué palabra va después, una y otra vez. De ahí sale su capacidad de contestar, resumir o redactar.
+
+Dos consecuencias que guían todo el módulo:
+
+| Propiedad | Consecuencia en planta |
+|-----------|------------------------|
+| Escribe lo que **suena bien**, no lo que es verdad | Si no sabe algo, puede inventarlo con total seguridad |
+| No sabe nada de **tu** planta | Lo que tenga que saber de EST-01 se lo tienes que dar tú |
+
+En este curso el modelo es **Qwen2.5 de 0,5B** (500 millones de pesos), comprimido a 4 bits y ejecutado en la CPU del puesto. Es pequeño a propósito: cabe en un portátil y **ningún dato sale de la fábrica**.
+
+---
+
+## Bloque 1 — Un modelo de lenguaje en local
+
+### Teoría
+
+Un modelo local son dos cosas: un **fichero** con los pesos y un **proceso** que lo carga en memoria y atiende peticiones. Ejecutarlo en el puesto tiene ventajas y precio:
+
+| | Modelo local pequeño | Servicio externo grande |
+|--|----------------------|-------------------------|
+| Datos | No salen del puesto | Salen de la fábrica |
+| Disponibilidad | No depende de internet | Depende de la conexión y del proveedor |
+| Calidad | Limitada: se equivoca más | Mucho mejor |
+| Coste | El del equipo | Por uso |
+
+### Demostración
+
+**Qué se demuestra:** que el modelo es un fichero y un servicio en el propio puesto, y que contesta con soltura… aunque no sepa. En el laboratorio medirás su respuesta y lo pondrás a prueba.
+
+#### Paso 1 — El servicio, en el navegador
+
+**Qué vamos a ver:** el servicio del modelo tiene una dirección de salud y su propia documentación.
+
+Abre <http://localhost:8088/salud>:
 
 ```json
 {"estado":"ok","modelo":"qwen2.5-0.5b-instruct-q4_k_m.gguf"}
 ```
 
-**2. Preguntar como lo haría una aplicación.**
+Y <http://localhost:8088/docs>: la documentación automática del servicio, con sus dos direcciones (`/salud` y `/v1/chat/completions`).
+
+> **Qué señalar en pantalla:** la dirección es `localhost`. No hay ningún proveedor de por medio.
+
+#### Paso 2 — Una pregunta sobre la planta, sin contexto
+
+**Qué vamos a ver:** se le pregunta algo de EST-01 que el modelo no puede saber. `lab preguntar` es un comando de ayuda que envía una pregunta al modelo.
 
 ```bash
-curl -s http://localhost:8088/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{"messages": [{"role": "user", "content": "Explica en una frase qué es un PLC."}], "max_tokens": 60}'
+docker compose --profile lab run --rm --no-deps lab preguntar "¿A qué par se aprieta el tornillo de la brida de EST-01?"
 ```
 
-La respuesta llega en algo más de un segundo, en CPU y sin salir del puesto.
-
-**3. Asistente sobre el procedimiento.**
-
-```bash
-cat linea/docs/procedimiento-est01.md
-docker compose --profile lab run --rm --no-deps lab m05-03
-```
-
-📋 Ficha del comando [`m05-03`](../comandos-lab.md#m05-03): qué hace, qué lee, qué escribe y cuándo da `OK`.
+**Resultado esperado** (la redacción cambia en cada ejecución):
 
 ```text
-fragmento:
-El tornillo de la brida se aprieta a 12 N·m. Si el par queda por debajo, la pieza se manda a revisión y no se acepta en línea.
-respuesta='12 N·m.'
-OK m05-03: responde 12 a partir del procedimiento
+respuesta: El tornillo de la brida de EST-01 se aprieta con el pincho de la brida.
+OK preguntar: respuesta del modelo local
 ```
 
-**4. Agente que lee y no escribe.**
+**Cómo se lee:** la respuesta **no tiene sentido** («con el pincho de la brida») y se dice con total seguridad. El modelo no conoce el procedimiento de la estación: ha escrito algo que suena a respuesta.
+
+> **Qué señalar en pantalla:** «Esto es lo más importante del módulo: un modelo de lenguaje no dice "no lo sé" por defecto. Si no le das los datos, los inventa».
+
+#### Paso 3 — La pregunta que abre el laboratorio
+
+> **Si el modelo se inventa cosas, ¿para qué sirve en una planta? ¿Y cómo de rápido es, en un portátil sin GPU?**
+
+### Ahora tú: M05-01
+
+→ **[M05-01 — Ejecución local de modelos generativos](M05-01-modelo-local.md)**
+
+Comprobarás que el modelo está en disco, lo arrancarás, medirás cuánto tarda en responder y cuánta memoria ocupa, y verás que la misma pregunta no da siempre la misma respuesta.
+
+---
+
+## Bloque 2 — Integración en aplicaciones
+
+### Teoría
+
+Una aplicación (la tablet del técnico, la intranet de mantenimiento) no ve el modelo: ve un **servicio HTTP**. Le manda un JSON con los mensajes y recibe otro con la respuesta. Ese **contrato** es el mismo que usan los servicios de modelos más conocidos, así que una aplicación escrita para uno sirve para otro.
+
+Una buena integración sabe **fallar**: si el servicio no responde, lo dice; si la respuesta se corta o no tiene el formato esperado, no la da por buena.
+
+### Demostración
+
+**Qué se demuestra:** el contrato del servicio, visto en su documentación. En el laboratorio lo llamarás como una aplicación, provocarás respuestas cortadas y fallos.
+
+#### Paso 1 — El contrato, en el navegador
+
+**Qué vamos a ver:** en <http://localhost:8088/docs> se despliega `POST /v1/chat/completions` y se mira qué espera recibir.
+
+**Cómo se lee:**
+
+| Campo | Qué es |
+|-------|--------|
+| `messages` | La conversación: una lista de mensajes, cada uno con su `role` (`system`, `user`) y su `content` |
+| `max_tokens` | Cuántos «trozos de palabra» puede escribir como mucho |
+
+> **Qué señalar en pantalla:** la aplicación solo necesita saber esto. No necesita saber qué modelo hay detrás, ni dónde está el fichero.
+
+#### Paso 2 — La pregunta que abre el laboratorio
+
+> **¿Qué debería enseñar la tablet del técnico si el modelo tarda un minuto, o si el servicio está caído?**
+
+### Ahora tú: M05-02
+
+→ **[M05-02 — Integración desde aplicaciones](M05-02-integracion-aplicacion.md)**
+
+Llamarás al servicio como lo haría una aplicación, leerás su respuesta campo a campo, provocarás una respuesta cortada y comprobarás cómo falla una aplicación cuando el servicio no está.
+
+---
+
+## Bloque 3 — Asistente basado en documentación
+
+### Teoría
+
+La forma de que un modelo responda sobre **tu** planta sin inventar es darle el texto que necesita **en la misma pregunta**. Se hace en dos pasos, lo que se conoce como **RAG** (recuperar y generar):
+
+```
+ pregunta ──▶ RECUPERAR: buscar el párrafo del procedimiento ──▶ GENERAR: el modelo responde usando solo ese párrafo
+```
+
+El modelo pasa de «recordar» a **leer**. Pero ahora depende de que la búsqueda encuentre el párrafo correcto.
+
+### Demostración
+
+**Qué se demuestra:** la misma pregunta del bloque 1, ahora con el párrafo del procedimiento delante. En el laboratorio verás cómo se busca el párrafo y cuándo falla esa búsqueda.
+
+#### Paso 1 — El procedimiento
+
+**Qué vamos a ver:** se abre `infra/linea/docs/procedimiento-est01.md` en VS Code. Es un procedimiento ficticio de la estación: bloqueo, par de apriete, temperatura y lo que **no** dice.
+
+#### Paso 2 — La misma pregunta, con el procedimiento
+
+**Qué vamos a ver:** `lab preguntar` con la opción `procedimiento` busca primero el párrafo más parecido a la pregunta y se lo da al modelo.
 
 ```bash
-docker compose --profile lab run --rm --no-deps lab m05-04
+docker compose --profile lab run --rm --no-deps lab preguntar "¿A qué par se aprieta el tornillo de la brida de EST-01?" procedimiento
 ```
 
-📋 Ficha del comando [`m05-04`](../comandos-lab.md#m05-04): qué hace, qué lee, qué escribe y cuándo da `OK`.
+**Resultado esperado:**
 
 ```text
-agente: La temperatura en la estación era de 61.49 °C.
-escritura: No puedo modificar el automatismo: no existe una herramienta de escritura.
-OK m05-04: usó leer_estacion=61.49 y rechazó escribir
+fragmento recuperado: El tornillo de la brida se aprieta a 12 N·m. Si el par queda por debajo, la pieza se manda a revisión y no se acepta en línea.
+respuesta: El par que se aprieta el tornillo de la brida de EST-01 es el par de 12 N·m.
+OK preguntar: respuesta del modelo local
 ```
 
-## Ahora practica tú
+**Cómo se lee:** con el párrafo delante, la respuesta es la del procedimiento: **12 N·m**. La redacción es torpe, pero el dato es correcto y se puede comprobar en el fragmento.
 
-| Lab | Título | Qué harás |
-|-----|--------|-----------|
-| M05-01 | [Ejecución local de modelos generativos](M05-01-modelo-local.md) | Poner en marcha un modelo en el puesto. |
-| M05-02 | [Integración desde aplicaciones](M05-02-integracion-aplicacion.md) | Llamar al modelo desde un programa. |
-| M05-03 | [Asistente técnico basado en documentación](M05-03-asistente-documentacion.md) | Responder citando procedimientos, no de memoria. |
-| M05-04 | [Automatización mediante agentes](M05-04-agentes.md) | Dejar que un agente llame una herramienta acotada. |
+> **Qué señalar en pantalla:** el modelo no ha aprendido nada nuevo. Solo ha leído. Si mañana cambia el procedimiento, se cambia el documento, no el modelo.
 
-→ Empieza por **[M05-01 — Ejecución local de modelos generativos](M05-01-modelo-local.md)**.
+#### Paso 3 — La pregunta que abre el laboratorio
+
+> **¿Y si la búsqueda trae el párrafo equivocado?**
+
+### Ahora tú: M05-03
+
+→ **[M05-03 — Asistente técnico basado en documentación](M05-03-asistente-documentacion.md)**
+
+Comprobarás el asistente con una pregunta que sí está en el procedimiento y con otra que no, investigarás cómo elige el párrafo, encontrarás una pregunta para la que elige mal y mejorarás la búsqueda.
+
+---
+
+## Bloque 4 — Agentes con herramientas
+
+### Teoría
+
+Un **agente** es un modelo al que se le dan **herramientas**: funciones que el sistema puede ejecutar para traer datos vivos (leer la temperatura) o, si se le permite, hacer cosas. La seguridad de un agente **no está en lo que el modelo diga**, sino en **qué herramientas tiene**.
+
+### Demostración
+
+**Qué se demuestra:** lo que pasa cuando a un modelo **sin herramientas** se le pide una acción. En el laboratorio verás un agente que lee un dato vivo y no puede escribir en el proceso.
+
+#### Paso 1 — Pedirle una acción
+
+```bash
+docker compose --profile lab run --rm --no-deps lab preguntar "Para la máquina EST-01 ahora mismo."
+```
+
+**Resultado esperado** (la redacción cambia):
+
+```text
+respuesta: Por supuesto, estaré encantado de ayudarte con cualquier mantenimiento de la máquina EST-01. ¿Podrías proporcionarme más detalles sobre el problema que te está ocurriendo?
+OK preguntar: respuesta del modelo local
+```
+
+**Cómo se lee:** «Por supuesto». El modelo **acepta** una orden que no puede cumplir: no tiene ninguna forma de parar la máquina. Un operario con prisa podría creer que la máquina se ha parado.
+
+> **Qué señalar en pantalla:** «Un modelo dice que sí a casi todo. Por eso las acciones nunca dependen de lo que el modelo diga, sino de qué herramientas tiene y de quién las autoriza».
+
+#### Paso 2 — La pregunta que abre el laboratorio
+
+> **Si le diéramos una herramienta para leer la estación, ¿cómo nos aseguramos de que el número que diga es el que leyó y de que no pueda tocar el proceso?**
+
+### Ahora tú: M05-04
+
+→ **[M05-04 — Automatización mediante agentes](M05-04-agentes.md)**
+
+Verás un agente que lee la temperatura con una herramienta y deja traza, comprobarás que la cifra no es inventada y verás por qué no puede escribir en el automatismo.
+
+---
 
 ## Conclusiones del módulo
 
-Al terminar los laboratorios de este módulo deberías tener claro que:
+### Qué es la IA generativa en planta
 
-- Un modelo de lenguaje puede ejecutarse en el puesto, sin sacar datos de la fábrica.
-- Las respuestas sobre la planta tienen que salir de sus documentos, no de la memoria del modelo.
-- A un agente se le limita con las herramientas que tiene: si no puede escribir, no escribe.
+Un modelo que redacta con soltura. Útil para explicar, resumir y asistir; peligroso si se toma lo que escribe como dato o como acción.
+
+### Cómo debe usarse
+
+| Requisito | Dónde lo has trabajado |
+|-----------|------------------------|
+| En local, si los datos no pueden salir de la fábrica | M05-01 |
+| Integrado como un servicio, con tiempo máximo y fallo controlado | M05-02 |
+| Respondiendo desde los documentos de la planta, y diciendo cuándo no lo sabe | M05-03 |
+| Con las herramientas justas, de lectura, y con traza | M05-04 |
+
+### Lo que has visto romperse
+
+| Fallo | Dónde | Qué enseña |
+|-------|-------|------------|
+| Respuesta inventada sobre el par de apriete | Demo del bloque 1 | Sin contexto, inventa |
+| La misma pregunta, respuestas distintas | M05-01 | No es determinista: no se usa como fuente de datos |
+| Búsqueda que trae el párrafo equivocado | M05-03 | El asistente vale lo que vale su búsqueda |
+| «Por supuesto» a una orden imposible | Demo del bloque 4 | Las acciones no pueden depender del texto del modelo |
+
+### En una frase
+
+> 🔑 Un modelo de lenguaje escribe lo que suena bien. En planta, lo que dice tiene que salir de vuestros documentos y vuestros datos, y lo que hace, de las herramientas que le deis.

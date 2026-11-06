@@ -599,6 +599,10 @@ def cmd_preguntar(args) -> int:
     return ok("preguntar", "respuesta del modelo local")
 
 
+VACIAS = {"a", "al", "de", "del", "el", "la", "las", "los", "lo", "un", "una", "y", "o", "en", "se", "que", "qué",
+          "es", "por", "para", "con", "hay", "cómo", "cuánto", "cuál", "si", "no", "su", "sus"}
+
+
 def cmd_buscar(args) -> int:
     """lab buscar "<pregunta>": enseña qué párrafo del procedimiento recuperaría el asistente y por qué."""
     pregunta = " ".join(args)
@@ -606,10 +610,17 @@ def cmd_buscar(args) -> int:
         return fallo('falta la pregunta: lab buscar "¿…?"')
     texto = Path("/opt/linea/docs/procedimiento-est01.md").read_text(encoding="utf-8")
     partes = [p.strip() for p in texto.split("\n\n") if p.strip()]
+    textos = [a for a in args if a != "filtrar"]
+    pregunta = " ".join(textos)
     palabras = set(pregunta.lower().replace("·", " ").replace("¿", " ").replace("?", " ").split())
+    if "filtrar" in args:
+        # Mejora: no contar palabras vacías ni títulos, que no dicen de qué trata el párrafo
+        palabras -= VACIAS
+        partes = [p for p in partes if not p.startswith("#")]
+        print(f"palabras que cuentan: {', '.join(sorted(palabras))}")
     filas = []
     for parte in partes:
-        comunes = palabras & set(parte.lower().replace("·", " ").split())
+        comunes = palabras & set(parte.lower().replace("·", " ").replace(".", " ").replace(",", " ").split())
         filas.append((len(comunes), sorted(comunes), parte[:60] + ("…" if len(parte) > 60 else "")))
     filas.sort(key=lambda f: -f[0])
     print("puntos  palabras en común                párrafo")

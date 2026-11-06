@@ -107,6 +107,58 @@ Señala en el fragmento impreso la frase del par.
 
 → Está en el procedimiento, no en la memoria del modelo.
 
+## Investiga: cómo elige el párrafo
+
+**Qué ocurre:** el asistente funciona si la búsqueda trae el párrafo correcto. El comando de ayuda `lab buscar` enseña cómo puntúa cada párrafo para una pregunta: cuenta las palabras que comparten.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab buscar "¿A qué par se aprieta el tornillo de la brida?"
+```
+
+📋 Ficha del comando [`buscar`](../comandos-lab.md#buscar).
+
+**Resultado esperado:**
+
+```text
+puntos  palabras en común                párrafo
+     9  a, aprieta, brida, de, el, la,   El tornillo de la brida se aprieta a 12 N·m. Si el par queda…
+     3  de, el, se                       Antes de medir el husillo, bloquear el husillo con el cerroj…
+     3  de, la, se                       La temperatura de trabajo habitual del husillo está entre 58…
+...
+OK buscar: elegido el párrafo con 9 palabras en común
+```
+
+**Cómo se lee:** el párrafo correcto gana con claridad: 9 palabras en común. Pero fíjate en cuáles: «a», «de», «el», «la» cuentan igual que «brida» o «aprieta».
+
+Prueba ahora otra pregunta:
+
+```bash
+docker compose --profile lab run --rm --no-deps lab buscar "¿A qué temperatura hay que avisar?"
+```
+
+**Resultado esperado:**
+
+```text
+puntos  palabras en común                párrafo
+     1  a                                El tornillo de la brida se aprieta a 12 N·m. Si el par queda…
+     1  temperatura                      ## Temperatura
+     1  temperatura                      La temperatura de trabajo habitual del husillo está entre 58…
+...
+```
+
+**Cómo se lee:** empate a 1 entre tres párrafos, y **gana el del par de apriete**, porque contiene la palabra «a». El asistente respondería sobre la temperatura leyendo el párrafo del tornillo. Compruébalo:
+
+```bash
+docker compose --profile lab run --rm --no-deps lab preguntar "¿A qué temperatura hay que avisar?" procedimiento
+```
+
+```text
+fragmento recuperado: El tornillo de la brida se aprieta a 12 N·m. …
+respuesta: Sin más contexto, no puedo determinar exactamente la respuesta. …
+```
+
+Con el párrafo equivocado, el modelo al menos dice que no lo sabe. Pero el dato estaba en el procedimiento.
+
 ## Reto
 
 ### 1 — Documento nuevo
@@ -119,6 +171,26 @@ Si añades un párrafo al procedimiento, ¿hay que reentrenar el modelo?
 No. La próxima pregunta recupera el párrafo nuevo. El modelo no se toca: por eso este enfoque sirve para documentación que cambia.
 
 </details>
+
+## Mejora: buscar solo con las palabras que importan
+
+**Qué ocurre:** quitas de la búsqueda las **palabras vacías** («a», «de», «la», «qué»…) y los títulos, que no dicen de qué trata un párrafo. La opción `filtrar` lo hace.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab buscar "¿A qué temperatura hay que avisar?" filtrar
+```
+
+**Resultado esperado:**
+
+```text
+palabras que cuentan: avisar, temperatura
+puntos  palabras en común                párrafo
+     1  temperatura                      La temperatura de trabajo habitual del husillo está entre 58…
+     0                                   Estación de mecanizado de carcasas. Este texto es ficticio y…
+...
+```
+
+**Cómo se lee:** ahora gana el párrafo correcto. Pero solo con 1 punto: «avisar» no coincide con «avisa», la palabra que usa el procedimiento. Contar palabras exactas es frágil ante sinónimos y conjugaciones. Los asistentes reales buscan **por significado** (con *embeddings*, que convierten cada texto en números de forma que textos parecidos quedan cerca), y por eso encuentran el párrafo aunque la pregunta use otras palabras.
 
 ## Errores frecuentes
 

@@ -51,6 +51,8 @@ docker compose up -d llm
 curl -s http://localhost:8088/salud
 ```
 
+También puedes abrir <http://localhost:8088/salud> en Chrome, y <http://localhost:8088/docs> para ver la documentación del servicio.
+
 **Resultado esperado:**
 
 ```json
@@ -86,6 +88,54 @@ OK m05-01: inferencia local en 0.5s via http://llm:8088
 La URL del `OK`, ¿sale del puesto o va a un proveedor externo?
 
 → Es `http://llm:8088`, el contenedor del puesto.
+
+## Investiga: cuánto ocupa y cuánto tarda
+
+**Qué ocurre:** mides lo que cuesta tener el modelo en el puesto: memoria y tiempo para una respuesta larga.
+
+```bash
+# Memoria que usa el contenedor del modelo
+docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}' | grep -E "NAME|llm"
+
+# Tiempo para una respuesta de hasta 200 tokens (trozos de palabra)
+time curl -s http://localhost:8088/v1/chat/completions -H 'Content-Type: application/json' \
+  -d '{"messages": [{"role": "user", "content": "Escribe un párrafo sobre el mantenimiento preventivo."}], "max_tokens": 200}' > /dev/null
+```
+
+**Resultado esperado** (depende del puesto):
+
+```text
+NAME                  MEM USAGE / LIMIT
+ia-linea-llm-1        192MiB / 2GiB
+```
+
+```text
+real	0m2,759s
+```
+
+**Cómo se lee:** el contenedor marca unos 200 MB porque el modelo se lee del fichero según lo necesita (el sistema lo mantiene en memoria caché, que `docker stats` no cuenta entera). El tiempo es lo que importa: aquí, menos de 3 segundos para 200 tokens; en un portátil más modesto, varias veces más. Ese número decide si el asistente es usable en el puesto: un técnico no espera un minuto por una respuesta.
+
+## Experimenta: la misma pregunta, tres veces
+
+**Qué ocurre:** haces la misma pregunta tres veces con el comando de ayuda `lab preguntar`.
+
+```bash
+for i in 1 2 3; do
+  docker compose --profile lab run --rm --no-deps lab preguntar "¿A qué par se aprieta el tornillo de la brida de EST-01?" | grep respuesta
+done
+```
+
+📋 Ficha del comando [`preguntar`](../comandos-lab.md#preguntar).
+
+**Resultado esperado** (cada vez una cosa distinta):
+
+```text
+respuesta: El tornillo de la brida de EST-01 se aprieta con el pincho de la brida.
+respuesta: El tornillo de la brida de EST-01 se aprieta con el pincho de la estación.
+respuesta: El tornillo de la brida de EST-01 se aprieta con el pinza de la estación.
+```
+
+**Cómo se lee:** **tres respuestas distintas e inventadas**. El modelo elige cada palabra con algo de azar, así que no es determinista; y como no conoce el procedimiento, se inventa algo que suene a respuesta. Las dos cosas juntas dicen cómo **no** usar un modelo de lenguaje: como fuente de datos de la planta. En el M05-03 verás cómo se corrige.
 
 ## Reto
 

@@ -88,6 +88,27 @@ Compara el número de la frase del agente con el de `traza_agente.jsonl`.
 
 → Son el mismo.
 
+## Experimenta: el mismo modelo, sin herramientas
+
+**Qué ocurre:** pides lo mismo directamente al modelo, sin agente ni herramientas, con `lab preguntar`.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab preguntar "Sube la refrigeración de la estación EST-01 al nivel 3, por favor."
+docker compose --profile lab run --rm --no-deps lab preguntar "Para la máquina EST-01 ahora mismo."
+```
+
+**Resultado esperado** (la redacción cambia):
+
+```text
+respuesta: Por supuesto, estaré encantado de ayudarte con eso. Por favor, proporciona más detalles sobre el estado actual de la refrigeración de la estación EST-01.
+```
+
+```text
+respuesta: Por supuesto, estaré encantado de ayudarte con cualquier mantenimiento de la máquina EST-01. …
+```
+
+**Cómo se lee:** el modelo **acepta** las dos órdenes («Por supuesto»), aunque no puede hacer ninguna. Si la tablet del operario mostrara esa respuesta, alguien podría creer que la refrigeración ha subido. El agente del paso 1, en cambio, contesta que no existe herramienta de escritura, y esa respuesta **no la escribe el modelo**: la pone el código. Lo que un sistema puede hacer no se decide con lo que el modelo diga.
+
 ## Reto
 
 ### 1 — Segunda herramienta

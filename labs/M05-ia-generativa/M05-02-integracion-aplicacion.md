@@ -20,6 +20,12 @@ El técnico no va a abrir una terminal para hablar con el modelo: usará una **a
 
 También tiene que saber **fallar bien**. Si el servicio del modelo está caído, la aplicación debe decir «no hay servicio» y no quedarse colgada ni enseñar un texto inventado.
 
+### 0 — Ver el contrato del servicio
+
+**Qué ocurre:** antes de llamar al servicio, miras qué espera. Abre <http://localhost:8088/docs> y despliega `POST /v1/chat/completions`.
+
+**Qué ves:** la petición lleva `messages` (la conversación, con `role` y `content`) y `max_tokens` (el máximo de trozos de palabra de la respuesta). Es todo lo que una aplicación necesita saber del modelo.
+
 ### 1 — Llamar al modelo como lo haría una aplicación
 
 Vas a mandar una pregunta al servicio con `curl`, igual que lo haría cualquier programa. Lo que viaja es un JSON con los mensajes; lo que vuelve, un JSON con la respuesta.
@@ -90,6 +96,27 @@ Compara el puerto de esta llamada con el de M05-01.
 
 → Los dos usan el 8088. Cambia quién pide, no el modelo.
 
+## Experimenta: una respuesta cortada
+
+**Qué ocurre:** limitas la respuesta a 10 tokens y comparas con 100. Una aplicación tiene que saber detectar que la respuesta no está completa.
+
+```bash
+for t in 10 100; do
+  curl -s http://localhost:8088/v1/chat/completions -H 'Content-Type: application/json' \
+    -d "{\"messages\": [{\"role\": \"user\", \"content\": \"Explica qué es un PLC.\"}], \"max_tokens\": $t}"
+  echo
+done
+```
+
+**Resultado esperado** (extracto de cada respuesta):
+
+```text
+"content":"Un PLC (Programmable Logic Controller) es"  …  "finish_reason":"length"  …  "completion_tokens":10
+"content":"Un PLC (Programmable Logic Controller) es un dispositivo de control …"  …  "finish_reason":"length"  …  "completion_tokens":100
+```
+
+**Cómo se lee:** con 10 tokens, la frase se queda a medias: «Un PLC (Programmable Logic Controller) es». `finish_reason: "length"` avisa de que se ha cortado por el límite, no porque terminara. Una aplicación que enseñe eso al técnico sin avisar le está dando media respuesta.
+
 ## Reto
 
 ### 1 — Tiempo máximo
@@ -102,6 +129,30 @@ Si el servicio se cae a media respuesta, ¿cuánto espera esta aplicación?
 Hasta 180 s, el `timeout` del cliente. En un puesto real el límite debe ser más corto y el operario tiene que ver en pantalla que no hubo respuesta.
 
 </details>
+
+## Mejora: fallar rápido y avisar
+
+**Qué ocurre:** el cliente de este laboratorio espera hasta 180 segundos. Pruebas qué ve una aplicación con un **tiempo máximo corto** cuando el servicio está caído.
+
+```bash
+# Para el modelo
+docker compose stop llm
+
+# Una aplicación con 3 s de paciencia
+curl -s --max-time 3 http://localhost:8088/v1/chat/completions -H 'Content-Type: application/json' \
+  -d '{"messages": [{"role": "user", "content": "hola"}]}' || echo "AVISO al técnico: el asistente no está disponible"
+
+# Vuelve a arrancarlo
+docker compose start llm
+```
+
+**Resultado esperado:**
+
+```text
+AVISO al técnico: el asistente no está disponible
+```
+
+**Cómo se lee:** en menos de 3 segundos, la aplicación sabe que no hay servicio y lo dice. Es la diferencia entre una tablet que se queda «pensando» y una que dice «el asistente no está; usa el procedimiento en papel».
 
 ## Errores frecuentes
 
