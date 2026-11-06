@@ -224,7 +224,7 @@ Con los números de «Experimenta», calcula el coste de cada umbral: `coste = 5
 
 ### 1 — Abrir el fichero y ejecutarlo tal cual
 
-**Para qué:** comprobar que el contenedor ejecuta **tu propio código** y que los datos están, antes de escribir nada. Así, si algo falla después, sabrás que es del bloque que acabas de pegar.
+**Para qué:** asegurarte de que el contenedor ejecuta tu código y encuentra los datos, antes de escribir nada.
 
 **Qué ocurre:** abres en VS Code el fichero [`infra/construye/m03_01_mi_modelo.py`](../../infra/construye/m03_01_mi_modelo.py). Arriba están las **decisiones** que cambiarás al final (`SENALES`, `COSTE_ESCAPADO`, `COSTE_REVISION`); debajo, el paso 1 ya escrito, que carga `limpio.csv`, y los huecos vacíos de los pasos 2 a 6. Lo ejecutas sin tocar nada.
 
@@ -243,9 +243,9 @@ piezas=768 defectuosas=68 señales=['temperatura_c', 'vibracion_mm_s', 'corrient
 
 ### 2 — Partir en pasado y futuro
 
-**Para qué:** tener un **examen honesto**: medir el modelo con piezas que no ha visto, como le pasará en la línea. Sin esta separación, cualquier resultado que salga después es engañoso.
+**Para qué:** examinar el modelo con piezas que no ha visto, como le pasará en la línea.
 
-**Qué ocurre:** separas las piezas antiguas, con las que aprenderá el modelo, de las recientes, con las que lo examinarás. Se corta **por orden de fabricación**, no al azar, porque en la línea el modelo siempre decidirá sobre piezas posteriores a las que vio al aprender.
+**Qué ocurre:** separas las piezas antiguas, para aprender, de las recientes, para el examen. Se corta **por orden de fabricación**, no al azar.
 
 Pega debajo de `# --- PASO 2`:
 
@@ -269,9 +269,9 @@ entrenar=537 examen=231 defectos_en_examen=21
 
 ### 3 — Entrenar y ver qué ha aprendido
 
-**Para qué:** obtener el modelo y comprobar que **no es una caja negra**: lo que aprende son cinco números que puedes leer e interpretar.
+**Para qué:** obtener el modelo y ver que lo que aprende se puede leer.
 
-**Qué ocurre:** creas el modelo y lo entrenas con las señales del pasado. `fit` es la línea que «aprende». Después imprimes lo que ha aprendido, que en una regresión logística son **un peso por señal** y un término independiente: nada más.
+**Qué ocurre:** creas el modelo, lo entrenas con las señales del pasado (`fit` es la línea que «aprende») e imprimes lo aprendido: **un peso por señal** y un término independiente.
 
 Pega debajo de `# --- PASO 3`:
 
@@ -302,9 +302,9 @@ término independiente  -32.681
 
 ### 4 — Ver qué probabilidad da a cada pieza
 
-**Para qué:** entender **qué devuelve el modelo** antes de tomar ninguna decisión: una probabilidad, no un «sí» o un «no». Es lo que te permitirá elegir dónde cortar.
+**Para qué:** saber qué devuelve el modelo antes de decidir nada.
 
-**Qué ocurre:** antes de decidir nada, pides al modelo la **probabilidad de defecto** de cada pieza de examen y miras los dos extremos: las tres piezas que ve más sospechosas y las tres que ve más seguras, junto a lo que dijo calidad de verdad.
+**Qué ocurre:** pides la **probabilidad de defecto** de cada pieza de examen y miras las tres más sospechosas y las tres más seguras, junto a lo que dijo calidad.
 
 Pega debajo de `# --- PASO 4`:
 
@@ -335,9 +335,9 @@ pieza_id  temperatura_c  probabilidad  defecto
 
 ### 5 — Decidir con un umbral y contar aciertos y errores
 
-**Para qué:** convertir la probabilidad en una **decisión** y medirla con los números que importan en planta (defectos que se escapan y falsas alarmas). Y comprobar que has reconstruido exactamente lo que hace `lab m03-01`.
+**Para qué:** convertir la probabilidad en una decisión y medirla con los errores que importan en planta.
 
-**Qué ocurre:** conviertes la probabilidad en una decisión con un **umbral**: si la probabilidad llega al umbral, la pieza va a revisión. Después cuentas los cuatro casos de la matriz de confusión. Lo escribes como una función, `evaluar(umbral)`, porque en el paso siguiente la usarás con diecinueve umbrales.
+**Qué ocurre:** si la probabilidad llega al **umbral**, la pieza va a revisión; después cuentas los cuatro casos de la [matriz de confusión](../glosario/03-aprendizaje-automatico.md#matriz-confusion). Lo escribes como una función, `evaluar(umbral)`, para usarla en el paso 6 con diecinueve umbrales.
 
 Pega debajo de `# --- PASO 5`:
 
@@ -362,11 +362,11 @@ umbral 0.5 -> encontrados=15 escapados=6 falsas_alarmas=38 correctas=172
 
 ### 6 — Elegir el umbral por lo que cuesta
 
-**Para qué:** elegir el umbral con un **criterio de planta**, el dinero que cuestan los errores, y saber si el modelo **merece la pena** frente a no tenerlo.
+**Para qué:** elegir el umbral por lo que cuestan los errores y saber si el modelo compensa frente a no tenerlo.
 
-**Qué ocurre:** en «Mejora» comparaste tres umbrales a mano. Ahora el código recorre diecinueve, calcula lo que cuestan los errores de cada uno y se queda con el más barato.
+**Qué ocurre:** el código recorre diecinueve umbrales (en «Mejora» comparaste tres), calcula el coste de los errores de cada uno y se queda con el más barato. Lo compara con no tener modelo: **revisar a mano todas las piezas**, que no deja escapar ningún defecto y cuesta `COSTE_REVISION` por cada pieza buena.
 
-**De dónde salen los euros:** pasar los errores a dinero permite sumar dos fallos que no pesan igual y elegir con un criterio que calidad entiende. Los precios son los dos que fijaste arriba del fichero, los mismos que en «Mejora»:
+**De dónde salen los euros:** pasar los errores a dinero permite sumar dos fallos que no pesan igual. Los precios son los dos de arriba del fichero, los mismos que en «Mejora»:
 
 | Variable | Valor | Qué representa |
 |----------|-------|----------------|
@@ -377,7 +377,7 @@ umbral 0.5 -> encontrados=15 escapados=6 falsas_alarmas=38 correctas=172
 coste de un umbral = 500 € × defectos escapados + 5 € × falsas alarmas    (sobre las 231 piezas de examen)
 ```
 
-Son **un supuesto del lab**, no datos de una planta real. En planta, estos dos precios los aporta calidad, y son los que deciden el resultado: en el paso 8 verás qué pasa si cambian. Además, lo compara con la alternativa de no tener modelo: **revisar a mano todas las piezas**, que no deja escapar ningún defecto y cuesta `COSTE_REVISION` por cada pieza buena.
+Son **un supuesto del lab**, no datos de una planta real. En planta, estos dos precios los aporta calidad, y son los que deciden el resultado: en el paso 8 verás qué pasa si cambian.
 
 Pega debajo de `# --- PASO 6`:
 
@@ -421,9 +421,9 @@ mejor umbral=0.05 coste=940 € | revisar todo=1050 €
 
 ### 7 — Decide tú: las señales
 
-**Para qué:** averiguar qué señales **aportan de verdad**, para no meter en el modelo datos que solo añaden ruido.
+**Para qué:** averiguar qué señales aportan de verdad.
 
-**Qué ocurre:** ahora que el código es tuyo, cambias lo que el comando no te dejaba: la lista `SENALES`, arriba del fichero. Pruébalo dos veces y ejecuta después de cada cambio.
+**Qué ocurre:** cambias la lista `SENALES`, arriba del fichero, que el comando no te dejaba tocar. Pruébala dos veces y ejecuta después de cada cambio.
 
 **Predice:** ¿cuál de las cuatro señales es la que más pesa? ¿Qué pasará si la quitas?
 
@@ -463,7 +463,7 @@ Casi todo lo que el modelo sabe está en la **temperatura**. Sin ella, el modelo
 
 ### 8 — Decide tú: el precio de revisar
 
-**Para qué:** comprobar que el umbral correcto depende de **los costes de tu planta**, no del modelo. Por eso lo decide calidad y no quien entrena.
+**Para qué:** ver de qué depende el umbral correcto.
 
 **Qué ocurre:** con las cuatro señales, cambias `COSTE_REVISION = 5` por `COSTE_REVISION = 50`: la pieza hay que desmontarla para revisarla.
 
@@ -483,9 +483,9 @@ mejor umbral=0.7 coste=3800 € | revisar todo=10500 €
 
 ### 9 — Haz trampa a propósito
 
-**Para qué:** aprender a reconocer un modelo **demasiado bueno para ser verdad** y su causa más habitual: una entrada que llega después del momento de decidir.
+**Para qué:** aprender a reconocer un modelo demasiado bueno para ser verdad.
 
-**Qué ocurre:** compruebas el Reto 1. Añades `defecto`, la columna que escribe calidad **después** de inspeccionar, a la lista de entradas del modelo:
+**Qué ocurre:** compruebas el Reto 1: añades `defecto`, la columna que escribe calidad **después** de inspeccionar, a la lista de entradas del modelo:
 
 ```python
 # TRAMPA: "defecto" no existe todavía cuando la carcasa sale de la estación

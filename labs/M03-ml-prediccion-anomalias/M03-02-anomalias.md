@@ -127,7 +127,7 @@ umbral=25.0 averias_simuladas=20 avisadas=20 avisos_sobre_normales=0 de 180
 
 ### 1 — Abrir el fichero y ejecutarlo tal cual
 
-**Para qué:** comprobar que el contenedor ejecuta **tu propio código** y conocer los dos grupos de datos: los ciclos sanos de los que aprenderá y los que tendrá que vigilar.
+**Para qué:** asegurarte de que el contenedor ejecuta tu código y conocer los datos con los que vas a trabajar.
 
 **Qué ocurre:** abres en VS Code el fichero [`infra/construye/m03_02_mi_detector.py`](../../infra/construye/m03_02_mi_detector.py). Arriba están las **decisiones** que cambiarás al final (`UMBRAL`, `VIBRACION_AVERIA`, `CICLOS_POR_TURNO`). El paso 1 ya está escrito: genera **los mismos ciclos que usa `lab m03-02`**, los normales para aprender y los 200 que hay que vigilar, 20 de ellos con una avería simulada (la vibración subida a propósito). Lo ejecutas sin tocar nada.
 
@@ -146,9 +146,9 @@ ciclos normales para aprender=358 ciclos a vigilar=200 averias_simuladas=20
 
 ### 2 — Aprender cómo es lo normal
 
-**Para qué:** tener la **referencia de lo normal** con la que se comparará cada ciclo. Es lo único que aprende el detector.
+**Para qué:** tener la referencia de lo normal con la que se comparará cada ciclo.
 
-**Qué ocurre:** calculas, con los ciclos sanos, el **valor habitual** de cada señal (la media) y **cuánto varía** normalmente (la desviación). Con solo estos dos números por señal ya se puede decir si un valor es raro.
+**Qué ocurre:** calculas con los ciclos sanos la **media** de cada señal (su valor habitual) y su **desviación** (cuánto varía normalmente).
 
 Pega debajo de `# --- PASO 2`:
 
@@ -174,9 +174,9 @@ presion_bar      6.000   0.120
 
 ### 3 — Un detector sencillo, señal a señal
 
-**Para qué:** tener una **base sencilla** con la que comparar. Si la regla de cualquiera bastara, no haría falta nada más complicado.
+**Para qué:** tener una base sencilla con la que comparar el detector de verdad.
 
-**Qué ocurre:** antes de usar nada sofisticado, pruebas la regla que pondría cualquiera: para cada ciclo, mides a cuántas desviaciones está cada señal de su media (eso se llama **z**), y avisas si **alguna** está a más de 3. Es la base con la que comparar.
+**Qué ocurre:** pruebas la regla que pondría cualquiera: mides a cuántas desviaciones está cada señal de su media (eso se llama **z**) y avisas si **alguna** pasa de 3.
 
 Pega debajo de `# --- PASO 3`:
 
@@ -200,9 +200,9 @@ señal a señal: averías avisadas=20 de 20  falsas alarmas=8 de 180
 
 ### 4 — La distancia, con todas las señales a la vez
 
-**Para qué:** construir la medida que **mira todas las señales a la vez** y entender qué calcula por dentro la librería de `lab m03-02`.
+**Para qué:** entender qué calcula por dentro `lab m03-02`.
 
-**Qué ocurre:** calculas tú la **distancia de [Mahalanobis](../glosario/03-aprendizaje-automatico.md#mahalanobis)**: un solo número por ciclo que dice cuánto se aleja de lo normal teniendo en cuenta las cuatro señales juntas y cómo varían juntas. Es lo que hace por dentro `lab m03-02`. Después miras la distancia de tres ciclos normales y tres con avería simulada.
+**Qué ocurre:** calculas tú la **distancia de [Mahalanobis](../glosario/03-aprendizaje-automatico.md#mahalanobis)**: un solo número por ciclo que dice cuánto se aleja de lo normal con las cuatro señales juntas. Después miras la de tres ciclos normales y tres con avería simulada.
 
 Pega debajo de `# --- PASO 4`:
 
@@ -238,9 +238,9 @@ pieza_id  vibracion_mm_s  distancia  averia_simulada
 
 ### 5 — Avisar con un umbral y contar
 
-**Para qué:** convertir la distancia en una **decisión** (avisar o no) y comprobar que tu detector hace exactamente lo mismo que `lab m03-02`.
+**Para qué:** convertir la distancia en una decisión: avisar o no.
 
-**Qué ocurre:** avisas cuando la distancia llega al `UMBRAL` (13,3, arriba del fichero) y cuentas aciertos y falsas alarmas con la marca `averia_simulada`.
+**Qué ocurre:** avisas cuando la distancia llega al `UMBRAL` (13,3, arriba del fichero) y cuentas aciertos y falsas alarmas con la columna `averia_simulada`.
 
 Pega debajo de `# --- PASO 5`:
 
@@ -261,7 +261,7 @@ umbral=13.3: averías avisadas=20 de 20  falsas alarmas=7 de 180
 
 ### 6 — Un ciclo raro en conjunto
 
-**Para qué:** ver con un caso concreto **qué gana** la distancia frente a la regla señal a señal.
+**Para qué:** ver qué gana la distancia frente a la regla señal a señal.
 
 **Qué ocurre:** inventas un ciclo en el que **cada señal está algo alta, pero ninguna exagerada**: 2,5 desviaciones por encima de su media. Lo pasas por los dos detectores.
 
@@ -289,9 +289,9 @@ ciclo raro: {'temperatura_c': 66.762, 'vibracion_mm_s': 0.433, 'corriente_a': 4.
 
 ### 7 — Cuántos avisos daría en un turno
 
-**Para qué:** traducir las falsas alarmas a la unidad que entiende el turno, **avisos por turno**, para juzgar si el detector se podría usar en la línea.
+**Para qué:** juzgar, en la unidad que entiende el turno, si el detector se podría usar en la línea.
 
-**Qué ocurre:** un porcentaje de falsas alarmas no dice nada al jefe de turno. Lo conviertes en **avisos por turno**, con un ciclo por segundo durante 8 horas (`CICLOS_POR_TURNO`).
+**Qué ocurre:** conviertes el porcentaje de falsas alarmas en **avisos por turno**, con un ciclo por segundo durante 8 horas (`CICLOS_POR_TURNO`).
 
 Pega debajo de `# --- PASO 7`:
 
@@ -310,7 +310,7 @@ falsas alarmas: 3.9% de los ciclos normales -> ~1120 avisos falsos por turno
 
 ### 8 — Decide tú: el umbral «perfecto»
 
-**Para qué:** comprobar si un umbral que parece perfecto **lo sigue siendo** con la avería que de verdad interesa ver a tiempo.
+**Para qué:** comprobar si un umbral que parece perfecto lo sigue siendo con una avería que empieza.
 
 **Qué ocurre:** con 13,3 hay demasiadas falsas alarmas. Cambias `UMBRAL = 13.3` por `UMBRAL = 25`, arriba del fichero, y ejecutas.
 
@@ -346,7 +346,7 @@ umbral=13.3: averías avisadas=20 de 20  falsas alarmas=7 de 180
 
 ### 9 — Decide tú: una avería aún más temprana
 
-**Para qué:** ver **el límite de mirar ciclos sueltos**, para entender por qué hace falta mirar varios ciclos seguidos (lo resuelves en el reto 2).
+**Para qué:** ver el límite de mirar ciclos sueltos.
 
 **Qué ocurre:** cambias a `VIBRACION_AVERIA = 0.45`, muy cerca del borde de lo normal, y pruebas con `UMBRAL = 13.3` y con `UMBRAL = 8`.
 
