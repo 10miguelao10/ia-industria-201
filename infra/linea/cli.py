@@ -36,7 +36,9 @@ from linea.config import (
     PROMETHEUS_URL,
     SERVICIOS,
     TOPIC_CICLO,
+    TOPIC_CONSIGNA,
     TOPIC_DICTAMEN,
+    TOPIC_EVENTO,
     UMBRAL_TEMPERATURA,
     VERSION_ARRANQUE,
 )
@@ -49,6 +51,17 @@ warnings.filterwarnings("ignore", message="Unknown solver options")
 warnings.filterwarnings("ignore", message="Stochastic Optimizer: Maximum iterations")
 
 FEATURES = ["temperatura_c", "vibracion_mm_s", "corriente_a", "presion_bar"]
+
+
+def _param(args, clave: str, defecto, tipo=float):
+    """Lee un parámetro «clave=valor» de la línea de comandos (p. ej. umbral=0.3)."""
+    for a in args:
+        if a.startswith(clave + "="):
+            try:
+                return tipo(a.split("=", 1)[1])
+            except ValueError:
+                pass
+    return defecto
 
 
 def ok(codigo: str, detalle: str) -> int:
@@ -195,7 +208,85 @@ def cmd_m02_02(_args) -> int:
     return ok("m02-02", "MQTT, OPC-UA y Modbus leen la misma temperatura")
 
 
-def cmd_m02_03(_args) -> int:
+MAPA_MODBUS = {0: ("temperatura_c", 10), 1: ("vibracion_mm_s", 1000), 2: ("corriente_a", 100), 3: ("secuencia", 1), 10: ("paro_seguridad", 1)}
+
+
+def cmd_modbus(args) -> int:
+    """lab modbus [registro_inicial] [cuantos]: lee registros del esclavo Modbus en crudo."""
+    from pymodbus.client import ModbusTcpClient
+
+    inicio = _numero(args, 0, 0)
+    cuantos = _numero(args, 1, 4)
+    cliente = ModbusTcpClient(MODBUS_HOST, port=MODBUS_PORT)
+    if not cliente.connect():
+        return fallo("Modbus no conecta; ¿está el contenedor modbus en marcha?")
+    rr = cliente.read_holding_registers(inicio, cuantos, slave=1)
+    cliente.close()
+    if rr.isError():
+        return fallo(f"Modbus: {rr}")
+    print("registro  valor_crudo")
+    for i, valor in enumerate(rr.registers):
+        print(f"{inicio + i:8d}  {valor:11d}")
+    return ok("modbus", f"{cuantos} registros leídos desde el {inicio}")
+
+
+def cmd_opcua(_args) -> int:
+    """lab opcua: recorre el objeto Estacion del servidor OPC-UA y enseña cada variable con su tipo."""
+    async def recorrer():
+        from asyncua import Client
+
+        async with Client(url=OPCUA_ENDPOINT) as client:
+            for hijo in await client.nodes.objects.get_children():
+                if (await hijo.read_browse_name()).Name == "Estacion":
+                    filas = []
+                    for var in await hijo.get_children():
+                        nombre = (await var.read_browse_name()).Name
+                        valor = await var.read_value()
+                        tipo = (await var.read_data_type_as_variant_type()).name
+                        filas.append((nombre, valor, tipo))
+                    return filas
+        return []
+
+    try:
+        filas = asyncio.run(recorrer())
+    except Exception as exc:
+        return fallo(f"OPC-UA: {exc}")
+    print("nodo                  valor          tipo")
+    for nombre, valor, tipo in filas:
+        print(f"Estacion.{nombre:<12} {str(valor):<14} {tipo}")
+    return ok("opcua", f"{len(filas)} variables en el objeto Estacion")
+
+
+def cmd_pasarela(args) -> int:
+    """lab pasarela [segundos]: lee el PLC por Modbus cada segundo y publica en MQTT, ya en grados."""
+    from pymodbus.client import ModbusTcpClient
+
+    segundos = _numero(args, 0, 10)
+    mb = ModbusTcpClient(MODBUS_HOST, port=MODBUS_PORT)
+    if not mb.connect():
+        return fallo("Modbus no conecta")
+    cliente = _mqtt()
+    cliente.loop_start()
+    for _ in range(segundos):
+        rr = mb.read_holding_registers(0, 4, slave=1)
+        mensaje = {
+            "fuente": "modbus",
+            "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "temperatura_c": rr.registers[0] / 10,
+            "vibracion_mm_s": rr.registers[1] / 1000,
+            "corriente_a": rr.registers[2] / 100,
+            "secuencia": rr.registers[3],
+        }
+        cliente.publish("linea/est01/pasarela", json.dumps(mensaje))
+        print(f"publicado en linea/est01/pasarela: {json.dumps(mensaje)}", flush=True)
+        time.sleep(1)
+    cliente.loop_stop()
+    cliente.disconnect()
+    mb.close()
+    return ok("pasarela", f"{segundos} lecturas de Modbus publicadas en MQTT")
+
+
+def cmd_m02_03(args) -> int:
     crudo = escribir_crudo(DATA / "crudo.csv")
     resumen = limpiar(crudo, DATA / "limpio.csv")
     limpio = pd.read_csv(DATA / "limpio.csv")
@@ -206,6 +297,20 @@ def cmd_m02_03(_args) -> int:
     if (DATA / "imposibles.csv").stat().st_size == 0:
         return fallo("no se apartaron los 9999")
     print(json.dumps(resumen))
+    if "rellenar" in args:
+        # Experimento: en lugar de quitar las piezas con hueco, rellenarlas con la media
+        crudo_df = pd.read_csv(DATA / "crudo.csv")
+        validas = crudo_df[crudo_df.temperatura_c.notna() & (crudo_df.temperatura_c < 1000)].copy()
+        validas.loc[validas.temperatura_c > 150, "temperatura_c"] /= 10
+        media = round(float(validas.temperatura_c.mean()), 2)
+        relleno = crudo_df[crudo_df.temperatura_c != 9999].copy()
+        relleno.loc[relleno.temperatura_c > 150, "temperatura_c"] /= 10
+        huecos = int(relleno.temperatura_c.isna().sum())
+        relleno["temperatura_c"] = relleno["temperatura_c"].fillna(media)
+        relleno.to_csv(DATA / "limpio_relleno.csv", index=False)
+        print(f"relleno: {huecos} huecos rellenados con la media {media} °C -> limpio_relleno.csv")
+        print(f"  piezas con temperatura exactamente {media}: limpio={int((limpio.temperatura_c == media).sum())} relleno={int((relleno.temperatura_c == media).sum())}")
+        print(f"  desviación típica de la temperatura: limpio={limpio.temperatura_c.std():.3f} relleno={relleno.temperatura_c.std():.3f}")
     return ok("m02-03", f"crudo={resumen['filas_crudo']} limpio={resumen['filas_limpias']} huecos={resumen['huecos']}")
 
 
@@ -222,16 +327,21 @@ def _tasas(y_true, y_pred) -> dict:
     return {"tp": int(tp), "fp": int(fp), "fn": int(fn), "tn": int(tn), "recall": recall, "fpr": fpr}
 
 
-def cmd_m03_01(_args) -> int:
+def cmd_m03_01(args) -> int:
     if not (DATA / "limpio.csv").exists():
         escribir_crudo(DATA / "crudo.csv")
         limpiar(DATA / "crudo.csv", DATA / "limpio.csv")
     df = pd.read_csv(DATA / "limpio.csv")
     train, test = _partir(df)
-    modelo = LogisticRegression(class_weight="balanced", max_iter=400)
+    umbral = _param(args, "umbral", 0.5)
+    equilibrar = _param(args, "equilibrar", "si", str) != "no"
+    modelo = LogisticRegression(class_weight="balanced" if equilibrar else None, max_iter=400)
     modelo.fit(train[FEATURES], train["defecto"])
-    pred = modelo.predict(test[FEATURES])
+    proba = modelo.predict_proba(test[FEATURES])[:, 1]
+    pred = (proba >= umbral).astype(int)                  # umbral de decisión (0,5 por defecto)
     tasas = _tasas(test["defecto"], pred)
+    if umbral != 0.5 or not equilibrar:
+        print(f"umbral={umbral} equilibrar={'si' if equilibrar else 'no'}")
     print(json.dumps(tasas))
     if tasas["recall"] < 0.45:
         return fallo(f"recall de defecto demasiado bajo ({tasas['recall']:.2f})")
@@ -240,7 +350,7 @@ def cmd_m03_01(_args) -> int:
     return ok("m03-01", f"recall_defecto={tasas['recall']:.2f} falsas_alarmas={tasas['fpr']:.2f}")
 
 
-def cmd_m03_02(_args) -> int:
+def cmd_m03_02(args) -> int:
     base = generar_limpio(400, seed=3)
     normal = base[base["defecto"] == 0]
     vig = vigilancia()
@@ -249,13 +359,18 @@ def cmd_m03_02(_args) -> int:
     escala = StandardScaler()
     base_z = escala.fit_transform(normal[FEATURES])
     detector = EmpiricalCovariance().fit(base_z)
-    umbral = 13.3  # chi-cuadrado 0,99 con 4 señales
+    umbral = _param(args, "umbral", 13.3)  # por defecto, chi-cuadrado 0,99 con 4 señales
     distancias = detector.mahalanobis(escala.transform(vig[FEATURES]))
     marcas = np.where(distancias >= umbral, -1, 1)
     raro = vig["inyectada"] == 1
     pillados = int(((marcas == -1) & raro).sum())
     total = int(raro.sum())
-    print(f"inyectados={total} detectados={pillados}")
+    falsos = int(((marcas == -1) & ~raro).sum())
+    salida = vig.copy()
+    salida["distancia"] = distancias.round(2)
+    salida["aviso"] = (marcas == -1).astype(int)
+    salida.to_csv(DATA / "vigilancia.csv", index=False)
+    print(f"umbral={umbral} inyectados={total} detectados={pillados} avisos_sobre_normales={falsos} de {int((~raro).sum())}")
     if pillados / total < 0.7:
         return fallo("el detector no ve los ciclos inyectados")
     joblib.dump(detector, DATA / "detector_anomalia.joblib")
@@ -287,12 +402,28 @@ def cmd_m03_03(_args) -> int:
     return ok("m03-03", f"elegido={ganador} recall={datos['recall']:.2f} fpr={datos['fpr']:.2f}")
 
 
-def _features_imagen(ruta: Path) -> np.ndarray:
-    img = Image.open(ruta).convert("L").resize((16, 16))
+def cmd_arbol(args) -> int:
+    """lab arbol [linea]: enseña las reglas del árbol de decisión elegido, en texto."""
+    from sklearn.tree import export_text
+
+    fichero, senales = ("modelo_linea.joblib", SENALES_VIVAS) if "linea" in args else ("modelo_defecto.joblib", FEATURES)
+    ruta = DATA / fichero
+    if not ruta.exists():
+        return fallo(f"falta {fichero}")
+    modelo = joblib.load(ruta)
+    if not hasattr(modelo, "tree_"):
+        return fallo(f"{fichero} no es un árbol de decisión (es {type(modelo).__name__})")
+    print(f"reglas de {fichero} (class: 1 = defecto, 0 = buena):")
+    print(export_text(modelo, feature_names=senales, decimals=3))
+    return ok("arbol", f"{modelo.get_n_leaves()} hojas, profundidad {modelo.get_depth()}")
+
+
+def _features_imagen(ruta: Path, lado: int = 16) -> np.ndarray:
+    img = Image.open(ruta).convert("L").resize((lado, lado))
     return np.asarray(img, dtype=np.float32).reshape(-1) / 255.0
 
 
-def _entrenar_vision():
+def _entrenar_vision(lado: int = 16):
     if not (DATA / "imagenes" / "manifiesto.csv").exists():
         generar_imagenes()
     tabla = pd.read_csv(DATA / "imagenes" / "manifiesto.csv")
@@ -305,18 +436,22 @@ def _entrenar_vision():
     ent_ko, pru_ko = partir(tabla[tabla["defecto"] == 1])
     entreno = pd.concat([ent_ok, ent_ko])
     prueba = pd.concat([pru_ok, pru_ko])
-    X = np.stack([_features_imagen(Path(r)) for r in entreno["ruta"]])
+    X = np.stack([_features_imagen(Path(r), lado) for r in entreno["ruta"]])
     modelo = LogisticRegression(max_iter=400)
     modelo.fit(X, entreno["defecto"].to_numpy())
-    Xp = np.stack([_features_imagen(Path(r)) for r in prueba["ruta"]])
+    Xp = np.stack([_features_imagen(Path(r), lado) for r in prueba["ruta"]])
     pred = modelo.predict(Xp)
     acierto = float((pred == prueba["defecto"].to_numpy()).mean())
     return modelo, tabla, acierto
 
 
-def cmd_m04_01(_args) -> int:
-    modelo, _tabla, acierto = _entrenar_vision()
-    joblib.dump(modelo, DATA / "modelo_vision.joblib")
+def cmd_m04_01(args) -> int:
+    lado = int(_param(args, "lado", 16))
+    modelo, _tabla, acierto = _entrenar_vision(lado)
+    if lado == 16:
+        joblib.dump(modelo, DATA / "modelo_vision.joblib")   # solo el de 16×16 lo usa M04-03
+    else:
+        print(f"lado={lado}: {lado * lado} píxeles por foto (no se guarda el modelo)")
     print(f"acierto_prueba={acierto:.2f}")
     if acierto < 0.85:
         return fallo("el clasificador visual no separa las piezas")
@@ -328,7 +463,7 @@ def _fila_brillante(ruta: Path) -> int:
     return int(img.mean(axis=1).argmax())
 
 
-def cmd_m04_02(_args) -> int:
+def cmd_m04_02(args) -> int:
     if not (DATA / "imagenes" / "manifiesto.csv").exists():
         generar_imagenes()
     tabla = pd.read_csv(DATA / "imagenes" / "manifiesto.csv")
@@ -342,15 +477,17 @@ def cmd_m04_02(_args) -> int:
     falsos = 0
     for _, fila in buenas.iterrows():
         img = np.asarray(Image.open(fila["ruta"]).convert("L"), dtype=np.float32)
-        if img.mean(axis=1).max() > 230:
+        if img.mean(axis=1).max() > _param(args, "brillo", 230):
             falsos += 1
-    print(f"errores_zona={errores} falsos_en_buenas={falsos}")
+    print(f"brillo={_param(args, 'brillo', 230)} errores_zona={errores} falsos_en_buenas={falsos} de {len(buenas)}")
     if errores:
         return fallo("la zona no cae sobre el rayón")
     return ok("m04-02", f"zona correcta en {len(malas)} defectos; buenas sin marca={falsos}")
 
 
-def cmd_m04_03(_args) -> int:
+def cmd_m04_03(args) -> int:
+    umbral = _param(args, "umbral", 0.5)
+    duda = _param(args, "duda", 0.0)
     if not (DATA / "modelo_vision.joblib").exists():
         cmd_m04_01([])
     modelo = joblib.load(DATA / "modelo_vision.joblib")
@@ -365,14 +502,19 @@ def cmd_m04_03(_args) -> int:
         destino.write_bytes(origen.read_bytes())
         x = _features_imagen(destino).reshape(1, -1)
         proba = float(modelo.predict_proba(x)[0, 1])
-        dictamen = "aceptar" if proba < 0.5 else "revisar"
+        if duda and abs(proba - umbral) < duda:
+            dictamen = "dudosa"            # demasiado cerca del umbral: la mira una persona
+        else:
+            dictamen = "aceptar" if proba < umbral else "revisar"
         filas.append({"imagen": destino.name, "probabilidad_defecto": round(proba, 3), "decision": dictamen})
     salida = pd.DataFrame(filas)
     salida.to_csv(DATA / "lote_resultado.csv", index=False)
     if len(salida) != 6:
         return fallo("el registro no tiene una fila por imagen")
-    if not (salida["decision"] == "revisar").any():
+    if not (salida["decision"] != "aceptar").any():
         return fallo("ninguna pieza fue a revisión")
+    if umbral != 0.5 or duda:
+        print(f"umbral={umbral} duda=±{duda}")
     print(salida.to_string(index=False))
     return ok("m04-03", f"registro={len(salida)} revisar={(salida.decision == 'revisar').sum()}")
 
@@ -441,6 +583,41 @@ def _chat_hasta(contenido: str, sistema: str, contiene: str, intentos: int = 3) 
     return ultimo
 
 
+def cmd_preguntar(args) -> int:
+    """lab preguntar "<pregunta>" [procedimiento]: pregunta al modelo local, con o sin el procedimiento delante."""
+    textos = [a for a in args if a != "procedimiento"]
+    if not textos:
+        return fallo('falta la pregunta: lab preguntar "¿…?"')
+    pregunta = " ".join(textos)
+    if "procedimiento" in args:
+        fragmento = _fragmento(pregunta)
+        print(f"fragmento recuperado: {fragmento}")
+        texto = _chat(f"Texto:\n{fragmento}\n\nPregunta: {pregunta}", "Usa únicamente el texto. Si no está, di que no lo sabes.", max_tokens=80)
+    else:
+        texto = _chat(pregunta, "Eres el asistente de mantenimiento de la estación EST-01.", max_tokens=80)
+    print(f"respuesta: {texto}")
+    return ok("preguntar", "respuesta del modelo local")
+
+
+def cmd_buscar(args) -> int:
+    """lab buscar "<pregunta>": enseña qué párrafo del procedimiento recuperaría el asistente y por qué."""
+    pregunta = " ".join(args)
+    if not pregunta:
+        return fallo('falta la pregunta: lab buscar "¿…?"')
+    texto = Path("/opt/linea/docs/procedimiento-est01.md").read_text(encoding="utf-8")
+    partes = [p.strip() for p in texto.split("\n\n") if p.strip()]
+    palabras = set(pregunta.lower().replace("·", " ").replace("¿", " ").replace("?", " ").split())
+    filas = []
+    for parte in partes:
+        comunes = palabras & set(parte.lower().replace("·", " ").split())
+        filas.append((len(comunes), sorted(comunes), parte[:60] + ("…" if len(parte) > 60 else "")))
+    filas.sort(key=lambda f: -f[0])
+    print("puntos  palabras en común                párrafo")
+    for puntos, comunes, inicio in filas[:5]:
+        print(f"{puntos:6d}  {', '.join(comunes)[:30]:<32} {inicio}")
+    return ok("buscar", f"elegido el párrafo con {filas[0][0]} palabras en común")
+
+
 def cmd_m05_03(_args) -> int:
     pregunta = "¿A qué par de apriete se aprieta el tornillo de la brida?"
     fragmento = _fragmento(pregunta)
@@ -492,10 +669,11 @@ def cmd_m05_04(_args) -> int:
     return ok("m05-04", f"usó leer_estacion={valor} y rechazó escribir")
 
 
-def cmd_m06_01(_args) -> int:
-    if not (DATA / "modelo_defecto.joblib").exists():
-        return fallo("falta el modelo; pasa antes por M03-03")
-    modelo = joblib.load(DATA / "modelo_defecto.joblib")
+def cmd_m06_01(args) -> int:
+    fichero = _param(args, "modelo", "modelo_defecto.joblib", str)
+    if not (DATA / fichero).exists():
+        return fallo(f"falta {fichero}; pasa antes por M03-03")
+    modelo = joblib.load(DATA / fichero)
     fila = pd.read_csv(DATA / "limpio.csv").head(1)[FEATURES]
     t0 = time.perf_counter()
     _ = modelo.predict_proba(fila)
@@ -504,13 +682,14 @@ def cmd_m06_01(_args) -> int:
     for _ in range(20):
         modelo.predict_proba(fila)
     ms = (time.perf_counter() - t0) * 1000 / 20
-    print(f"ms_por_pieza={ms:.2f} fichero=modelo_defecto.joblib")
+    tam_kb = (DATA / fichero).stat().st_size / 1024
+    print(f"ms_por_pieza={ms:.2f} fichero={fichero} tamaño={tam_kb:.1f} KB tipo={type(modelo).__name__}")
     if ms > 200:
         return fallo("la inferencia local va demasiado lenta para un ciclo")
     return ok("m06-01", f"{ms:.2f} ms por pieza, modelo en disco")
 
 
-def cmd_m06_02(_args) -> int:
+def cmd_m06_02(args) -> int:
     modelo = joblib.load(DATA / "modelo_defecto.joblib")
     estado = leer_estado()
     # La presión no viaja en el ciclo vivo; el laboratorio usa la consigna nominal.
@@ -525,7 +704,7 @@ def cmd_m06_02(_args) -> int:
         ]
     )
     proba = float(modelo.predict_proba(fila)[0, 1])
-    dictamen = "revisar" if proba >= 0.5 else "seguir"
+    dictamen = "revisar" if proba >= _param(args, "umbral", 0.5) else "seguir"
     evento = {"pieza_id": estado["pieza_id"], "decision": dictamen, "probabilidad": round(proba, 3)}
     recibido_mqtt: dict = {}
 
@@ -595,15 +774,27 @@ def _tasa_alerta(modelo, df: pd.DataFrame) -> float:
     return float((proba >= 0.5).mean())
 
 
-def cmd_m07_02(_args) -> int:
+def cmd_m07_02(args) -> int:
     modelo = joblib.load(DATA / "modelo_defecto.joblib")
     df = pd.read_csv(DATA / "limpio.csv")
     _, test = _partir(df)
     base = _tasa_alerta(modelo, test)
+    if "vivo" in args:
+        # La línea de ahora: últimas lecturas del histórico (la presión no viaja en vivo: 6 bar)
+        con = sqlite3.connect(f"file:{DATA / 'historial.sqlite'}?mode=ro", uri=True)
+        vivo = pd.read_sql_query("SELECT temperatura_c, vibracion_mm_s, corriente_a FROM lecturas ORDER BY id DESC LIMIT 120", con)
+        con.close()
+        vivo["presion_bar"] = 6.0
+        tasa = _tasa_alerta(modelo, vivo)
+        print(f"tasa_base={base:.2f} tasa_linea_ahora={tasa:.2f} (últimas {len(vivo)} carcasas, temperatura media {vivo.temperatura_c.mean():.2f} °C)")
+        return ok("m07-02", f"base={base:.2f} línea ahora={tasa:.2f}")
+    grados = _param(args, "grados", 8.0)
     movido = test.copy()
-    movido["temperatura_c"] = movido["temperatura_c"] + 8
+    movido["temperatura_c"] = movido["temperatura_c"] + grados
     deriva = _tasa_alerta(modelo, movido)
-    print(f"tasa_base={base:.2f} tasa_desplazada={deriva:.2f}")
+    print(f"tasa_base={base:.2f} tasa_desplazada={deriva:.2f}" + ("" if grados == 8 else f" (+{grados:g} °C)"))
+    if grados != 8:
+        return ok("m07-02", f"base={base:.2f} con +{grados:g} °C={deriva:.2f}")
     if deriva < base + 0.1:
         return fallo("no se ve la deriva al subir 8 °C")
     (DATA / "seguimiento.json").write_text(
@@ -1009,6 +1200,158 @@ def cmd_notas(args) -> int:
     return ok("notas", f"{aciertos} de {len(notas)} notas extraídas sin error")
 
 
+CSV_CONSULTABLES = {
+    "crudo": "crudo.csv", "limpio": "limpio.csv", "imposibles": "imposibles.csv",
+    "dataset_linea": "dataset_linea.csv", "lote_resultado": "lote_resultado.csv",
+    "notas_extraidas": "notas_extraidas.csv", "manifiesto": "imagenes/manifiesto.csv",
+    "vigilancia": "vigilancia.csv", "metricas": "metricas.csv",
+}
+
+
+def _cargar_csv(con: sqlite3.Connection) -> None:
+    # Cada CSV que exista se puede consultar con su nombre: SELECT * FROM crudo …
+    for tabla, fichero in CSV_CONSULTABLES.items():
+        ruta = DATA / fichero
+        if ruta.exists():
+            df = pd.read_csv(ruta)
+            columnas = ", ".join(f'"{c}"' for c in df.columns)
+            con.execute(f'CREATE TEMP TABLE "{tabla}" ({columnas})')
+            marcas = ", ".join("?" for _ in df.columns)
+            con.executemany(f'INSERT INTO temp."{tabla}" VALUES ({marcas})',
+                            [tuple(None if pd.isna(v) else v for v in fila) for fila in df.itertuples(index=False)])
+
+
+# ---------------------------------------------------------------- M06-03: predicción y actuación supervisada
+def _publicar(topic: str, mensaje: dict) -> None:
+    cliente = _mqtt()
+    cliente.loop_start()
+    cliente.publish(topic, json.dumps(mensaje)).wait_for_publish(5)
+    cliente.loop_stop()
+    cliente.disconnect()
+
+
+def cmd_evento(args) -> int:
+    """lab evento fallo-refrigeracion | fin: provoca o termina un fallo simulado en la estación."""
+    tipo = args[0] if args else ""
+    if tipo not in ("fallo-refrigeracion", "fin"):
+        return fallo("usa: lab evento fallo-refrigeracion   o   lab evento fin")
+    _publicar(TOPIC_EVENTO, {"tipo": "fallo_refrigeracion" if tipo == "fallo-refrigeracion" else "fin"})
+    return ok("evento", f"enviado «{tipo}» a la estación por {TOPIC_EVENTO}")
+
+
+def cmd_consigna(args) -> int:
+    """lab consigna <nivel>: pide a la estación un nivel de refrigeración (la estación lo limita a 1-3)."""
+    nivel = _numero(args, 0, 1)
+    _publicar(TOPIC_CONSIGNA, {"refrigeracion": nivel, "origen": "persona"})
+    return ok("consigna", f"pedida refrigeración={nivel} por {TOPIC_CONSIGNA}")
+
+
+def _serie(consulta: str, minutos: int, paso: int = 5) -> list:
+    fin = time.time()
+    r = httpx.get(f"{PROMETHEUS_URL}/api/v1/query_range",
+                  params={"query": consulta, "start": fin - minutos * 60, "end": fin, "step": paso}, timeout=20)
+    resultado = r.json()["data"]["result"]
+    return resultado[0]["values"] if resultado else []
+
+
+def cmd_exportar(args) -> int:
+    """lab exportar [minutos]: baja de Prometheus la serie de temperatura y tiempo de ciclo a data/metricas.csv."""
+    minutos = _numero(args, 0, 60)
+    temp = dict(_serie("estacion_temperatura_husillo_celsius", minutos))
+    ciclo = dict(_serie("estacion_tiempo_ciclo_segundos", minutos))
+    if not temp:
+        return fallo("Prometheus no tiene datos de temperatura; ¿está en marcha y recogiendo métricas?")
+    filas = [{"ts": datetime.fromtimestamp(t, timezone.utc).isoformat(timespec="seconds"),
+              "temperatura_c": float(v), "tiempo_ciclo_s": float(ciclo.get(t, "nan"))} for t, v in sorted(temp.items())]
+    df = pd.DataFrame(filas)
+    df.to_csv(DATA / "metricas.csv", index=False)
+    print(f"muestras={len(df)} desde={df.ts.iloc[0]} hasta={df.ts.iloc[-1]} (una cada 5 s)")
+    print(f"temperatura: media={df.temperatura_c.mean():.2f} mínima={df.temperatura_c.min():.2f} máxima={df.temperatura_c.max():.2f}")
+    return ok("exportar", f"{len(df)} muestras en metricas.csv")
+
+
+def _pendiente(valores: list) -> float:
+    """°C por segundo: pendiente de una recta ajustada a las muestras (regresión lineal)."""
+    from sklearn.linear_model import LinearRegression
+
+    t = np.array([float(x[0]) for x in valores]).reshape(-1, 1)
+    y = np.array([float(x[1]) for x in valores])
+    return float(LinearRegression().fit(t - t[0], y).coef_[0])
+
+
+def cmd_m06_03(args) -> int:
+    """lab m06-03 aprender | vigilar [segundos=180] [modo=asistido|automatico]"""
+    ruta_modelo = DATA / "modelo_termico.json"
+    if "aprender" in args:
+        ruta = DATA / "metricas.csv"
+        if not ruta.exists():
+            return fallo("falta metricas.csv; lanza antes lab exportar")
+        df = pd.read_csv(ruta)
+        # Limpieza: las muestras imposibles (huecos de reinicios, valores a 0) no son «normal»
+        imposibles = int((df.temperatura_c < 40).sum())
+        df = df[df.temperatura_c >= 40]
+        if len(df) < 120:
+            return fallo(f"solo {len(df)} muestras válidas; hacen falta al menos 120 (10 minutos de métricas)")
+        print(f"muestras={len(df) + imposibles} descartadas_por_imposibles={imposibles}")
+        temp = df.temperatura_c.to_numpy()
+        # Comportamiento normal: hasta dónde llega la temperatura y cuánto sube en 2 minutos
+        ventana = 24                                   # 24 muestras de 5 s = 2 minutos
+        subidas = [float(np.polyfit(np.arange(ventana) * 5, temp[i:i + ventana], 1)[0]) for i in range(len(temp) - ventana)]
+        modelo = {
+            "muestras": int(len(df)),
+            "temperatura_media": round(float(temp.mean()), 2),
+            "limite_normal": round(float(np.percentile(temp, 99.5)), 2),
+            "pendiente_normal_max": round(float(np.percentile(np.abs(subidas), 99.5)), 4),
+        }
+        ruta_modelo.write_text(json.dumps(modelo, indent=2), encoding="utf-8")
+        print(json.dumps(modelo, ensure_ascii=False))
+        return ok("m06-03", f"comportamiento normal aprendido de {len(df)} muestras -> modelo_termico.json")
+
+    if not ruta_modelo.exists():
+        return fallo("falta modelo_termico.json; lanza antes lab m06-03 aprender")
+    normal = json.loads(ruta_modelo.read_text(encoding="utf-8"))
+    segundos = int(_param(args, "segundos", 180))
+    automatico = _param(args, "modo", "asistido", str) == "automatico"
+    limite_alerta = UMBRAL_TEMPERATURA
+    actuado = False
+    registro = DATA / "actuaciones.jsonl"
+    print(f"vigilando {segundos} s en modo {'AUTOMÁTICO (con límites)' if automatico else 'ASISTIDO (propone, no actúa)'}")
+    print(f"normal: hasta {normal['limite_normal']} °C, subida máxima {normal['pendiente_normal_max'] * 60:.2f} °C/min")
+    print("hora      temp   subida/min  previsión")
+    fin = time.time() + segundos
+    while time.time() < fin:
+        valores = _serie("estacion_temperatura_husillo_celsius", 2)
+        if len(valores) >= 6:
+            temp = float(valores[-1][1])
+            pendiente = _pendiente(valores)
+            anomalo = temp > normal["limite_normal"] and pendiente > normal["pendiente_normal_max"]
+            hora = time.strftime("%H:%M:%S", time.gmtime())
+            if anomalo and pendiente > 0:
+                faltan = max((limite_alerta - temp) / pendiente, 0.0)
+                texto = (f"fuera de lo normal: llegará a {limite_alerta:.0f} °C en ~{faltan / 60:.1f} min" if faltan
+                         else f"fuera de lo normal: YA por encima de {limite_alerta:.0f} °C")
+                if faltan < 300 and not actuado:
+                    accion = {"ts": hora, "temperatura_c": temp, "subida_c_min": round(pendiente * 60, 2),
+                              "minutos_hasta_alerta": round(faltan / 60, 1), "accion": "subir refrigeración a 3"}
+                    if automatico:
+                        _publicar(TOPIC_CONSIGNA, {"refrigeracion": 3, "origen": "modelo"})
+                        accion["estado"] = "aplicada por el modelo (dentro de los límites de la estación)"
+                        texto += "  -> ACCIÓN: refrigeración a 3 (aplicada)"
+                    else:
+                        accion["estado"] = "propuesta: la decide el operario (lab consigna 3)"
+                        texto += "  -> PROPUESTA: subir refrigeración a 3"
+                    with registro.open("a", encoding="utf-8") as f:
+                        f.write(json.dumps(accion, ensure_ascii=False) + "\n")
+                    actuado = True
+            elif temp > normal["limite_normal"]:
+                texto = "por encima de lo normal, sin subida"
+            else:
+                texto = "normal"
+            print(f"{hora}  {temp:5.2f}  {pendiente * 60:+9.2f}  {texto}", flush=True)
+        time.sleep(10)
+    return ok("m06-03", "vigilancia terminada" + (f"; acción registrada en {registro.name}" if actuado else "; sin acciones"))
+
+
 def cmd_sql(args) -> int:
     """Consulta de solo lectura al histórico. Sin argumentos, enseña las columnas de la tabla."""
     ruta = DATA / "historial.sqlite"
@@ -1018,6 +1361,7 @@ def cmd_sql(args) -> int:
     con = sqlite3.connect(f"file:{ruta}?mode=ro", uri=True)   # solo lectura: no se puede romper el histórico
     if (DATA / "calidad.sqlite").exists():                    # la base de calidad, como «calidad.inspecciones»
         con.execute(f"ATTACH DATABASE 'file:{DATA / 'calidad.sqlite'}?mode=ro' AS calidad")
+    _cargar_csv(con)                                          # los CSV de data/ como tablas temporales
     try:
         df = pd.read_sql_query(consulta, con)
     except Exception as exc:
@@ -1062,6 +1406,16 @@ COMANDOS = {
     "m08-01": cmd_m08_01,
     "m08-02": cmd_m08_02,
     "sql": cmd_sql,
+    "evento": cmd_evento,
+    "consigna": cmd_consigna,
+    "exportar": cmd_exportar,
+    "m06-03": cmd_m06_03,
+    "modbus": cmd_modbus,
+    "opcua": cmd_opcua,
+    "pasarela": cmd_pasarela,
+    "arbol": cmd_arbol,
+    "preguntar": cmd_preguntar,
+    "buscar": cmd_buscar,
     "resumen": cmd_resumen,
     "notas": cmd_notas,
 }

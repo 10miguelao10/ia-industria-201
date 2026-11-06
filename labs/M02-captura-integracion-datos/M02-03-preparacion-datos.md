@@ -49,11 +49,11 @@ docker compose --profile lab run --rm --no-deps lab m02-03
 OK m02-03: crudo=800 limpio=768 huecos=32
 ```
 
-32 piezas sin temperatura y 6 con 9999 no pasan al limpio.
+**Cómo se lee:** de 800 piezas quedan 768. Fíjate en que el resumen llama `huecos` a 32 piezas, pero son dos problemas distintos: **26 sin temperatura y 6 con el sensor clavado en 9999**, que el comando convierte en vacío antes de descartarlas. Leer bien qué cuenta cada número de un resumen también es preparar el dato. Lo comprobarás tú en «Investiga».
 
 ### 2 — Mirar los tres ficheros
 
-Vas a comparar el crudo, el limpio y los imposibles. El crudo conserva el desastre, el limpio es lo que se entrena y los 9999 no se convierten en una temperatura.
+**Qué ocurre:** abres primero los ficheros en VS Code (`infra/data/crudo.csv`, `limpio.csv` e `imposibles.csv`) y te desplazas por ellos: el crudo conserva el desastre, el limpio es lo que se entrena y los 9999 no se convierten en una temperatura. Después, para compararlos rápido, miras sus primeras líneas desde la terminal:
 
 ```bash
 head -5 data/crudo.csv        # tal cual llegó
@@ -91,16 +91,112 @@ También puedes abrirlos en VS Code: están en `infra/data/`.
 
 ## Comprueba tu entendimiento
 
-**Una pieza, una fila**
+**Qué no está en el limpio**
 
-Cuenta filas y valores distintos de `pieza_id` en el limpio.
+¿Hay alguna pieza con 9999 en `limpio.csv`?
+
+→ No: están apartadas en `imposibles.csv`. Lo comprobarás con una consulta en «Investiga».
+
+## Investiga: cuenta tú los problemas
+
+**Qué ocurre:** `lab sql` (la herramienta del M01-01) también consulta los CSV de `infra/data/` como si fueran tablas: `crudo`, `limpio`, `imposibles`… Vas a contar cada problema en el crudo y a comprobar que el limpio está como debe.
+
+📋 Ficha del comando [`sql`](../comandos-lab.md#sql).
+
+### 1 — Los problemas del crudo, uno a uno
 
 ```bash
-docker compose --profile lab run --rm --no-deps --entrypoint python lab -c \
-  "import pandas as pd; d = pd.read_csv('/data/limpio.csv'); print(len(d), d.pieza_id.nunique())"
+#   IS NULL: valor vacío   = 9999: sensor clavado   > 150 y < 9999: viene en décimas
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT COUNT(*) AS piezas,
+          SUM(temperatura_c IS NULL) AS huecos,
+          SUM(temperatura_c = 9999) AS clavados,
+          SUM(temperatura_c > 150 AND temperatura_c < 9999) AS en_decimas
+   FROM crudo"
 ```
 
-→ Los dos números son iguales (768 768).
+**Resultado esperado:**
+
+```text
+ piezas  huecos  clavados  en_decimas
+    800      26         6          12
+```
+
+**Cómo se lee:** 26 + 6 = 32 piezas sin una temperatura real, que se descartan. Las 12 en décimas se **corrigen** dividiendo entre 10 y se quedan. 800 − 32 = 768, las filas del limpio.
+
+### 2 — Ver las piezas en décimas
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT pieza_id, temperatura_c FROM crudo WHERE temperatura_c > 150 AND temperatura_c < 9999 LIMIT 3"
+```
+
+```text
+pieza_id  temperatura_c
+   H0025          601.1
+   H0036          618.9
+   H0100          594.5
+```
+
+Comprueba una en el limpio:
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql "SELECT pieza_id, temperatura_c FROM limpio WHERE pieza_id = 'H0025'"
+```
+
+**Resultado esperado:** `H0025` con `60.11`: se ha corregido, no descartado.
+
+### 3 — Una pieza, una fila, y cómo son las defectuosas
+
+```bash
+# ¿Hay piezas repetidas en el limpio?
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT COUNT(*) AS filas, COUNT(DISTINCT pieza_id) AS piezas FROM limpio"
+
+# Medias de las señales en piezas buenas y defectuosas
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT defecto, COUNT(*) AS piezas, ROUND(AVG(temperatura_c), 2) AS temp,
+          ROUND(AVG(vibracion_mm_s), 3) AS vib, ROUND(AVG(corriente_a), 2) AS corriente,
+          ROUND(AVG(presion_bar), 2) AS presion
+   FROM limpio GROUP BY defecto"
+```
+
+**Resultado esperado:**
+
+```text
+ filas  piezas
+   768     768
+```
+
+```text
+ defecto  piezas  temp   vib  corriente  presion
+       0     700 61.72 0.248       4.11     6.00
+       1      68 65.30 0.264       4.10     5.99
+```
+
+**Cómo se lee:** una fila por pieza, como debe ser. Y una pista para el M03: las piezas defectuosas tienen, de media, **3,6 °C más** y algo más de vibración; corriente y presión, casi iguales. Un modelo tendrá de dónde aprender.
+
+## Experimenta: ¿y si rellenamos los huecos con la media?
+
+**Qué ocurre:** es una tentación habitual: en lugar de quitar las piezas sin temperatura, ponerles la temperatura media. El comando lo hace en un fichero aparte (`limpio_relleno.csv`) y compara los dos resultados.
+
+**Predice:** ¿qué le pasa a la distribución de temperaturas?
+
+```bash
+docker compose --profile lab run --rm --no-deps lab m02-03 rellenar
+```
+
+**Resultado esperado:**
+
+```text
+{"filas_crudo": 800, "filas_limpias": 768, "huecos": 32, "imposibles": 6, "piezas_unicas": 768}
+relleno: 26 huecos rellenados con la media 62.04 °C -> limpio_relleno.csv
+  piezas con temperatura exactamente 62.04: limpio=2 relleno=28
+  desviación típica de la temperatura: limpio=2.354 relleno=2.315
+OK m02-03: crudo=800 limpio=768 huecos=32
+```
+
+**Cómo se lee:** ahora hay **28 piezas con exactamente 62,04 °C**, cuando en la realidad había 2. Se ha creado un pico artificial en la media, y la dispersión de los datos ha bajado: el dataset parece **más tranquilo de lo que fue la línea**. Peor aún: si los huecos no fueran al azar (por ejemplo, si el sensor se desconecta cuando la máquina se calienta), las piezas rellenadas serían justo las más interesantes, y el modelo aprendería que eran normales.
 
 ## Reto
 
@@ -109,21 +205,27 @@ docker compose --profile lab run --rm --no-deps --entrypoint python lab -c \
 Busca en el crudo una pieza con la temperatura vacía y comprueba que no está en el limpio.
 
 ```bash
-# Piezas con la temperatura vacía (dos comas seguidas)
-grep ',,' data/crudo.csv | head -3
+# Piezas con la temperatura vacía
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT pieza_id, temperatura_c, vibracion_mm_s FROM crudo WHERE temperatura_c IS NULL LIMIT 3"
 
-# ¿Está H0017 en el limpio? Cuenta sus líneas
-grep -c '^H0017,' data/limpio.csv
+# ¿Está H0017 en el limpio?
+docker compose --profile lab run --rm --no-deps lab sql "SELECT COUNT(*) AS veces FROM limpio WHERE pieza_id = 'H0017'"
 ```
 
 <details>
 <summary>Ver solución</summary>
 
 ```text
-H0017,,0.28,4.34,6.07,0
-H0065,,0.225,4.23,6.01,0
-H0080,,0.196,4.07,6.03,0
-0
+pieza_id temperatura_c  vibracion_mm_s
+   H0017          None           0.280
+   H0065          None           0.225
+   H0080          None           0.196
+```
+
+```text
+ veces
+     0
 ```
 
 La pieza no aparece en `limpio.csv`: se excluye, no se sustituye por la media. Rellenarla escondería un sensor mudo.
@@ -225,7 +327,7 @@ Es convertir el histórico tal como llegó en un **dataset**: una tabla con una 
 | Una fila por pieza | 768 filas y 768 identificadores distintos |
 | Unidades homogéneas | Todas las temperaturas entre 40 y 120 °C |
 | Sin valores imposibles | Los 9999 apartados en `imposibles.csv` |
-| Lo descartado, contado | 800 → 768: 32 huecos y 6 imposibles |
+| Lo descartado, contado | 800 → 768: 26 huecos y 6 imposibles (el resumen los cuenta juntos como 32) |
 
 ### Cómo se detectan los datos malos
 
@@ -238,7 +340,7 @@ Es convertir el histórico tal como llegó en un **dataset**: una tabla con una 
 
 ### Cómo se tratan sin esconderlos
 
-- **No rellenar huecos con la media**: escondería un sensor mudo y metería en el entrenamiento un dato que nadie midió.
+- **No rellenar huecos con la media**: escondería un sensor mudo y metería en el entrenamiento un dato que nadie midió. En el experimento, 28 piezas con exactamente 62,04 °C donde la realidad tenía 2.
 - **Corregir solo lo que tiene una causa conocida**, como dividir entre 10 las décimas.
 - **Apartar, no borrar**: los imposibles se guardan aparte para poder revisarlos y avisar a mantenimiento.
 - **Dejar el recuento escrito** para que quien use el dataset sepa qué se quitó y por qué.

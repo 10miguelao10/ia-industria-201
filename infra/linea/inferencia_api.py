@@ -1,4 +1,5 @@
 """Servicio de inferencia del clasificador de defecto. La versión se fija al arrancar."""
+import hashlib
 import json
 from datetime import datetime, timezone
 
@@ -11,6 +12,7 @@ from linea.config import DATA, VERSION_ARRANQUE
 app = FastAPI(title="EST-01 inferencia")
 MODELO = None
 VERSION = VERSION_ARRANQUE
+HUELLA = ""   # sha256 del fichero del modelo cargado: identifica el modelo exacto
 
 
 class Pieza(BaseModel):
@@ -23,18 +25,19 @@ class Pieza(BaseModel):
 
 @app.on_event("startup")
 def cargar():
-    global MODELO, VERSION
+    global MODELO, VERSION, HUELLA
     ruta = DATA / "modelo_defecto.joblib"
     if not ruta.exists():
         raise RuntimeError("No está modelo_defecto.joblib. Corre antes el laboratorio M03-03.")
     MODELO = joblib.load(ruta)
+    HUELLA = hashlib.sha256(ruta.read_bytes()).hexdigest()[:12]
     fichero = DATA / "VERSION"
     VERSION = fichero.read_text(encoding="utf-8").strip() if fichero.exists() else VERSION_ARRANQUE
 
 
 @app.get("/salud")
 def salud():
-    return {"estado": "ok", "version": VERSION}
+    return {"estado": "ok", "version": VERSION, "huella_modelo": HUELLA}
 
 
 @app.post("/predecir")
@@ -58,6 +61,7 @@ def predecir(pieza: Pieza):
     registro = {
         "pieza_id": pieza.pieza_id,
         "version": VERSION,
+        "huella_modelo": HUELLA,
         "entrada": pieza.model_dump(),
         "dictamen": dictamen,
         "probabilidad": round(proba, 4),

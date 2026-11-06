@@ -260,6 +260,41 @@ No contra estas etiquetas. Si la etiqueta está mal, un modelo que acierta de ve
 
 </details>
 
+## Mejora: encontrar las inspecciones dudosas
+
+**Qué ocurre:** ya conoces el criterio de calidad (vibración ≥ 0,265 **y** corriente > 4,08). Lo usas para revisar el propio dataset: las piezas en las que calidad dijo una cosa y el criterio otra son **etiquetas dudosas**, candidatas a que la inspección se equivocara. `lab sql` puede consultar también `dataset_linea.csv` como tabla.
+
+```bash
+# Cuántas piezas discrepan del criterio
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT COUNT(*) AS piezas,
+          SUM((vibracion_mm_s >= 0.265 AND corriente_a > 4.08) <> defecto) AS discrepan
+   FROM dataset_linea"
+
+# Cuáles son
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT pieza_id, ts, vibracion_mm_s, corriente_a, defecto AS dijo_calidad,
+          (vibracion_mm_s >= 0.265 AND corriente_a > 4.08) AS dice_el_criterio
+   FROM dataset_linea WHERE (vibracion_mm_s >= 0.265 AND corriente_a > 4.08) <> defecto LIMIT 5"
+```
+
+**Resultado esperado** (cambian las piezas y los números):
+
+```text
+ piezas  discrepan
+    426         21
+```
+
+```text
+pieza_id                        ts  vibracion_mm_s  corriente_a  dijo_calidad  dice_el_criterio
+   P0010 2026-11-06T02:04:21+00:00           0.220         4.11             1                 0
+   P0016 2026-11-06T02:04:28+00:00           0.235         4.03             1                 0
+   P0054 2026-11-06T02:05:05+00:00           0.280         4.10             0                 1
+...
+```
+
+**Cómo se lee:** alrededor de un 5 % de las piezas discrepan. Son, casi seguro, el error de la inspección: carcasas con vibración normal marcadas como malas, o al revés. En planta, esta lista es oro: se mandan esas piezas a una **segunda revisión** y se corrigen sus etiquetas antes de entrenar. Un modelo entrenado con etiquetas revisadas aprende el proceso, no los errores de la inspección.
+
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
@@ -297,7 +332,7 @@ Es juntar, para cada pieza, **cómo se fabricó** (las señales del histórico) 
 
 - **Una clave de pieza común** a los dos sistemas desde el origen (MES, DataMatrix), para no depender de la hora.
 - **Conciliar** el histórico y calidad antes de entrenar, como en el M01-01.
-- **Revisar las etiquetas dudosas** y medir el error de la inspección.
+- **Revisar las etiquetas dudosas** (lo has hecho: un 5 % discrepa del criterio) y medir el error de la inspección.
 - **Recoger más tiempo** para tener suficientes ejemplos de defecto, o recoger de forma dirigida cuando aparezcan.
 
 ### En una frase
