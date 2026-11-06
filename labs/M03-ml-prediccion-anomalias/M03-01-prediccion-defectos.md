@@ -168,36 +168,6 @@ umbral=0.5 equilibrar=no
 
 **Cómo se lee:** cero falsas alarmas, pero **9 defectos escapados**. Sin equilibrar, al modelo le compensa decir «buena» casi siempre: acierta más en global y deja pasar más defectos. Es el mismo engaño del acierto global de la demo.
 
-## Reto
-
-### 1 — Una columna que llega tarde
-
-**La situación:** cada fila de `limpio.csv` tiene dos tipos de columnas que nacen en momentos distintos:
-
-| Columna | Quién la escribe | Cuándo |
-|---------|------------------|--------|
-| `temperatura_c`, `vibracion_mm_s`, `corriente_a`, `presion_bar` | La estación EST-01 | **Durante** el ciclo, mientras se fabrica la carcasa |
-| `defecto` | Calidad | **Después**, cuando inspecciona la carcasa en su puesto |
-
-El modelo entrena con las cuatro primeras como entrada y aprende a predecir `defecto`. En el código, la lista de entradas es `FEATURES` (en `cmd_m03_01`) o `SENALES` (en tu script de «Constrúyelo tú»).
-
-Un compañero propone: «Añade `defecto` a esa lista de entradas, junto a las cuatro señales. El modelo acertará el 100 %».
-
-**La pregunta:** ¿acertaría de verdad el 100 % en el examen? Y, sobre todo, ¿serviría en la línea, cuando una carcasa acaba de salir de EST-01 y hay que decidir si se manda a revisar?
-
-<details>
-<summary>Ver solución</summary>
-
-**En el examen, sí, acierta el 100 %.** Lo comprobarás en el paso 9 de «Constrúyelo tú»: 21 defectos encontrados de 21 y 0 falsas alarmas. Pero no ha aprendido nada del proceso: ha aprendido «si la columna `defecto` vale 1, es defecto». Copia la respuesta.
-
-**En la línea, no sirve.** El modelo tiene que decidir cuando la carcasa sale de la estación, y en ese momento calidad todavía no la ha inspeccionado: la columna `defecto` **aún no existe**. Al modelo le faltaría una de sus entradas justo cuando hace falta. Y, si ya tuvieras ese dato, no necesitarías el modelo.
-
-**La regla:** como entrada del modelo solo vale lo que **ya se conoce en el momento de decidir**. Meter un dato que llega después se llama fuga de información.
-
-**Cómo se detecta:** un resultado demasiado bueno, como un 100 % en un problema real, es sospechoso. Ante cada columna de entrada, pregúntate **quién la escribe y cuándo**.
-
-</details>
-
 ## Mejora: elegir el umbral por lo que cuesta
 
 **Qué ocurre:** conviertes los errores en dinero para elegir el umbral con un criterio que la planta entiende. Supón que un **defecto que llega al cliente cuesta 500 €** (reclamación, devolución) y **revisar una pieza buena cuesta 5 €** (unos minutos de un operario).
@@ -481,18 +451,29 @@ mejor umbral=0.7 coste=3800 € | revisar todo=10500 €
 
 **Cómo se lee:** con el mismo modelo y los mismos datos, el umbral bueno pasa de 0,05 a **0,7**, y el modelo pasa de ahorrar 110 € a ahorrar **6 700 €** (10 500 − 3 800). Lo que vale un modelo no lo deciden solo sus datos: lo decide **lo que cuesta cada error en tu planta**. Por eso quien fija el umbral es calidad, con sus números. Vuelve a poner `COSTE_REVISION = 5`.
 
-### 9 — Haz trampa a propósito
+## Reto
 
-**Para qué:** aprender a reconocer un modelo demasiado bueno para ser verdad.
+### 1 — Una columna que llega tarde
 
-**Qué ocurre:** compruebas el Reto 1: añades `defecto`, la columna que escribe calidad **después** de inspeccionar, a la lista de entradas del modelo:
+**La situación:** cada fila de `limpio.csv` tiene dos tipos de columnas que nacen en momentos distintos:
+
+| Columna | Quién la escribe | Cuándo |
+|---------|------------------|--------|
+| `temperatura_c`, `vibracion_mm_s`, `corriente_a`, `presion_bar` | La estación EST-01 | **Durante** el ciclo, mientras se fabrica la carcasa |
+| `defecto` | Calidad | **Después**, cuando inspecciona la carcasa en su puesto |
+
+Un compañero propone: «Añade `defecto` a la lista de entradas del modelo, junto a las cuatro señales. Acertará el 100 %».
+
+**Qué haces:** en tu script de «Constrúyelo tú», cambias la lista `SENALES`, arriba del fichero, para añadir `"defecto"`, con `COSTE_REVISION = 5`, y ejecutas.
 
 ```python
-# TRAMPA: "defecto" no existe todavía cuando la carcasa sale de la estación
 SENALES = ["temperatura_c", "vibracion_mm_s", "corriente_a", "presion_bar", "defecto"]
 ```
 
-**Resultado esperado** (líneas que cambian):
+**Lo que buscas:** cuánto acierta el modelo en el examen, qué peso le da a `defecto` comparado con las demás señales (paso 3), y si ese modelo serviría en la línea, cuando una carcasa acaba de salir de EST-01 y hay que decidir si se manda a revisar.
+
+<details>
+<summary>Ver solución</summary>
 
 ```text
 peso temperatura_c   +0.302
@@ -505,7 +486,13 @@ umbral 0.5 -> encontrados=21 escapados=0 falsas_alarmas=0 correctas=210
 mejor umbral=0.1 coste=0 € | revisar todo=1050 €
 ```
 
-**Cómo se lee:** mira los pesos del paso 3: el de `defecto` (+6,7) aplasta a todos los demás, que se han encogido. El modelo ha dejado de mirar el proceso y **copia la respuesta**. Resultado: un modelo «perfecto», con coste cero, que no se puede usar en la línea, porque esa entrada llega cuando ya ha pasado el momento de decidir. El script no da ningún error: **ningún programa detecta esta trampa por ti**, solo quien sabe cuándo nace cada dato. Vuelve a dejar las cuatro señales.
+**En el examen acierta el 100 %**: 21 de 21 y ninguna falsa alarma, coste cero. Pero mira los pesos: el de `defecto` (+6,7) aplasta a todos los demás, que se han encogido. El modelo ha dejado de mirar el proceso y **copia la respuesta**.
+
+**En la línea no sirve.** El modelo tiene que decidir cuando la carcasa sale de la estación, y en ese momento calidad todavía no la ha inspeccionado: la columna `defecto` **aún no existe**. Y si ya la tuvieras, no necesitarías el modelo. El script no ha dado ningún error: **ningún programa detecta esta trampa por ti**, solo quien sabe cuándo nace cada dato.
+
+**La regla:** como entrada del modelo solo vale lo que **ya se conoce en el momento de decidir**. Meter un dato que llega después se llama fuga de información. Un 100 % en un problema real es sospechoso: ante cada columna de entrada, pregúntate **quién la escribe y cuándo**. Vuelve a dejar las cuatro señales.
+
+</details>
 
 ## Errores frecuentes
 
