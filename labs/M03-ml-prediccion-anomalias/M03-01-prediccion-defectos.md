@@ -12,7 +12,7 @@ Comprender qué es un **modelo de predicción de defectos**: cómo aprende de la
 
 ### Prerrequisitos
 
-- `infra/data/limpio.csv`, el dataset limpio que preparaste en M02-03. Si no lo tienes, el comando del paso 1 (`lab m03-01`) lo genera solo antes de entrenar. También puedes regenerarlo aparte:
+- `infra/data/limpio.csv`, el [dataset](../glosario/01-datos-arquitectura.md#dataset) limpio que preparaste en M02-03. Si no lo tienes, el comando del paso 1 (`lab m03-01`) lo genera solo antes de entrenar. También puedes regenerarlo aparte:
 
   ```bash
   # Comprueba si existe el dataset limpio
@@ -31,14 +31,14 @@ Comprender qué es un **modelo de predicción de defectos**: cómo aprende de la
 
 **Calidad** inspecciona las carcasas después de que salgan de EST-01 y marca las defectuosas. Cuando aparece una mala, la pregunta de siempre es: ¿se podía haber visto venir con lo que medía la máquina?
 
-Eso es lo que vas a intentar. Un modelo mira las señales de cada carcasa (temperatura, vibración, corriente y presión) y aprende qué combinaciones acaban en defecto. Para que la prueba sea honesta, se entrena con el **pasado** (el 70 % de las piezas más antiguas) y se evalúa con el **futuro** (el 30 % más reciente), piezas que el modelo nunca ha visto.
+Eso es lo que vas a intentar. Un modelo mira las [señales](../glosario/03-aprendizaje-automatico.md#senal) de cada carcasa (temperatura, vibración, corriente y presión) y aprende qué combinaciones acaban en defecto. Para que la prueba sea honesta, se entrena con el **pasado** (el 70 % de las piezas más antiguas) y se evalúa con el **futuro** (el 30 % más reciente), piezas que el modelo [nunca ha visto](../glosario/03-aprendizaje-automatico.md#particion).
 
 En planta lo que importa son dos números:
 
 - **Cuántos defectos encuentra.** Cada defecto que se escapa puede acabar en el cliente.
-- **Cuántas piezas buenas manda a revisar sin motivo.** Cada falsa alarma es una pieza que alguien revisa a mano para nada.
+- **Cuántas piezas buenas manda a revisar sin motivo.** Cada [falsa alarma](../glosario/03-aprendizaje-automatico.md#matriz-confusion) es una pieza que alguien revisa a mano para nada.
 
-El modelo no ve la columna `defecto` como entrada: esa información llega tarde, después de la inspección.
+El modelo no ve la columna `defecto` como entrada: esa información [llega tarde](../glosario/03-aprendizaje-automatico.md#fuga), después de la inspección.
 
 ### 0 — Mirar los datos con los que va a aprender
 
@@ -90,7 +90,7 @@ tasas = _tasas(test["defecto"], pred)          # tp, fp, fn, tn, recall y fpr
 joblib.dump(modelo, DATA / "modelo_logreg.joblib")
 ```
 
-`class_weight="balanced"` da más peso a la clase rara (defecto); sin él, el modelo aprende a decir siempre «bien».
+`class_weight="balanced"` da más peso a la [clase rara](../glosario/03-aprendizaje-automatico.md#desequilibrio) (defecto); sin él, el modelo aprende a decir siempre «bien».
 
 </details>
 
@@ -108,7 +108,7 @@ ls -l data/modelo_logreg.joblib
 -rw-r--r-- 1 root root 1279 Nov  4 18:14 data/modelo_logreg.joblib
 ```
 
-Un modelo de regresión logística con 4 entradas ocupa poco más de 1 KB: son 4 pesos y un término independiente.
+Un modelo de [regresión logística](../glosario/03-aprendizaje-automatico.md#regresion-logistica) con 4 entradas ocupa poco más de 1 KB: son 4 pesos y un término independiente.
 
 ## Comprueba tu entendimiento
 
@@ -120,7 +120,7 @@ En el JSON, lee `recall` y `fn`.
 
 ## Experimenta: mover el umbral
 
-**Qué ocurre:** el modelo no dice «defecto» o «buena»: da una **probabilidad**, y el código decide con un **umbral** (0,5 por defecto). Vas a probar con un umbral más bajo (más desconfiado) y uno más alto (más permisivo).
+**Qué ocurre:** el modelo no dice «defecto» o «buena»: da una **probabilidad**, y el código decide con un **[umbral](../glosario/03-aprendizaje-automatico.md#umbral)** (0,5 por defecto). Vas a probar con un umbral más bajo (más desconfiado) y uno más alto (más permisivo).
 
 **Predice:** con un umbral de 0,3, ¿encontrará más o menos defectos? ¿Y las falsas alarmas?
 
@@ -420,7 +420,7 @@ Es una función aprendida de ejemplos: recibe las señales de una carcasa (tempe
 |-----------|--------------------------|
 | Con piezas que no ha visto | Se examina con el 30 % que no se usó para entrenar |
 | En orden de tiempo | Entrena con el pasado y se examina con lo más reciente, como pasará en la línea |
-| Sin hacer trampa | La etiqueta `defecto` no entra como señal: llega después de la inspección |
+| Sin hacer trampa | La [etiqueta](../glosario/03-aprendizaje-automatico.md#etiqueta) `defecto` no entra como señal: llega después de la inspección |
 | Con las métricas que importan | Defectos encontrados y falsas alarmas, no un porcentaje global |
 
 ### Cómo se interpretan sus errores

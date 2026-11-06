@@ -18,6 +18,7 @@ desde cada bloque).
 |-----------|--------|
 | Preparar el entorno | [infra/README.md](infra/README.md) — contenedores, datos y requisitos por laboratorio |
 | Qué hace cada comando `lab …` | [Fichas de los comandos](labs/comandos-lab.md) |
+| Qué significa cada concepto (MQTT, regresión logística, RAG, deriva…) y cómo se compara con sus alternativas | [Glosario](labs/glosario/README.md) |
 | Primer caso | [M01](labs/M01-ia-industrial-arquitectura/README.md) |
 
 ## Guarda tu trabajo: tu propio fork

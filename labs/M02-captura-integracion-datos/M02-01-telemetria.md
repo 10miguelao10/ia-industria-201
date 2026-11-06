@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué es la **telemetría basada en eventos**: cómo se entera un sistema de cada pieza en el momento en que ocurre, cómo debe comportarse un consumidor ante el silencio, cómo se distingue con datos una microparada de una parada, y cómo se consigue que quien llegue tarde sepa en qué estado está la máquina.
+Comprender qué es la **telemetría basada en [eventos](../glosario/01-datos-arquitectura.md#evento)**: cómo se entera un sistema de cada pieza en el momento en que ocurre, cómo debe comportarse un consumidor ante el silencio, cómo se distingue con datos una [microparada](../glosario/01-datos-arquitectura.md#tiempo-ciclo) de una parada, y cómo se consigue que quien llegue tarde sepa en qué estado está la máquina.
 
 ### Prerrequisitos
 
@@ -17,7 +17,7 @@ Comprender qué es la **telemetría basada en eventos**: cómo se entera un sist
 
 ### Qué está pasando
 
-Hay sistemas que no pueden esperar a consultar el histórico: quieren enterarse de **cada carcasa en el momento en que termina**. Por ejemplo, un modelo que tiene que dar su dictamen antes de que salga la siguiente. Para eso se **suscriben** al broker y reciben cada registro como un **evento**, sin preguntar a la máquina.
+Hay sistemas que no pueden esperar a consultar el [histórico](../glosario/01-datos-arquitectura.md#historico): quieren enterarse de **cada carcasa en el momento en que termina**. Por ejemplo, un modelo que tiene que dar su [dictamen](../glosario/05-operacion-gobierno.md#dictamen) antes de que salga la siguiente. Para eso se **suscriben** al [broker](../glosario/01-datos-arquitectura.md#broker) y reciben cada registro como un **evento**, sin preguntar a la máquina.
 
 El consumidor también tiene que saber qué hacer cuando **no llega nada**. La estación de EST-01, como una máquina real, tiene **microparadas** de unos segundos (un atasco, un sensor de presencia) y, a veces, **paradas** largas (avería, cambio de herramienta, fin de turno). En los dos casos, lo que el consumidor ve es lo mismo: silencio.
 
@@ -28,13 +28,13 @@ El consumidor también tiene que saber qué hacer cuando **no llega nada**. La e
 | Parada | Silencio prolongado | Avisar de que la estación está parada |
 | Comunicación caída | Silencio prolongado | Avisar de que **no se sabe** cómo está la estación |
 
-El silencio **no es un cero**: no se rellena con lecturas inventadas.
+El silencio **no es un cero**: no se rellena con lecturas [inventadas](../glosario/04-ia-generativa.md#alucinacion).
 
 | En la realidad | En este laboratorio |
 |----------------|---------------------|
-| Máquina que publica al terminar cada pieza | `sensor`, tema `linea/est01/ciclo` |
+| Máquina que publica al terminar cada pieza | `sensor`, [tema](../glosario/01-datos-arquitectura.md#tema) `linea/est01/ciclo` |
 | Sistema que consume eventos (modelo, MES, panel) | Tú, con `mosquitto_sub` y los comandos `lab` |
-| Estado de la máquina publicado para todos | Un mensaje **retenido** en `linea/est01/estado` (en la mejora) |
+| Estado de la máquina publicado para todos | Un mensaje **[retenido](../glosario/01-datos-arquitectura.md#retenido)** en `linea/est01/estado` (en la mejora) |
 
 ### 1 — Escuchar los eventos en crudo
 
@@ -121,7 +121,7 @@ docker compose --profile lab run --rm --no-deps lab m02-01
 OK m02-01: evento P0006 en linea/est01/ciclo
 ```
 
-**Cómo se lee:** la estación simulada reinicia su contador al arrancar, y las primeras carcasas tardan más (`tiempo_ciclo_s` por encima de 1,2: la rampa de arranque). Por eso cada evento lleva `ts`: la hora es lo que ordena los registros sin ambigüedad.
+**Cómo se lee:** la estación simulada reinicia su [contador](../glosario/02-observabilidad.md#metrica) al arrancar, y las primeras carcasas tardan más (`tiempo_ciclo_s` por encima de 1,2: la rampa de arranque). Por eso cada evento lleva `ts`: la hora es lo que ordena los registros sin ambigüedad.
 
 ## Comprueba tu entendimiento
 
@@ -178,7 +178,7 @@ docker compose --profile lab run --rm --no-deps lab sql \
 
 **Resultado esperado:** al menos una fila, la de tu parada del paso 3, con más de 10 segundos sin datos.
 
-**Cómo se lee:** con estas dos consultas puedes poner el umbral con criterio. Las microparadas más largas no pasan de unos 9 segundos, así que un umbral de **15 segundos** no da falsas alarmas en una microparada y avisa de una parada real. Es el mismo valor que usa la alerta `HistoricoSinDatos` del M01-03.
+**Cómo se lee:** con estas dos consultas puedes poner el umbral con criterio. Las microparadas más largas no pasan de unos 9 segundos, así que un umbral de **15 segundos** no da falsas alarmas en una microparada y avisa de una parada real. Es el mismo valor que usa la [alerta](../glosario/02-observabilidad.md#alerta) `HistoricoSinDatos` del M01-03.
 
 ## Experimenta: el suscriptor que llega tarde
 
@@ -225,7 +225,7 @@ Porque se reinicia con cada arranque (paso 4). Dos eventos de tandas distintas p
 
 ## Mejora: que quien llegue tarde sepa cómo está la estación
 
-**Qué ocurre:** MQTT tiene una solución para el suscriptor tardío: el mensaje **retenido**. El broker guarda **el último** mensaje retenido de cada tema y se lo entrega al momento a quien se suscriba después. Es la forma habitual de publicar el **estado** de una máquina: no el histórico, solo «cómo está ahora».
+**Qué ocurre:** [MQTT](../glosario/01-datos-arquitectura.md#mqtt) tiene una solución para el suscriptor tardío: el mensaje **retenido**. El broker guarda **el último** mensaje retenido de cada tema y se lo entrega al momento a quien se suscriba después. Es la forma habitual de publicar el **estado** de una máquina: no el histórico, solo «cómo está ahora».
 
 ```bash
 # -r: publica el estado como mensaje RETENIDO

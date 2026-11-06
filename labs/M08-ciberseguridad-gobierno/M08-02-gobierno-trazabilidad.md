@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué es el **gobierno y la trazabilidad** de un modelo: qué hay que poder reconstruir de cada decisión, cómo debe ser un registro fiable, cómo se comprueba que no se puede alterar y cómo se clasifica el uso del sistema.
+Comprender qué es el **[gobierno](../glosario/05-operacion-gobierno.md#gobierno) y la [trazabilidad](../glosario/05-operacion-gobierno.md#trazabilidad)** de un modelo: qué hay que poder reconstruir de cada decisión, cómo debe ser un registro fiable, cómo se comprueba que no se puede alterar y cómo se clasifica el uso del sistema.
 
 ### Prerrequisitos
 
@@ -75,7 +75,7 @@ cat data/VERSION
 defecto-0.1
 ```
 
-De cada pieza sabes qué entró, qué se decidió, con qué versión, con qué modelo exacto (la huella) y cuándo. Si has repetido el comando, verás también las líneas de ejecuciones anteriores: el registro no se borra.
+De cada pieza sabes qué entró, qué se decidió, con qué versión, con qué modelo exacto (la [huella](../glosario/05-operacion-gobierno.md#version-huella)) y cuándo. Si has repetido el comando, verás también las líneas de ejecuciones anteriores: el registro no se borra.
 
 ## Comprueba tu entendimiento
 
@@ -130,7 +130,7 @@ sha256sum data/modelo_defecto.joblib | cut -c1-12
 
 ### Qué es gobernar un modelo
 
-Es poder responder, para cualquier pieza, a **por qué se tomó esa decisión**. Para eso, cada dictamen tiene que dejar rastro de cuatro cosas:
+Es poder responder, para cualquier pieza, a **por qué se tomó esa decisión**. Para eso, cada [dictamen](../glosario/05-operacion-gobierno.md#dictamen) tiene que dejar rastro de cuatro cosas:
 
 | Qué | Dónde está |
 |-----|------------|

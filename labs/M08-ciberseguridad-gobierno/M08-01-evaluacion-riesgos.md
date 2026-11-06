@@ -19,7 +19,7 @@ Comprender qué es una **evaluación de riesgos** de una solución de IA industr
 
 Antes de llevar esta solución a la red de la planta, el responsable de **ciberseguridad** pregunta: ¿qué estáis exponiendo, qué puede salir mal y qué habéis hecho para evitarlo?
 
-Cada servicio que escucha en un puerto es una **superficie**: algo a lo que se puede llegar desde la red. Los más delicados son los que tocan la parte OT, como el esclavo Modbus que tiene el registro del paro de seguridad.
+Cada servicio que escucha en un puerto es una **superficie**: algo a lo que se puede llegar desde la red. Los más delicados son los que tocan la parte [OT](../glosario/01-datos-arquitectura.md#ot), como el esclavo [Modbus](../glosario/01-datos-arquitectura.md#modbus) que tiene el registro del paro de seguridad.
 
 En este lab haces el inventario de superficies y dejas escrita una medida para cada tipo de riesgo: el dato, el modelo y el acceso. Y compruebas si lo que está escrito se cumple de verdad.
 
@@ -79,7 +79,7 @@ OK m08-01: inventario escrito; paro de seguridad en 0
 
 **Qué ocurre:** el inventario dice qué escucha; ahora buscas **qué se puede escribir** y sin pedir permiso. Miras tres sitios.
 
-**El broker.** Abre `infra/mosquitto/mosquitto.conf`:
+**El [broker](../glosario/01-datos-arquitectura.md#broker).** Abre `infra/mosquitto/mosquitto.conf`:
 
 ```text
 listener 1883
@@ -94,13 +94,13 @@ Cualquiera que llegue al 1883 puede publicar en **cualquier tema**. Y entre los 
 | `linea/est01/consigna` | Cambia la refrigeración de la estación |
 | `linea/est01/evento` | Provoca fallos en la simulación (solo existe en el laboratorio) |
 
-**El servidor OPC-UA.** En `infra/linea/opcua_server.py`, las variables se declaran con `await nodo.set_writable()`: cualquier cliente podría escribirlas y falsear lo que ve un SCADA.
+**El servidor [OPC-UA](../glosario/01-datos-arquitectura.md#opcua).** En `infra/linea/opcua_server.py`, las variables se declaran con `await nodo.set_writable()`: cualquier cliente podría escribirlas y falsear lo que ve un [SCADA](../glosario/01-datos-arquitectura.md#scada).
 
-**El esclavo Modbus.** Modbus TCP no tiene autenticación: quien llegue al 1502 puede leer y **escribir** registros, incluido el 10, el paro de seguridad. En este laboratorio ningún componente lo escribe, pero el protocolo lo permitiría.
+**El esclavo Modbus.** Modbus TCP no tiene [autenticación](../glosario/05-operacion-gobierno.md#autenticacion): quien llegue al 1502 puede leer y **escribir** registros, incluido el 10, el paro de seguridad. En este laboratorio ningún componente lo escribe, pero el protocolo lo permitiría.
 
 ## Experimenta: actuar sin ser el modelo
 
-**Qué ocurre:** publicas directamente en el broker una consigna de refrigeración, sin pasar por el modelo ni por `lab`, como lo haría cualquiera con acceso a la red.
+**Qué ocurre:** publicas directamente en el broker una [consigna](../glosario/05-operacion-gobierno.md#consigna) de refrigeración, sin pasar por el modelo ni por `lab`, como lo haría cualquiera con acceso a la red.
 
 ```bash
 # Terminal 2: mira la estación
@@ -136,7 +136,7 @@ Compara `medida_acceso` con lo que viste en el paso 1.
 
 ### 1 — ¿Basta con publicar en localhost?
 
-Después de la mejora, el broker solo escucha en el propio equipo. ¿Ya no puede publicar nadie un dictamen falso?
+Después de la mejora, el broker solo escucha en el propio equipo. ¿Ya no puede publicar nadie un [dictamen](../glosario/05-operacion-gobierno.md#dictamen) falso?
 
 <details>
 <summary>Ver solución</summary>
@@ -152,7 +152,7 @@ No del todo. Cualquier programa que corra **en el mismo equipo** (o cualquier co
 <details>
 <summary>Ver solución</summary>
 
-Mínimo privilegio: el agente no puede escribir en el proceso porque no tiene con qué.
+Mínimo privilegio: el [agente](../glosario/04-ia-generativa.md#agente) no puede escribir en el proceso porque no tiene con qué.
 
 </details>
 
@@ -209,7 +209,7 @@ Es responder a tres preguntas antes de llevar la solución a la red de planta: *
 
 | Tipo | Medida declarada | ¿Concreta y comprobable? |
 |------|------------------|--------------------------|
-| Dato | El histórico y el procedimiento no salen del volumen local | Sí |
+| Dato | El [histórico](../glosario/01-datos-arquitectura.md#historico) y el procedimiento no salen del volumen local | Sí |
 | Modelo | Los modelos están en disco y cada respuesta lleva versión | Sí |
 | Acceso | Los puertos solo se publican en localhost | Sí, y se puede comprobar |
 

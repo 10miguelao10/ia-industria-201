@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué es la **preparación del dato para analítica**: qué problemas trae un histórico real, cómo debe quedar un dataset para entrenar, cómo se detectan los datos malos y cómo se tratan sin esconderlos.
+Comprender qué es la **preparación del dato para analítica**: qué problemas trae un [histórico](../glosario/01-datos-arquitectura.md#historico) real, cómo debe quedar un [dataset](../glosario/01-datos-arquitectura.md#dataset) para entrenar, cómo se detectan los datos malos y cómo se tratan sin esconderlos.
 
 ### Prerrequisitos
 
@@ -27,7 +27,7 @@ Pero el histórico real nunca viene limpio. En este hay tres problemas típicos:
 | Unidad distinta | Un equipo reporta en décimas de grado | 614 en lugar de 61,4 |
 | Sensor clavado | El sensor falló y devuelve su valor de error | 9999 |
 
-Antes de entrenar hay que limpiar y, sobre todo, **contar lo que se descarta**. Un modelo entrenado con temperaturas de 9999 o de 614 °C aprende cosas que no existen en la máquina.
+Antes de entrenar hay que [limpiar](../glosario/01-datos-arquitectura.md#limpieza) y, sobre todo, **contar lo que se descarta**. Un modelo entrenado con temperaturas de 9999 o de 614 °C aprende cosas que no existen en la máquina.
 
 Este paso no necesita la estación en marcha: trabaja sobre un histórico ya guardado.
 
@@ -236,7 +236,7 @@ La pieza no aparece en `limpio.csv`: se excluye, no se sustituye por la media. R
 
 **Qué ocurre:** no todo el dato de planta está en tablas. Mucha información útil está en **notas escritas a mano** por el turno: «10:15 cambio de herramienta, la P0412 salió con rebaba». Para usarla hay que convertir cada nota en datos: qué pieza, a qué hora y qué causa.
 
-Vas a pedírselo al **modelo de lenguaje local**, comprobar cuánto acierta y mejorarlo en dos pasos. Las notas, con la respuesta correcta de cada una para poder medir, están en `infra/linea/docs/notas-turno.csv`.
+Vas a pedírselo al **[modelo de lenguaje](../glosario/04-ia-generativa.md#llm) local**, comprobar cuánto acierta y mejorarlo en dos pasos. Las notas, con la respuesta correcta de cada una para poder medir, están en `infra/linea/docs/notas-turno.csv`.
 
 Necesita el modelo en marcha:
 
@@ -270,7 +270,7 @@ OK notas: 0 de 8 notas extraídas sin error
 
 ### 2 — Con ejemplos
 
-**Qué ocurre:** usas un prompt que le **enseña con ejemplos** cómo es una nota y cómo es su JSON (`infra/linea/docs/prompt-notas-ejemplos.txt`).
+**Qué ocurre:** usas un [prompt](../glosario/04-ia-generativa.md#prompt) que le **enseña [con ejemplos](../glosario/04-ia-generativa.md#few-shot)** cómo es una nota y cómo es su JSON (`infra/linea/docs/prompt-notas-ejemplos.txt`).
 
 ```bash
 cat linea/docs/prompt-notas-ejemplos.txt
@@ -281,7 +281,7 @@ docker compose --profile lab run --rm --no-deps lab notas ejemplos
 
 - Pieza y hora salen casi siempre bien.
 - La **causa** falla: llama «refrigeración» a una rebaba de herramienta.
-- A veces **se inventa una pieza** en una nota que no tiene ninguna, copiada de los ejemplos del prompt.
+- A veces **[se inventa](../glosario/04-ia-generativa.md#alucinacion) una pieza** en una nota que no tiene ninguna, copiada de los ejemplos del prompt.
 
 ### 3 — Lo que tiene formato, con código
 

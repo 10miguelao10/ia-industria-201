@@ -20,7 +20,7 @@ Para eso trabajas con una arquitectura mínima, la de la estación EST-01: prime
 
 ### Qué está pasando en la línea
 
-**EST-01 es una estación de mecanizado de carcasas.** Sale una carcasa terminada **aproximadamente cada segundo**: la primera es `P0001`, la segunda `P0002`, y así sucesivamente. Como en una máquina real, no es un reloj: cada carcasa tarda un poco más o un poco menos, las primeras tras arrancar van más lentas y, de vez en cuando, la estación se detiene unos segundos (una **microparada**: un atasco, un sensor de presencia, el operario retirando una pieza).
+**EST-01 es una estación de mecanizado de [carcasas](../glosario/01-datos-arquitectura.md#pieza).** Sale una carcasa terminada **aproximadamente cada segundo**: la primera es `P0001`, la segunda `P0002`, y así sucesivamente. Como en una máquina real, no es un reloj: cada carcasa tarda un poco más o un poco menos, las primeras tras arrancar van más lentas y, de vez en cuando, la estación se detiene unos segundos (una **[microparada](../glosario/01-datos-arquitectura.md#tiempo-ciclo)**: un atasco, un sensor de presencia, el operario retirando una pieza).
 
 Mientras la máquina trabaja cada carcasa, tres sensores la vigilan:
 
@@ -30,7 +30,7 @@ Mientras la máquina trabaja cada carcasa, tres sensores la vigilan:
 | Vibración | Cuánto tiembla la máquina | 0,22–0,28 mm/s |
 | Corriente del motor | Cuánto esfuerzo hace | ~4 A |
 
-Al terminar cada carcasa, la estación emite su **registro**: qué pieza es, a qué hora terminó, cuánto tardó y cuánto marcaron los tres sensores. El registro sale **cuando la carcasa termina**, no a intervalos fijos: es un **evento**. Ese registro tiene que llegar al **histórico de la planta** para que, más adelante, alguien pueda consultarlo, entrenar un modelo con él o explicar una reclamación.
+Al terminar cada carcasa, la estación emite su **registro**: qué pieza es, a qué hora terminó, cuánto tardó y cuánto marcaron los tres sensores. El registro sale **cuando la carcasa termina**, no a intervalos fijos: es un **[evento](../glosario/01-datos-arquitectura.md#evento)**. Ese registro tiene que llegar al **[histórico](../glosario/01-datos-arquitectura.md#historico) de la planta** para que, más adelante, alguien pueda consultarlo, entrenar un modelo con él o explicar una reclamación.
 
 El camino del registro tiene tres tramos:
 
@@ -40,13 +40,13 @@ El camino del registro tiene tres tramos:
  (sensor)                          (mosquitto)               (archivador → historial.sqlite)
 ```
 
-- **El broker no guarda nada.** Recibe el registro y entrega una copia a todos los que estén suscritos. Si nadie lo escucha en ese momento, se pierde.
+- **El [broker](../glosario/01-datos-arquitectura.md#broker) no guarda nada.** Recibe el registro y entrega una copia a todos los que estén suscritos. Si nadie lo escucha en ese momento, se pierde.
 - **El archivador es quien registra.** Está suscrito a los registros de EST-01 y escribe cada uno como una fila en la base de datos del histórico.
 
 | En planta | En este laboratorio |
 |-----------|---------------------|
-| Máquina, sensores, PLC y una pasarela que publica | Un solo contenedor, `sensor`, que simula todo eso |
-| Broker MQTT en un servidor de planta | Contenedor `mosquitto` |
+| Máquina, sensores, PLC y una [pasarela](../glosario/01-datos-arquitectura.md#pasarela) que publica | Un solo contenedor, `sensor`, que simula todo eso |
+| Broker [MQTT](../glosario/01-datos-arquitectura.md#mqtt) en un servidor de planta | Contenedor `mosquitto` |
 | Histórico (historian, base de datos de MES) | Contenedor `archivador` y el fichero `infra/data/historial.sqlite` |
 
 **Cómo es el histórico por dentro.** El archivador guarda cada registro como una fila de la tabla `lecturas` de `historial.sqlite`:
@@ -319,7 +319,7 @@ pieza_id                        ts  tiempo_ciclo_s
    P0318 2026-11-06T02:09:41+00:00            6.73
 ```
 
-**Cómo se lee:** la estación trabaja a algo más de un segundo por carcasa, entre 0,9 y 1,1 en condiciones normales. Las dos microparadas, de unos 7 segundos, explican los minutos con 54 del punto anterior: están a las 02:08 y a las 02:09. El tiempo de ciclo es la base de un indicador de planta muy usado, el **rendimiento** del OEE: cuánto se fabrica frente a lo que se podría fabricar.
+**Cómo se lee:** la estación trabaja a algo más de un segundo por carcasa, entre 0,9 y 1,1 en condiciones normales. Las dos microparadas, de unos 7 segundos, explican los minutos con 54 del punto anterior: están a las 02:08 y a las 02:09. El tiempo de ciclo es la base de un indicador de planta muy usado, el **rendimiento** del [OEE](../glosario/02-observabilidad.md#kpi): cuánto se fabrica frente a lo que se podría fabricar.
 
 ### 5 — ¿Cómo trabaja la estación?
 
@@ -450,7 +450,7 @@ Dos filas distintas (`id` 3 y 56), un minuto aparte.
 
 (La temperatura coincide porque la simulación repite la misma secuencia de valores en cada arranque; en una máquina real no pasaría.)
 
-Con el identificador solo, no se puede saber cuál es la mala. Por eso cada registro lleva la hora y, en planta, el identificador no lo pone un contador de la máquina sino el MES o un código grabado en la pieza.
+Con el identificador solo, no se puede saber cuál es la mala. Por eso cada registro lleva la hora y, en planta, el identificador no lo pone un [contador](../glosario/02-observabilidad.md#metrica) de la máquina sino el MES o un código grabado en la pieza.
 
 </details>
 
@@ -556,13 +556,13 @@ La forma de detectar debilidades es siempre la misma: **provocar un fallo de un 
 
 | Debilidad | Cómo se resuelve en una arquitectura de planta |
 |-----------|-----------------------------------------------|
-| Pérdida si nadie escucha | Sesiones persistentes con QoS 1, o un bus con persistencia (Kafka) delante del histórico |
-| Caída del almacén o de la red | *Store-and-forward* en el equipo edge: guarda localmente y reenvía al volver |
+| Pérdida si nadie escucha | Sesiones persistentes con [QoS](../glosario/01-datos-arquitectura.md#qos) 1, o un bus con persistencia (Kafka) delante del histórico |
+| Caída del almacén o de la red | *Store-and-forward* en el equipo [edge](../glosario/01-datos-arquitectura.md#edge): guarda localmente y reenvía al volver |
 | Identificador que se repite | Identificador que no depende de la máquina (MES, DataMatrix grabado en la pieza), siempre con su hora |
 | Histórico que acepta duplicados | Clave única en la tabla (pieza + hora, o el identificador del MES) |
 | Fallos que nadie ve | Conciliación periódica entre las piezas producidas según el MES y los registros del histórico, **por secuencia, no por reloj** |
 
-En los módulos siguientes irás viendo piezas de esa arquitectura completa: calidad del dato (M02), edge (M06), servicio con versión (M07) y trazabilidad (M08).
+En los módulos siguientes irás viendo piezas de esa arquitectura completa: calidad del dato (M02), edge (M06), servicio con versión (M07) y [trazabilidad](../glosario/05-operacion-gobierno.md#trazabilidad) (M08).
 
 ### En una frase
 

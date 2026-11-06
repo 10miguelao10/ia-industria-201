@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué es **integrar mediante protocolos industriales**: cómo se accede al mismo dato por MQTT, OPC-UA y Modbus, qué te cuenta cada uno, cómo se detecta un error de integración que no da ningún fallo, y cómo se construye una pasarela que traduce un protocolo a otro.
+Comprender qué es **integrar mediante protocolos industriales**: cómo se accede al mismo dato por [MQTT](../glosario/01-datos-arquitectura.md#mqtt), [OPC-UA](../glosario/01-datos-arquitectura.md#opcua) y [Modbus](../glosario/01-datos-arquitectura.md#modbus), qué te cuenta cada uno, cómo se detecta un error de integración que no da ningún fallo, y cómo se construye una [pasarela](../glosario/01-datos-arquitectura.md#pasarela) que traduce un protocolo a otro.
 
 ### Prerrequisitos
 
@@ -18,13 +18,13 @@ Comprender qué es **integrar mediante protocolos industriales**: cómo se acced
 
 ### Qué está pasando
 
-En una planta, la misma máquina se lee de varias formas según quién pregunte. El SCADA la lee por **OPC-UA**. Un PLC antiguo o un equipo de otro fabricante solo habla **Modbus**. La plataforma de datos recibe los registros por **MQTT**. Integrar es conseguir que todos cuenten lo mismo.
+En una planta, la misma máquina se lee de varias formas según quién pregunte. El [SCADA](../glosario/01-datos-arquitectura.md#scada) la lee por **OPC-UA**. Un PLC antiguo o un equipo de otro fabricante solo habla **Modbus**. La plataforma de datos recibe los registros por **MQTT**. Integrar es conseguir que todos cuenten lo mismo.
 
 Aquí los tres caminos exponen la misma estación:
 
 | Protocolo | Cómo se pide el dato | Qué te devuelve |
 |-----------|----------------------|-----------------|
-| MQTT | Te suscribes al tema `linea/est01/ciclo` | El registro entero, en JSON, con nombres |
+| MQTT | Te suscribes al [tema](../glosario/01-datos-arquitectura.md#tema) `linea/est01/ciclo` | El registro entero, en JSON, con nombres |
 | OPC-UA | Navegas hasta el objeto `Estacion` y lees sus variables | El valor con su nombre y su tipo |
 | Modbus | Lees registros por su número | Enteros sin nombre ni unidad |
 
@@ -34,8 +34,8 @@ Con Modbus, el significado de cada registro y su escala vienen en el **manual de
 |----------------|---------------------|
 | Servidor OPC-UA del PLC o del SCADA | Contenedor `opcua`, código en `infra/linea/opcua_server.py` |
 | PLC o equipo con Modbus TCP | Contenedor `modbus`, código en `infra/linea/modbus_server.py` |
-| Manual con el mapa de registros | La tabla de este lab, sacada del código |
-| Pasarela de protocolos en el edge | El comando `lab pasarela` (en la mejora) |
+| Manual con el [mapa de registros](../glosario/01-datos-arquitectura.md#mapa-registros) | La tabla de este lab, sacada del código |
+| Pasarela de protocolos en el [edge](../glosario/01-datos-arquitectura.md#edge) | El comando `lab pasarela` (en la mejora) |
 
 ### 1 — Abrir las otras dos puertas
 
@@ -218,7 +218,7 @@ done
 
 **Resultado esperado:** la secuencia sube en algunas lecturas y se repite o salta en otras.
 
-**Cómo se lee:** si preguntas más rápido de lo que la estación fabrica, lees dos veces la misma carcasa; si preguntas más despacio, te saltas alguna. Con Modbus, quien integra tiene que decidir **cada cuánto preguntar**, igual que hace Prometheus con sus muestras (M01-03). Con MQTT, cada carcasa llega una vez.
+**Cómo se lee:** si preguntas más rápido de lo que la estación fabrica, lees dos veces la misma carcasa; si preguntas más despacio, te saltas alguna. Con Modbus, quien integra tiene que decidir **cada cuánto preguntar**, igual que hace [Prometheus](../glosario/02-observabilidad.md#prometheus) con sus muestras (M01-03). Con MQTT, cada carcasa llega una vez.
 
 ## Reto
 
@@ -229,7 +229,7 @@ Un sistema lee el registro 0 y lo guarda tal cual como temperatura. ¿Qué pasa?
 <details>
 <summary>Ver solución</summary>
 
-Guarda 630 °C donde había 63,0 °C. No da ningún error: es un número válido. El primer síntoma aparecería mucho después, en un modelo que «aprende» que el husillo trabaja a 600 °C, o en un panel con una alarma que no salta nunca. Es exactamente el problema de las «décimas» que vas a limpiar en el M02-03.
+Guarda 630 °C donde había 63,0 °C. No da ningún error: es un número válido. El primer síntoma aparecería mucho después, en un modelo que «aprende» que el husillo trabaja a 600 °C, o en un panel con una alarma que no salta nunca. Es exactamente el problema de las «décimas» que vas a [limpiar](../glosario/01-datos-arquitectura.md#limpieza) en el M02-03.
 
 </details>
 
@@ -336,7 +336,7 @@ Conseguir que los sistemas que leen una misma magnitud obtengan el mismo valor, 
 - **Pasarela** que lee el equipo y publica con nombre y unidad (lo has hecho).
 - **OPC-UA** cuando el equipo lo permite, con usuarios y variables de solo lectura.
 - **Mapa de registros** bajo control de versiones, junto al código de la pasarela.
-- **Solo lectura** hacia OT para los sistemas de datos.
+- **Solo lectura** hacia [OT](../glosario/01-datos-arquitectura.md#ot) para los sistemas de datos.
 
 ### En una frase
 

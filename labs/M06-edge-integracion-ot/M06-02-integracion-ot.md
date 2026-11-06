@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender cómo se **integra un modelo con los sistemas de planta (OT)**: cómo llega el dictamen al automatismo, cómo debe ser esa frontera, qué riesgos tiene y cómo se protege el control de la máquina.
+Comprender cómo se **integra un modelo con los sistemas de planta ([OT](../glosario/01-datos-arquitectura.md#ot))**: cómo llega el [dictamen](../glosario/05-operacion-gobierno.md#dictamen) al automatismo, cómo debe ser esa frontera, qué riesgos tiene y cómo se protege el control de la máquina.
 
 ### Prerrequisitos
 
@@ -17,13 +17,13 @@ Comprender cómo se **integra un modelo con los sistemas de planta (OT)**: cómo
 
 ### Qué está pasando
 
-Un dictamen que se queda en el equipo edge no sirve de nada. Tiene que llegar al **automatismo de la línea**, que es quien desvía la carcasa a revisión o la deja seguir.
+Un dictamen que se queda en el equipo [edge](../glosario/01-datos-arquitectura.md#edge) no sirve de nada. Tiene que llegar al **automatismo de la línea**, que es quien desvía la carcasa a revisión o la deja seguir.
 
-La forma de hacerlo es la misma que para los registros: el dictamen se publica como **evento** en el broker, en el tema `linea/est01/dictamen`, y el automatismo está suscrito. Así el modelo no necesita conocer el PLC ni escribir en él.
+La forma de hacerlo es la misma que para los registros: el dictamen se publica como **evento** en el [broker](../glosario/01-datos-arquitectura.md#broker), en el [tema](../glosario/01-datos-arquitectura.md#tema) `linea/est01/dictamen`, y el automatismo está suscrito. Así el modelo no necesita conocer el PLC ni escribir en él.
 
-Hay una línea que no se cruza nunca: el **paro de seguridad** (registro Modbus 10) lo decide el automatismo con sus propias protecciones. El modelo recomienda; no para la máquina. En este lab se comprueba que el paro sigue en 0 después de publicar.
+Hay una línea que no se cruza nunca: el **paro de seguridad** (registro [Modbus](../glosario/01-datos-arquitectura.md#modbus) 10) lo decide el automatismo con sus propias protecciones. El modelo recomienda; no para la máquina. En este lab se comprueba que el paro sigue en 0 después de publicar.
 
-La presión no viaja en el registro en vivo, así que el dictamen usa la consigna nominal de 6 bar.
+La presión no viaja en el registro en vivo, así que el dictamen usa la [consigna](../glosario/05-operacion-gobierno.md#consigna) nominal de 6 bar.
 
 ### 1 — Asegurar la línea
 
@@ -94,7 +94,7 @@ if paro.registers[0] != 0:
 
 ## Experimenta: un umbral mal puesto
 
-**Qué ocurre:** el umbral que convierte la probabilidad en `revisar` está en el código del modelo, no en el PLC. Vas a ponerlo en 0,05, como si alguien lo hubiera bajado «por precaución».
+**Qué ocurre:** el [umbral](../glosario/03-aprendizaje-automatico.md#umbral) que convierte la probabilidad en `revisar` está en el código del modelo, no en el PLC. Vas a ponerlo en 0,05, como si alguien lo hubiera bajado «por precaución».
 
 ```bash
 docker compose --profile lab run --rm --no-deps lab m06-02 umbral=0.05
@@ -152,7 +152,7 @@ docker compose --profile lab run --rm --no-deps lab m06-02
 OK m06-02: P0145 -> seguir; paro=0
 ```
 
-**Cómo se lee:** ahora el automatismo, y cualquiera que escuche el tema, sabe **qué carcasa exacta** (pieza + hora) y **qué modelo** la dictaminó. Si mañana se reclama esa pieza, el dictamen se puede rastrear. Es la base de la trazabilidad del M08-02.
+**Cómo se lee:** ahora el automatismo, y cualquiera que escuche el tema, sabe **qué carcasa exacta** (pieza + hora) y **qué modelo** la dictaminó. Si mañana se reclama esa pieza, el dictamen se puede rastrear. Es la base de la [trazabilidad](../glosario/05-operacion-gobierno.md#trazabilidad) del M08-02.
 
 ## Errores frecuentes
 

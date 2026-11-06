@@ -8,12 +8,12 @@
 
 ### Objetivo
 
-Comprender qué es la **monitorización por métricas y el alerting**: en qué se diferencia una métrica de un registro, cómo debe vigilarse la propia arquitectura de datos, cómo se diseña una alerta que avise a tiempo sin falsas alarmas y cómo se usa para encontrar y corregir un fallo silencioso.
+Comprender qué es la **monitorización por [métricas](../glosario/02-observabilidad.md#metrica) y el alerting**: en qué se diferencia una métrica de un registro, cómo debe vigilarse la propia arquitectura de datos, cómo se diseña una [alerta](../glosario/02-observabilidad.md#alerta) que avise a tiempo sin falsas alarmas y cómo se usa para encontrar y corregir un fallo silencioso.
 
 ### Prerrequisitos
 
 - M01-01 y M01-02 hechos: mosquitto, sensor y archivador en marcha.
-- Puertos 9090 (Prometheus), 9101 y 9102 (métricas del archivador y de la estación) libres. RAM del contenedor de Prometheus: hasta 256 MB.
+- Puertos 9090 ([Prometheus](../glosario/02-observabilidad.md#prometheus)), 9101 y 9102 (métricas del archivador y de la estación) libres. RAM del contenedor de Prometheus: hasta 256 MB.
 
 ### Qué está pasando
 
@@ -21,8 +21,8 @@ En el M01-02 viste el problema: el panel enseñaba «todo normal» con el archiv
 
 Para eso se usan **métricas** y **alertas**:
 
-- Cada componente publica unos pocos **números sobre sí mismo**: cuántas carcasas ha fabricado la estación, cuántos registros ha guardado el archivador, cuándo guardó el último.
-- **Prometheus** va a preguntar esos números cada 5 segundos a cada componente (modelo *pull*) y los guarda como series temporales.
+- Cada componente publica unos pocos **números sobre sí mismo**: cuántas [carcasas](../glosario/01-datos-arquitectura.md#pieza) ha fabricado la estación, cuántos registros ha guardado el archivador, cuándo guardó el último.
+- **Prometheus** va a preguntar esos números cada 5 segundos a cada componente (modelo *pull*) y los guarda como [series temporales](../glosario/02-observabilidad.md#serie-temporal).
 - Unas **reglas de alerta** escritas por una persona revisan esas series y avisan cuando algo va mal, mire quien mire la pantalla.
 
 ```
@@ -33,7 +33,7 @@ Para eso se usan **métricas** y **alertas**:
 
 **Métrica no es lo mismo que registro:**
 
-| | Registro (histórico SQLite) | Métrica (Prometheus) |
+| | Registro ([histórico](../glosario/01-datos-arquitectura.md#historico) SQLite) | Métrica (Prometheus) |
 |--|-----------------------------|----------------------|
 | Qué es | Una fila por carcasa, con su pieza, hora y medidas | Un número que resume, muestreado cada 5 s |
 | Ejemplo | `P0153, 12:12:27, 62,97 °C` | `estacion_piezas_fabricadas_total 153` |
@@ -44,9 +44,9 @@ Las dos cosas se complementan: el histórico guarda **qué pasó con cada pieza*
 
 | En la realidad | En este laboratorio |
 |----------------|---------------------|
-| Prometheus, o el módulo de alarmas del SCADA o del historian | Contenedor `prometheus` |
+| Prometheus, o el módulo de alarmas del [SCADA](../glosario/01-datos-arquitectura.md#scada) o del historian | Contenedor `prometheus` |
 | Reglas de alarma del sistema de supervisión | `infra/prometheus/alertas.yml` |
-| Notificación al responsable (correo, Teams, avisador) | La página de alertas de Prometheus (en el M07-03 las procesa un agente) |
+| Notificación al responsable (correo, Teams, avisador) | La página de alertas de Prometheus (en el M07-03 las procesa un [agente](../glosario/04-ia-generativa.md#agente)) |
 
 ### 1 — Arrancar Prometheus y ver qué vigila
 
@@ -100,7 +100,7 @@ Abre en Chrome la dirección de métricas de la estación: <http://localhost:910
 | `# TYPE` | `# TYPE estacion_piezas_fabricadas_total counter` | De qué tipo es |
 | El valor | `estacion_piezas_fabricadas_total 56.0` | Nombre y valor en este instante |
 
-**Qué ves:** seis métricas de la estación: dos contadores (carcasas fabricadas y microparadas) y cuatro valores de la última carcasa (temperatura, vibración, corriente y tiempo de ciclo). Hay dos tipos:
+**Qué ves:** seis métricas de la estación: dos contadores (carcasas fabricadas y [microparadas](../glosario/01-datos-arquitectura.md#tiempo-ciclo)) y cuatro valores de la última carcasa (temperatura, vibración, corriente y tiempo de ciclo). Hay dos tipos:
 
 | Tipo | Qué es | Ejemplo |
 |------|--------|---------|
@@ -152,7 +152,7 @@ El archivador hace lo mismo en el puerto 9101.
 
 ### 3 — Preguntar a Prometheus
 
-**Qué ocurre:** en la página **Graph** de Prometheus escribes consultas en su lenguaje, PromQL. Vas a calcular el ritmo de fabricación y a compararlo con el de guardado.
+**Qué ocurre:** en la página **Graph** de Prometheus escribes consultas en su lenguaje, [PromQL](../glosario/02-observabilidad.md#promql). Vas a calcular el ritmo de fabricación y a compararlo con el de guardado.
 
 Abre <http://localhost:9090/graph>, escribe cada consulta en el cuadro y pulsa **Execute**. Usa la pestaña **Graph** para verla en el tiempo.
 
@@ -179,7 +179,7 @@ sum(increase(estacion_piezas_fabricadas_total[1m])) - sum(increase(archivador_re
 
 ### 4 — Evento frente a muestra
 
-**Qué ocurre:** comparas cómo ven la misma estación el histórico y Prometheus. El histórico guarda **un registro por carcasa**, cuando la carcasa termina: es un **evento**. Prometheus pregunta **cada 5 segundos**, pase lo que pase: es una **muestra**. Vas a ver qué se pierde con cada forma.
+**Qué ocurre:** comparas cómo ven la misma estación el histórico y Prometheus. El histórico guarda **un registro por carcasa**, cuando la carcasa termina: es un **[evento](../glosario/01-datos-arquitectura.md#evento)**. Prometheus pregunta **cada 5 segundos**, pase lo que pase: es una **muestra**. Vas a ver qué se pierde con cada forma.
 
 Primero, cuántos datos de cada tipo hay en el último minuto:
 
@@ -307,7 +307,7 @@ La alerta se apaga sola cuando Prometheus vuelve a llegar al archivador.
 
 ### 2 — Reinicia el broker
 
-Ahora reinicia solo el broker. El archivador sigue en marcha. Espera 40 segundos y mira las alertas, el diario del archivador y el histórico.
+Ahora reinicia solo el [broker](../glosario/01-datos-arquitectura.md#broker). El archivador sigue en marcha. Espera 40 segundos y mira las alertas, el diario del archivador y el histórico.
 
 ```bash
 docker compose restart mosquitto
@@ -417,7 +417,7 @@ archivador-1  | archivador: P0273
 
 Tras el reinicio del broker, el archivador se vuelve a suscribir y sigue guardando. `HistoricoSinDatos` ya no salta.
 
-`RegistrosPerdidos` puede saltar igualmente durante un minuto, por las pocas carcasas que se fabricaron mientras el broker estaba caído. La corrección evita la **pérdida continua**, pero no la del propio corte. Para eso hacen falta las mejoras de arquitectura del M01-01: QoS 1 con sesión persistente o *store-and-forward*.
+`RegistrosPerdidos` puede saltar igualmente durante un minuto, por las pocas carcasas que se fabricaron mientras el broker estaba caído. La corrección evita la **pérdida continua**, pero no la del propio corte. Para eso hacen falta las mejoras de arquitectura del M01-01: [QoS](../glosario/01-datos-arquitectura.md#qos) 1 con sesión persistente o *store-and-forward*.
 
 ## Errores frecuentes
 
@@ -463,7 +463,7 @@ Es vigilar **el sistema que trae los datos**, no solo el proceso. Cada component
 | Límite | Mejora |
 |--------|--------|
 | Reconexión sin suscripción | Suscribirse en cada conexión (lo has hecho) |
-| Pérdida durante el propio corte | QoS 1 con sesión persistente, o *store-and-forward* en el edge |
+| Pérdida durante el propio corte | QoS 1 con sesión persistente, o *store-and-forward* en el [edge](../glosario/01-datos-arquitectura.md#edge) |
 | La alerta solo se ve en Prometheus | Enviarla a quien tiene que actuar (Alertmanager, correo, Teams) |
 | Alguien tiene que interpretar cada alerta | Un agente que la diagnostica y propone la acción del procedimiento (M07-03) |
 

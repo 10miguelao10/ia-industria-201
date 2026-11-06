@@ -7,10 +7,10 @@
 
 ## Qué aprenderás
 
-- Consumir la telemetría de la estación como **eventos** y distinguir una microparada de una parada.
-- Leer el mismo dato por **MQTT, OPC-UA y Modbus**, y entender qué te da cada protocolo.
-- **Preparar** un histórico sucio para analítica sin esconder sus problemas.
-- **Construir un dataset** propio uniendo las señales de la línea con el resultado de calidad.
+- Consumir la telemetría de la estación como **[eventos](../glosario/01-datos-arquitectura.md#evento)** y distinguir una [microparada](../glosario/01-datos-arquitectura.md#tiempo-ciclo) de una parada.
+- Leer el mismo dato por **[MQTT](../glosario/01-datos-arquitectura.md#mqtt), [OPC-UA](../glosario/01-datos-arquitectura.md#opcua) y [Modbus](../glosario/01-datos-arquitectura.md#modbus)**, y entender qué te da cada protocolo.
+- **Preparar** un [histórico](../glosario/01-datos-arquitectura.md#historico) sucio para analítica sin esconder sus problemas.
+- **Construir un [dataset](../glosario/01-datos-arquitectura.md#dataset)** propio uniendo las señales de la línea con el resultado de calidad.
 
 | Bloque | Concepto | Laboratorio |
 |--------|----------|-------------|
@@ -58,7 +58,7 @@ Un consumidor tiene que saber interpretar también **la ausencia de eventos**:
 | Unos segundos sin nada | **Microparada**: un atasco, un sensor de presencia, el operario |
 | Silencio prolongado | **Parada**: avería, cambio de herramienta, fin de turno… o la comunicación caída |
 
-El silencio no es un cero: no se puede rellenar con lecturas inventadas.
+El silencio no es un cero: no se puede rellenar con lecturas [inventadas](../glosario/04-ia-generativa.md#alucinacion).
 
 ### Demostración
 
@@ -113,7 +113,7 @@ Los mensajes vuelven, y la numeración empieza otra vez en `P0001`.
 
 → **[M02-01 — Captura de telemetría industrial](M02-01-telemetria.md)**
 
-Comprobarás qué trae cada registro, abrirás y cerrarás una parada, medirás con datos cuánto duran las microparadas para elegir un umbral de parada con criterio, y publicarás un estado retenido para que quien llegue tarde sepa cómo está la estación.
+Comprobarás qué trae cada registro, abrirás y cerrarás una parada, medirás con datos cuánto duran las microparadas para elegir un umbral de parada con criterio, y publicarás un estado [retenido](../glosario/01-datos-arquitectura.md#retenido) para que quien llegue tarde sepa cómo está la estación.
 
 ---
 
@@ -126,14 +126,14 @@ En una planta, la misma máquina se lee de varias formas según quién pregunte:
 | Protocolo | Idea | Qué te devuelve | Uso típico |
 |-----------|------|-----------------|------------|
 | MQTT | Se publica un mensaje en un tema; quien está suscrito lo recibe | El registro entero, con nombres | Plataforma de datos, IT |
-| OPC-UA | Un servidor expone variables con nombre y tipo; un cliente navega y las lee | El valor con su nombre y su tipo | SCADA, MES |
+| OPC-UA | Un servidor expone variables con nombre y tipo; un cliente navega y las lee | El valor con su nombre y su tipo | [SCADA](../glosario/01-datos-arquitectura.md#scada), MES |
 | Modbus TCP | El equipo expone registros numerados; se leen por número | Un entero sin nombre ni unidad | PLC y equipos sencillos o antiguos |
 
 No son tres verdades distintas: son tres puertas al mismo hecho de proceso. Integrar es conseguir que todas cuenten lo mismo.
 
 ### Demostración
 
-**Qué se demuestra:** la misma estación vista por OPC-UA y por Modbus, y lo que cada uno te cuenta. En el laboratorio comprobarás que cuadran, descifrarás el mapa de registros y construirás una pasarela.
+**Qué se demuestra:** la misma estación vista por OPC-UA y por Modbus, y lo que cada uno te cuenta. En el laboratorio comprobarás que cuadran, descifrarás el [mapa de registros](../glosario/01-datos-arquitectura.md#mapa-registros) y construirás una [pasarela](../glosario/01-datos-arquitectura.md#pasarela).
 
 #### Paso 1 — Arrancar las otras dos puertas
 
@@ -228,7 +228,7 @@ Preparar el dato es **decidir qué se queda, qué se corrige y qué se aparta**,
 
 ### Demostración
 
-**Qué se demuestra:** cómo se ve un histórico sucio y cómo se cuentan sus problemas antes de tocar nada. En el laboratorio lo limpiarás, compararás decisiones de limpieza y convertirás notas de texto en datos con IA.
+**Qué se demuestra:** cómo se ve un histórico sucio y cómo se cuentan sus problemas antes de tocar nada. En el laboratorio lo limpiarás, compararás decisiones de [limpieza](../glosario/01-datos-arquitectura.md#limpieza) y convertirás notas de texto en datos con IA.
 
 #### Paso 1 — Un histórico de 800 piezas
 
@@ -272,7 +272,7 @@ docker compose --profile lab run --rm --no-deps lab sql \
 
 → **[M02-03 — Preparación de información para analítica](M02-03-preparacion-datos.md)**
 
-Limpiarás el histórico, comprobarás el resultado con tus consultas, compararás qué le pasa al dato si rellenas los huecos con la media y usarás el modelo de lenguaje local para convertir notas de turno en datos, midiendo cuánto acierta.
+Limpiarás el histórico, comprobarás el resultado con tus consultas, compararás qué le pasa al dato si rellenas los huecos con la media y usarás el [modelo de lenguaje](../glosario/04-ia-generativa.md#llm) local para convertir notas de turno en datos, midiendo cuánto acierta.
 
 ---
 
@@ -329,7 +329,7 @@ pieza_id                        ts  temperatura_c  vibracion_mm_s  corriente_a
    P0119 2026-11-06T02:34:01+00:00          60.87            0.28         4.07
 ```
 
-**Cómo se lee:** la misma carcasa, con sus señales en una base y su resultado en otra. Unidas, forman **una fila de un dataset**: tres señales y una etiqueta (`defecto = 0`, buena).
+**Cómo se lee:** la misma carcasa, con sus señales en una base y su resultado en otra. Unidas, forman **una fila de un dataset**: tres señales y una [etiqueta](../glosario/03-aprendizaje-automatico.md#etiqueta) (`defecto = 0`, buena).
 
 > **Qué señalar en pantalla:** se ha unido por pieza **y hora**. ¿Por qué no basta con la pieza? Ya lo visteis en el M01.
 

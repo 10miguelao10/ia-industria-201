@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué es la **monitorización de un modelo en operación**: por qué un modelo se degrada sin avisar, cómo debe vigilarse, cómo se detecta la deriva y qué se hace cuando aparece.
+Comprender qué es la **monitorización de un modelo en operación**: por qué un modelo se degrada sin avisar, cómo debe vigilarse, cómo se detecta la [deriva](../glosario/05-operacion-gobierno.md#deriva) y qué se hace cuando aparece.
 
 ### Prerrequisitos
 
@@ -133,7 +133,7 @@ docker compose --profile lab run --rm --no-deps lab m07-02 vivo
 tasa_base=0.08 tasa_linea_ahora=0.28 (últimas 120 carcasas, temperatura media 64.26 °C)
 ```
 
-**Cómo se lee:** la línea real ya no es la del entrenamiento: con el fallo, la tasa sube al 28 %. Un sistema de MLOps calcularía esta tasa cada pocos minutos y avisaría si se aleja de la base, igual que una alerta de Prometheus. Termina el fallo antes de seguir:
+**Cómo se lee:** la línea real ya no es la del entrenamiento: con el fallo, la tasa sube al 28 %. Un sistema de [MLOps](../glosario/05-operacion-gobierno.md#mlops) calcularía esta tasa cada pocos minutos y avisaría si se aleja de la base, igual que una [alerta](../glosario/02-observabilidad.md#alerta) de [Prometheus](../glosario/02-observabilidad.md#prometheus). Termina el fallo antes de seguir:
 
 ```bash
 docker compose --profile lab run --rm --no-deps lab evento fin
@@ -174,7 +174,7 @@ Es que **la línea cambie** y el modelo siga contestando como si nada. El modelo
 |-----------|-----------|
 | Una línea base | Con el proceso normal, el 8 % de las piezas va a revisión |
 | Una medida periódica | La misma tasa con los datos de ahora |
-| Un umbral de alarma | Avisar si sube más de 0,10 |
+| Un [umbral](../glosario/03-aprendizaje-automatico.md#umbral) de alarma | Avisar si sube más de 0,10 |
 | Un registro | `seguimiento.json` con las dos tasas |
 
 Resultado: con el husillo 8 °C más caliente, la tasa pasó del **8 % al 96 %**; con solo 2 °C, al 28 %. En la línea en vivo, durante un fallo de refrigeración, al 28 %.

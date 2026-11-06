@@ -7,19 +7,19 @@
 
 ## Qué aprenderás
 
-- Qué es ejecutar un modelo en el **edge**, junto a la máquina, y cómo se mide si llega a tiempo.
-- Cómo llega el dictamen de un modelo al **automatismo** sin que el modelo toque el control.
-- Cómo un modelo de **comportamiento normal** puede **predecir** una anomalía antes de que salte la alarma, y qué supone dejarle **actuar**.
+- Qué es ejecutar un modelo en el **[edge](../glosario/01-datos-arquitectura.md#edge)**, junto a la máquina, y cómo se mide si llega a tiempo.
+- Cómo llega el [dictamen](../glosario/05-operacion-gobierno.md#dictamen) de un modelo al **automatismo** sin que el modelo toque el control.
+- Cómo un modelo de **[comportamiento normal](../glosario/03-aprendizaje-automatico.md#banda-normal)** puede **predecir** una [anomalía](../glosario/03-aprendizaje-automatico.md#anomalia) antes de que salte la alarma, y qué supone dejarle **actuar**.
 
 | Bloque | Concepto | Laboratorio |
 |--------|----------|-------------|
-| 1 | Inferencia en el edge | [M06-01](M06-01-inferencia-edge.md) |
-| 2 | Integración con OT | [M06-02](M06-02-integracion-ot.md) |
+| 1 | [Inferencia](../glosario/05-operacion-gobierno.md#inferencia) en el edge | [M06-01](M06-01-inferencia-edge.md) |
+| 2 | Integración con [OT](../glosario/01-datos-arquitectura.md#ot) | [M06-02](M06-02-integracion-ot.md) |
 | 3 | Predicción y actuación supervisada | [M06-03](M06-03-prediccion-actuacion.md) |
 
 ## Antes de empezar
 
-Los bloques 1 y 2 usan el modelo de defecto del M03-03 (`infra/data/modelo_defecto.joblib`). El bloque 3 usa Prometheus (M01-03) con al menos 10 minutos de métricas normales.
+Los bloques 1 y 2 usan el modelo de defecto del M03-03 (`infra/data/modelo_defecto.joblib`). El bloque 3 usa [Prometheus](../glosario/02-observabilidad.md#prometheus) (M01-03) con al menos 10 minutos de [métricas](../glosario/02-observabilidad.md#metrica) normales.
 
 ```bash
 cd infra
@@ -47,7 +47,7 @@ La frontera que no se cruza: **el modelo recomienda; el automatismo y las person
 
 El **edge** es el equipo que está junto a la máquina. Ejecutar el modelo ahí, cargándolo desde su disco, evita depender de la red de la oficina o de internet, y da la respuesta en el momento.
 
-Lo que se mide es la **latencia**: cuánto tarda el dictamen de una pieza. Tiene que ser mucho menor que el tiempo de ciclo de la máquina (aquí, ~1 s).
+Lo que se mide es la **[latencia](../glosario/05-operacion-gobierno.md#latencia)**: cuánto tarda el dictamen de una pieza. Tiene que ser mucho menor que el [tiempo de ciclo](../glosario/01-datos-arquitectura.md#tiempo-ciclo) de la máquina (aquí, ~1 s).
 
 ### Demostración
 
@@ -69,7 +69,7 @@ ls -l data/*.joblib
 219108 … data/modelo_vision_red.joblib
 ```
 
-**Cómo se lee:** el modelo de defecto que va a la línea ocupa **2,5 KB**. La red neuronal de visión, 214 KB. El modelo de lenguaje del M05, 470 MB.
+**Cómo se lee:** el modelo de defecto que va a la línea ocupa **2,5 KB**. La red neuronal de visión, 214 KB. El [modelo de lenguaje](../glosario/04-ia-generativa.md#llm) del M05, [470 MB](../glosario/04-ia-generativa.md#cuantizacion).
 
 | Modelo | Tamaño | Dónde cabe |
 |--------|--------|------------|
@@ -95,7 +95,7 @@ Medirás la latencia del modelo en el puesto, compararás dos modelos y verás q
 
 ### Teoría
 
-El dictamen tiene que llegar al **automatismo** que desvía la pieza. La forma de hacerlo sin que el modelo toque el PLC es la misma que para los registros: se publica como **evento** en el broker, en el tema `linea/est01/dictamen`, y el automatismo está suscrito. El **paro de seguridad** va por su camino determinista y nunca depende del modelo.
+El dictamen tiene que llegar al **automatismo** que desvía la pieza. La forma de hacerlo sin que el modelo toque el PLC es la misma que para los registros: se publica como **evento** en el [broker](../glosario/01-datos-arquitectura.md#broker), en el [tema](../glosario/01-datos-arquitectura.md#tema) `linea/est01/dictamen`, y el automatismo está suscrito. El **paro de seguridad** va por su camino determinista y nunca depende del modelo.
 
 ### Demostración
 
@@ -154,7 +154,7 @@ OK modbus: 1 registros leídos desde el 10
 
 → **[M06-02 — Integración con sistemas industriales](M06-02-integracion-ot.md)**
 
-Dejarás que el modelo dictamine la carcasa que acaba de salir y publique el evento, comprobarás que el paro sigue en reposo y verás qué pasa con el flujo de piezas si el umbral está mal puesto.
+Dejarás que el modelo dictamine la carcasa que acaba de salir y publique el evento, comprobarás que el paro sigue en reposo y verás qué pasa con el flujo de piezas si el [umbral](../glosario/03-aprendizaje-automatico.md#umbral) está mal puesto.
 
 ---
 
@@ -162,7 +162,7 @@ Dejarás que el modelo dictamine la carcasa que acaba de salir y publique el eve
 
 ### Teoría
 
-Las alertas del M01-03 son **reactivas**: saltan cuando la temperatura ya ha pasado de 70 °C, y para entonces ya se han fabricado piezas malas. Un modelo que conoce el **comportamiento normal** de la estación puede ver la **tendencia** antes y **predecir** cuándo se cruzará el margen.
+Las [alertas](../glosario/02-observabilidad.md#alerta) del M01-03 son **reactivas**: saltan cuando la temperatura ya ha pasado de 70 °C, y para entonces ya se han fabricado piezas malas. Un modelo que conoce el **comportamiento normal** de la estación puede ver la **tendencia** antes y **predecir** cuándo se cruzará el margen.
 
 ```
  1. aprender lo normal (métricas de Prometheus) ──▶ 2. vigilar: ¿se sale de lo normal? ¿hacia dónde va?

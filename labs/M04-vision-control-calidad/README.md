@@ -9,15 +9,15 @@
 
 - Cómo «ve» un modelo una foto y cómo aprende a separar piezas buenas de defectuosas.
 - La diferencia entre **clasificar** («está mala») y **detectar** («el defecto está aquí»).
-- Cómo funciona un **puesto de inspección** completo y quién decide su umbral.
-- Qué es **entrenar una red neuronal**, cómo se sabe si ha aprendido y qué es el sobreajuste.
+- Cómo funciona un **puesto de inspección** completo y quién decide su [umbral](../glosario/03-aprendizaje-automatico.md#umbral).
+- Qué es **entrenar una red neuronal**, cómo se sabe si ha aprendido y qué es el [sobreajuste](../glosario/03-aprendizaje-automatico.md#sobreajuste).
 
 | Bloque | Concepto | Laboratorio |
 |--------|----------|-------------|
 | 1 | Clasificación de imágenes | [M04-01](M04-01-clasificacion-componentes.md) |
 | 2 | Detección y localización del defecto | [M04-02](M04-02-deteccion-defectos.md) |
 | 3 | Puesto de inspección | [M04-03](M04-03-inspeccion-camara.md) |
-| 4 | Redes neuronales | [M04-04](M04-04-red-neuronal.md) |
+| 4 | [Redes neuronales](../glosario/03-aprendizaje-automatico.md#red-neuronal) | [M04-04](M04-04-red-neuronal.md) |
 
 ## Antes de empezar
 
@@ -36,9 +36,9 @@ Al final de EST-01 hay una **cámara** que fotografía cada carcasa antes de que
 
 | En la realidad | En este laboratorio |
 |----------------|---------------------|
-| Cámara industrial con su iluminación | 80 fotos sintéticas de 64×64 píxeles en `infra/data/imagenes/` |
+| Cámara industrial con su iluminación | 80 fotos sintéticas de 64×64 [píxeles](../glosario/03-aprendizaje-automatico.md#vision-pixeles) en `infra/data/imagenes/` |
 | Defectos reales: rayones, golpes, rebabas, manchas | Un rayón blanco horizontal |
-| Modelo de visión (a menudo una red convolucional) | Regresión logística y una red neuronal pequeña |
+| Modelo de visión (a menudo una red convolucional) | [Regresión logística](../glosario/03-aprendizaje-automatico.md#regresion-logistica) y una red neuronal pequeña |
 
 ---
 
@@ -48,7 +48,7 @@ Al final de EST-01 hay una **cámara** que fotografía cada carcasa antes de que
 
 Para un modelo, una foto **no es una imagen**: es una tabla de números. Cada punto (píxel) es el brillo de ese punto, de 0 (negro) a 255 (blanco). Una foto de 16×16 son 256 números en fila, y el modelo aprende qué combinaciones de esos números aparecen en las fotos de cada clase.
 
-Igual que en el M03: se entrena con unas fotos y se examina con otras que el modelo no ha visto.
+Igual que en el M03: se entrena con unas fotos y se examina con otras que el modelo [no ha visto](../glosario/03-aprendizaje-automatico.md#particion).
 
 ### Demostración
 
@@ -101,7 +101,7 @@ Entrenarás el clasificador, lo examinarás con fotos que no ha visto y probará
 
 **Clasificar** responde «¿está mala?». **Detectar** responde «¿dónde?». Retrabajo necesita lo segundo para reparar la pieza o decidir si se puede salvar.
 
-A veces basta una regla sencilla: si el defecto es siempre una línea clara, se busca la fila más brillante de la foto. Cuando los defectos varían en forma y posición, hacen falta modelos de detección entrenados con ejemplos marcados.
+A veces basta una regla sencilla: si el defecto es siempre una línea clara, se busca la fila más brillante de la foto. Cuando los defectos varían en forma y posición, hacen falta modelos de detección entrenados [con ejemplos](../glosario/04-ia-generativa.md#few-shot) marcados.
 
 ### Demostración
 
@@ -151,7 +151,7 @@ Un puesto de inspección es un **flujo**: entra la foto de cada pieza, el modelo
 
 ### Demostración
 
-**Qué se demuestra:** cómo es el registro de un puesto de inspección y el problema de las piezas cerca del umbral. En el laboratorio pasarás el lote tú, moverás el umbral y añadirás una zona de duda.
+**Qué se demuestra:** cómo es el registro de un puesto de inspección y el problema de las piezas cerca del umbral. En el laboratorio pasarás el lote tú, moverás el umbral y añadirás una [zona de duda](../glosario/03-aprendizaje-automatico.md#zona-duda).
 
 #### Paso 1 — El registro de un lote
 

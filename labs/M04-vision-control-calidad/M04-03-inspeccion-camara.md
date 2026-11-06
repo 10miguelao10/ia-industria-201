@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender cómo funciona un **puesto de inspección**: cómo pasa una pieza de foto a decisión, cómo debe ser el registro que deja, qué papel tiene el umbral y cómo se decide dónde ponerlo.
+Comprender cómo funciona un **puesto de inspección**: cómo pasa una pieza de foto a decisión, cómo debe ser el registro que deja, qué papel tiene el [umbral](../glosario/03-aprendizaje-automatico.md#umbral) y cómo se decide dónde ponerlo.
 
 ### Prerrequisitos
 
@@ -23,7 +23,7 @@ Llega un lote de 6 carcasas: 3 buenas y 3 con rayón. El modelo del M04-01 da a 
 
 ### 1 — Pasar el lote
 
-Vas a inspeccionar un lote con el modelo ya entrenado. Inspeccionar es dar un dictamen por imagen, no volver a entrenar.
+Vas a inspeccionar un lote con el modelo ya entrenado. Inspeccionar es dar un [dictamen](../glosario/05-operacion-gobierno.md#dictamen) por imagen, no volver a entrenar.
 
 ```bash
 # Copia 6 imágenes a lote_entrada, las puntúa y escribe lote_resultado.csv
@@ -108,7 +108,7 @@ OK m04-03: registro=6 revisar=3
 
 ### 1 — Quién decide el umbral
 
-El modelo lo has entrenado tú. ¿Debes decidir tú también el umbral y el tamaño de la zona de duda?
+El modelo lo has entrenado tú. ¿Debes decidir tú también el umbral y el tamaño de la [zona de duda](../glosario/03-aprendizaje-automatico.md#zona-duda)?
 
 <details>
 <summary>Ver solución</summary>

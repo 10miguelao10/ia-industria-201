@@ -17,15 +17,15 @@ Comprender qué es **publicar un modelo como servicio**: por qué se hace, cómo
 
 ### Qué está pasando
 
-El dictamen ya no lo quiere solo la línea. El **MES** lo quiere para la trazabilidad, **calidad** para su panel y **mantenimiento** para su tablet. Copiar el fichero del modelo en cada aplicación sería un caos: cada una acabaría con una versión distinta.
+El [dictamen](../glosario/05-operacion-gobierno.md#dictamen) ya no lo quiere solo la línea. El **MES** lo quiere para la [trazabilidad](../glosario/05-operacion-gobierno.md#trazabilidad), **calidad** para su panel y **mantenimiento** para su tablet. Copiar el fichero del modelo en cada aplicación sería un caos: cada una acabaría con una versión distinta.
 
 La solución es publicar el modelo como un **servicio**: un único proceso que recibe las señales de una pieza y devuelve el dictamen. Todas las aplicaciones le preguntan a él.
 
-Cada respuesta dice **qué versión del modelo contestó**, y cada consulta queda apuntada en un registro con su entrada y su salida. Si una pieza llega sin señales, el servicio la rechaza: no se inventa los datos que faltan.
+Cada respuesta dice **qué versión del modelo contestó**, y cada consulta queda apuntada en un registro con su entrada y su salida. Si una pieza llega sin señales, el servicio la rechaza: no [se inventa](../glosario/04-ia-generativa.md#alucinacion) los datos que faltan.
 
 ### 1 — Arrancar el servicio
 
-Vas a levantar el servicio de inferencia y preguntarle si está listo y qué versión sirve.
+Vas a levantar el servicio de [inferencia](../glosario/05-operacion-gobierno.md#inferencia) y preguntarle si está listo y qué versión sirve.
 
 ```bash
 docker compose up -d api
@@ -39,7 +39,7 @@ curl -s http://localhost:8000/salud
 {"estado":"ok","version":"defecto-0.1","huella_modelo":"69a897cdf955"}
 ```
 
-`huella_modelo` es un código calculado a partir del fichero del modelo (los primeros 12 caracteres de su SHA-256): si cambia un solo byte del modelo, cambia la huella. La tuya puede ser distinta de la del ejemplo si tu modelo se entrenó de otra forma. Lo usarás en «Experimenta».
+`huella_modelo` es un código calculado a partir del fichero del modelo (los primeros 12 caracteres de su SHA-256): si cambia un solo byte del modelo, cambia la [huella](../glosario/05-operacion-gobierno.md#version-huella). La tuya puede ser distinta de la del ejemplo si tu modelo se entrenó de otra forma. Lo usarás en «Experimenta».
 
 El servicio documenta su propio contrato en <http://localhost:8000/docs>:
 
@@ -169,7 +169,7 @@ curl -s http://localhost:8000/salud
 {"estado":"ok","version":"defecto-0.1","huella_modelo":"69a897cdf955"}
 ```
 
-**Cómo se lee:** coinciden: el modelo que contesta es el del fichero. Si alguien sustituyera el fichero (por ejemplo, volviendo a lanzar `m03-03` con otros datos) y no recreara el servicio, la huella del disco y la del servicio dejarían de coincidir: el servicio seguiría contestando con el modelo anterior. En una plataforma de MLOps, cada modelo se registra con su huella, sus datos de entrenamiento y sus métricas, y la versión se asigna a esa huella, no a mano.
+**Cómo se lee:** coinciden: el modelo que contesta es el del fichero. Si alguien sustituyera el fichero (por ejemplo, volviendo a lanzar `m03-03` con otros datos) y no recreara el servicio, la huella del disco y la del servicio dejarían de coincidir: el servicio seguiría contestando con el modelo anterior. En una plataforma de [MLOps](../glosario/05-operacion-gobierno.md#mlops), cada modelo se registra con su huella, sus datos de entrenamiento y sus [métricas](../glosario/02-observabilidad.md#metrica), y la versión se asigna a esa huella, no a mano.
 
 ## Errores frecuentes
 

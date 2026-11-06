@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué es **entrenar una red neuronal**: cómo aprende ajustándose iteración a iteración, cómo se sabe si ha aprendido, qué es el sobreajuste y cómo se detecta, y cuándo una red mejora a un modelo sencillo.
+Comprender qué es **entrenar una red neuronal**: cómo aprende ajustándose iteración a iteración, cómo se sabe si ha aprendido, qué es el [sobreajuste](../glosario/03-aprendizaje-automatico.md#sobreajuste) y cómo se detecta, y cuándo una red mejora a un modelo sencillo.
 
 ### Prerrequisitos
 
@@ -17,7 +17,7 @@ Comprender qué es **entrenar una red neuronal**: cómo aprende ajustándose ite
 
 ### Qué está pasando
 
-En el M04-01, una regresión logística separaba carcasas buenas de defectuosas con un **88 %** de acierto. Ahora vas a entrenar una **red neuronal** con las mismas fotos y a ver si lo mejora.
+En el M04-01, una [regresión logística](../glosario/03-aprendizaje-automatico.md#regresion-logistica) separaba carcasas buenas de defectuosas con un **88 %** de acierto. Ahora vas a entrenar una **red neuronal** con las mismas fotos y a ver si lo mejora.
 
 Una red neuronal es una cadena de capas de «neuronas». Cada neurona recibe números, los multiplica por unos **pesos**, los suma y pasa el resultado a la capa siguiente:
 
@@ -35,7 +35,7 @@ Tres cosas deciden si sale bien:
 
 | Parámetro | Qué es | En el comando |
 |-----------|--------|---------------|
-| Neuronas | Cuántas combinaciones de píxeles puede aprender | Primer número (por defecto 64) |
+| Neuronas | Cuántas combinaciones de [píxeles](../glosario/03-aprendizaje-automatico.md#vision-pixeles) puede aprender | Primer número (por defecto 64) |
 | Iteraciones | Cuántas veces como máximo repasa las fotos | Segundo número (por defecto 1000) |
 | Fotos | Con cuántos ejemplos aprende | Tercer número: fracción de las fotos de entrenamiento (por defecto 1 = todas) |
 
@@ -43,7 +43,7 @@ Es el mismo tipo de red que reconoce dígitos escritos a mano (una red de una ca
 
 ### 1 — Entrenar la red
 
-**Qué ocurre:** entrenas una red con 64 neuronas usando las 56 fotos de entrenamiento y la examinas con las 24 que no ha visto. El comando enseña cómo baja la pérdida durante el entrenamiento.
+**Qué ocurre:** entrenas una red con 64 neuronas usando las 56 fotos de entrenamiento y la examinas con las 24 que [no ha visto](../glosario/03-aprendizaje-automatico.md#particion). El comando enseña cómo baja la pérdida durante el entrenamiento.
 
 ```bash
 # Red de 64 neuronas, hasta 1000 iteraciones, con todas las fotos
@@ -121,7 +121,7 @@ docker compose --profile lab run --rm --no-deps lab m04-red 256
 
 **Resultado esperado:** las dos aciertan las 24 fotos de examen (1,00). La de 8 neuronas tarda unos 0,2 s; la de 256, unos 1,4 s.
 
-**Cómo se lee:** para un defecto tan claro como un rayón blanco, unas pocas neuronas bastan. Una red más grande no es mejor si el problema no lo necesita: solo cuesta más entrenarla y ejecutarla, algo que importa cuando corre en un equipo edge junto a la máquina (M06).
+**Cómo se lee:** para un defecto tan claro como un rayón blanco, unas pocas neuronas bastan. Una red más grande no es mejor si el problema no lo necesita: solo cuesta más entrenarla y ejecutarla, algo que importa cuando corre en un equipo [edge](../glosario/01-datos-arquitectura.md#edge) junto a la máquina (M06).
 
 ## Comprueba tu entendimiento
 
@@ -174,7 +174,7 @@ La red gana aquí. ¿Gana siempre?
 <details>
 <summary>Ver solución</summary>
 
-No. Con pocos datos, la red se sobreajusta y pierde su ventaja (el experimento del 10 % la deja igual que la regresión logística). En el M03-03 verás que con datos de proceso (cuatro señales numéricas) un árbol de decisión sencillo la iguala, y además se puede explicar.
+No. Con pocos datos, la red se sobreajusta y pierde su ventaja (el experimento del 10 % la deja igual que la regresión logística). En el M03-03 verás que con datos de proceso (cuatro señales numéricas) un [árbol de decisión](../glosario/03-aprendizaje-automatico.md#arbol) sencillo la iguala, y además se puede explicar.
 
 </details>
 

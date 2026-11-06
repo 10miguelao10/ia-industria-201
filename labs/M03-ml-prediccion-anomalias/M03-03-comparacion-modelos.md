@@ -17,10 +17,10 @@ Comprender cómo se **elige el modelo que va a la línea**: cómo se comparan ca
 
 ### Qué está pasando
 
-Ingeniería tiene **dos modelos candidatos** para poner en la línea: la regresión logística del M03-01 y un árbol de decisión sencillo. Hay que elegir uno, y la regla se acuerda **antes** de ver los resultados para que nadie la ajuste a su favor:
+Ingeniería tiene **dos modelos candidatos** para poner en la línea: la [regresión logística](../glosario/03-aprendizaje-automatico.md#regresion-logistica) del M03-01 y un [árbol de decisión](../glosario/03-aprendizaje-automatico.md#arbol) sencillo. Hay que elegir uno, y la regla se acuerda **antes** de ver los resultados para que nadie la ajuste a su favor:
 
 1. Gana el que encuentre más defectos.
-2. Si empatan, el que dé menos falsas alarmas.
+2. Si empatan, el que dé menos [falsas alarmas](../glosario/03-aprendizaje-automatico.md#matriz-confusion).
 
 Los dos se entrenan y se evalúan con exactamente las mismas piezas. El ganador se guarda como `modelo_defecto.joblib` con la versión `defecto-0.1`. Es el modelo que usará la línea en M06, M07 y M08.
 
@@ -138,7 +138,7 @@ Estas reglas se pueden **enseñar a calidad y a proceso** y discutir: «¿tiene 
 
 ## Experimenta: una red neuronal como tercer candidato
 
-**Qué ocurre:** añades a la comparación un tercer candidato, una **red neuronal**: un modelo formado por capas de «neuronas» que combinan las señales con unos pesos que se ajustan al entrenar. En el M04-04 la entrenarás paso a paso con fotos; aquí la usas como un candidato más, con el mismo corte y la misma regla.
+**Qué ocurre:** añades a la comparación un tercer candidato, una **red neuronal**: un modelo formado por capas de «neuronas» que combinan las [señales](../glosario/03-aprendizaje-automatico.md#senal) con unos pesos que se ajustan al entrenar. En el M04-04 la entrenarás paso a paso con fotos; aquí la usas como un candidato más, con el mismo corte y la misma regla.
 
 `lab m03-red` entrena una red y la compara con el árbol elegido. No cambia el modelo de la línea (`modelo_defecto.joblib`).
 
@@ -243,7 +243,7 @@ Resultado:
 
 ### Cómo queda documentado
 
-El modelo elegido es un fichero con **nombre y versión**. Esa versión viajará en cada dictamen (M07) y permitirá reconstruir decisiones (M08). Si mañana se entrena otro, será `defecto-0.2` y se podrá comparar con la misma regla.
+El modelo elegido es un fichero con **nombre y versión**. Esa versión viajará en cada [dictamen](../glosario/05-operacion-gobierno.md#dictamen) (M07) y permitirá reconstruir decisiones (M08). Si mañana se entrena otro, será `defecto-0.2` y se podrá comparar con la misma regla.
 
 ### En una frase
 

@@ -19,7 +19,7 @@ Comprender qué es la **clasificación por visión artificial**: cómo aprende u
 
 Al final de EST-01 hay un **puesto de inspección visual**: una cámara fotografía cada carcasa antes de que pase a la siguiente fase. El defecto que se busca es un **rayón** en la superficie.
 
-Para enseñar a un modelo a separar buenas de malas hacen falta fotos de las dos clases. Aquí hay 80, generadas por el laboratorio: 40 carcasas buenas y 40 con un rayón blanco. El modelo aprende con el 70 % de cada clase y se le examina con el 30 % restante, fotos que no ha visto.
+Para enseñar a un modelo a separar buenas de malas hacen falta fotos de las dos clases. Aquí hay 80, generadas por el laboratorio: 40 carcasas buenas y 40 con un rayón blanco. El modelo aprende con el 70 % de cada clase y se le examina con el 30 % restante, fotos que [no ha visto](../glosario/03-aprendizaje-automatico.md#particion).
 
 Para el modelo, una foto no es una imagen: es una lista de 256 números, el brillo de cada punto de la foto reducida a 16×16. Sin cámara real y sin GPU.
 
@@ -54,7 +54,7 @@ modelo = LogisticRegression(max_iter=400)
 modelo.fit(X, entreno["defecto"])                          # cada píxel es una entrada
 ```
 
-Para el modelo, una imagen es una fila de 256 números: el brillo de cada píxel.
+Para el modelo, una imagen es una fila de 256 números: el brillo de cada [píxel](../glosario/03-aprendizaje-automatico.md#vision-pixeles).
 
 </details>
 

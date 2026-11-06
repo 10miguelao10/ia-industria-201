@@ -8,18 +8,18 @@
 
 ### Objetivo
 
-Comprender qué es la **detección de anomalías**: cómo se avisa de lo raro sin tener ejemplos de defecto, cómo debe ajustarse un detector, cuáles son sus límites y cómo se mejora.
+Comprender qué es la **detección de [anomalías](../glosario/03-aprendizaje-automatico.md#anomalia)**: cómo se avisa de lo raro sin tener ejemplos de defecto, cómo debe ajustarse un detector, cuáles son sus límites y cómo se mejora.
 
 ### Prerrequisitos
 
-- CPU. No usa la etiqueta de defecto para avisar.
+- CPU. No usa la [etiqueta](../glosario/03-aprendizaje-automatico.md#etiqueta) de defecto para avisar.
 - Unos 0,5 GB en el `run`.
 
 ### Qué está pasando
 
 A veces no hay etiqueta que aprender. La máquina hace algo raro que no se había visto nunca: un rodamiento que empieza a fallar, una herramienta que se desgasta. Nadie ha marcado aún esas piezas como defectuosas, pero conviene enterarse **antes** de que lo sean.
 
-Un **detector de anomalías** no aprende qué es un defecto: aprende **cómo es un ciclo normal** y avisa cuando uno se sale de ahí. Lo que mide es cuánto se aleja el ciclo, mirando todas las señales a la vez, de lo que la estación hace habitualmente.
+Un **detector de anomalías** no aprende qué es un defecto: aprende **cómo es un ciclo normal** y avisa cuando uno se sale de ahí. Lo que mide es cuánto se aleja el ciclo, mirando todas las [señales](../glosario/03-aprendizaje-automatico.md#senal) a la vez, de lo que la estación hace habitualmente.
 
 Para comprobarlo se le pasan 200 ciclos: 180 normales y **20 con la vibración subida a propósito**, como si un rodamiento empezara a fallar. La marca de cuáles están alterados solo se usa al final, para contar cuántos avisó.
 
@@ -41,7 +41,7 @@ umbral=13.3 inyectados=20 detectados=20 avisos_sobre_normales=7 de 180
 OK m03-02: avisos sobre inyectados 20/20
 ```
 
-**Cómo se lee:** avisa los **20 ciclos alterados** y, además, **7 de los 180 normales** (un 4 %): son falsas alarmas. Un detector de anomalías siempre da alguna, porque lo normal también tiene sus extremos.
+**Cómo se lee:** avisa los **20 ciclos alterados** y, además, **7 de los 180 normales** (un 4 %): son [falsas alarmas](../glosario/03-aprendizaje-automatico.md#matriz-confusion). Un detector de anomalías siempre da alguna, porque lo normal también tiene sus extremos.
 
 <details>
 <summary>Qué hace por dentro (<code>infra/linea/cli.py</code>)</summary>
@@ -86,7 +86,7 @@ docker compose --profile lab run --rm --no-deps lab sql \
          1      20 1.338            235.4      20
 ```
 
-**Cómo se lee:** los ciclos normales están a una distancia media de 4,8 de «lo normal»; los alterados, a **235**: su vibración es cinco veces la habitual. Aquí la anomalía es muy evidente. En planta, un rodamiento que empieza a fallar da distancias de 15 o 20, muy cerca del límite, y ahí se nota de verdad dónde se pone el umbral.
+**Cómo se lee:** los ciclos normales están a una distancia media de 4,8 de «lo normal»; los alterados, a **235**: su vibración es cinco veces la habitual. Aquí la anomalía es muy evidente. En planta, un rodamiento que empieza a fallar da distancias de 15 o 20, muy cerca del límite, y ahí se nota de verdad dónde se pone el [umbral](../glosario/03-aprendizaje-automatico.md#umbral).
 
 ## Experimenta: mover el umbral
 
@@ -146,7 +146,7 @@ Es avisar cuando un ciclo **no se parece a lo normal**, aunque nunca se haya vis
 | Requisito | Cómo se cumple en el lab |
 |-----------|--------------------------|
 | Aprender solo de lo normal | Se ajusta con piezas sin defecto. Si se ajustara con anomalías dentro, aprendería que son normales (lo verás en el M06-03) |
-| Mirar las señales juntas | La distancia de Mahalanobis tiene en cuenta cómo varían juntas |
+| Mirar las señales juntas | La distancia de [Mahalanobis](../glosario/03-aprendizaje-automatico.md#mahalanobis) tiene en cuenta cómo varían juntas |
 | Un umbral con sentido | 13,3: un ciclo normal solo lo supera 1 de cada 100 veces |
 | Evaluarlo sin hacer trampa | La marca de ciclo alterado solo se usa al final, para contar aciertos |
 

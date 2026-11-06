@@ -14,7 +14,7 @@
 | Bloque | Concepto | Laboratorio |
 |--------|----------|-------------|
 | 1 | Evaluación de riesgos | [M08-01](M08-01-evaluacion-riesgos.md) |
-| 2 | Gobierno y trazabilidad | [M08-02](M08-02-gobierno-trazabilidad.md) |
+| 2 | [Gobierno](../glosario/05-operacion-gobierno.md#gobierno) y [trazabilidad](../glosario/05-operacion-gobierno.md#trazabilidad) | [M08-02](M08-02-gobierno-trazabilidad.md) |
 
 ## Antes de empezar
 
@@ -25,7 +25,7 @@ docker compose up -d mosquitto sensor archivador modbus api
 
 ## Introducción: lo que se ha construido, visto como un riesgo
 
-A lo largo del curso has montado una arquitectura completa: estación, broker, histórico, protocolos OT, modelos, servicio de inferencia, modelo de lenguaje, agente, monitorización. Cada pieza es útil, y cada pieza es también **algo que se puede atacar, romper o usar mal**.
+A lo largo del curso has montado una arquitectura completa: estación, [broker](../glosario/01-datos-arquitectura.md#broker), [histórico](../glosario/01-datos-arquitectura.md#historico), protocolos [OT](../glosario/01-datos-arquitectura.md#ot), modelos, servicio de [inferencia](../glosario/05-operacion-gobierno.md#inferencia), [modelo de lenguaje](../glosario/04-ia-generativa.md#llm), [agente](../glosario/04-ia-generativa.md#agente), monitorización. Cada pieza es útil, y cada pieza es también **algo que se puede atacar, romper o usar mal**.
 
 | Pregunta de seguridad | Pregunta de gobierno |
 |-----------------------|----------------------|
@@ -39,7 +39,7 @@ A lo largo del curso has montado una arquitectura completa: estación, broker, h
 
 ### Teoría
 
-Cada servicio que escucha en un puerto es una **superficie de ataque**. Evaluar riesgos es hacer el inventario de superficies, pensar qué puede salir mal en cada una y poner una **medida concreta** que se pueda **comprobar**.
+Cada servicio que escucha en un puerto es una **[superficie de ataque](../glosario/05-operacion-gobierno.md#superficie)**. Evaluar riesgos es hacer el inventario de superficies, pensar qué puede salir mal en cada una y poner una **medida concreta** que se pueda **comprobar**.
 
 En planta, lo más delicado es todo lo que toca **OT**: el PLC, el paro de seguridad y los canales por los que llegan órdenes o dictámenes.
 
@@ -66,7 +66,7 @@ log_dest stdout
 
 #### Paso 2 — Publicar un dictamen falso
 
-**Qué vamos a ver:** se publica un dictamen que dice «seguir» para una pieza inventada, sin ser el modelo.
+**Qué vamos a ver:** se publica un [dictamen](../glosario/05-operacion-gobierno.md#dictamen) que dice «seguir» para una pieza [inventada](../glosario/04-ia-generativa.md#alucinacion), sin ser el modelo.
 
 ```bash
 docker compose exec mosquitto mosquitto_pub -t 'linea/est01/dictamen' \
@@ -89,7 +89,7 @@ publicado
 
 → **[M08-01 — Evaluación de riesgos](M08-01-evaluacion-riesgos.md)**
 
-Harás el inventario de superficies, comprobarás si las medidas declaradas se cumplen, encontrarás las variables OPC-UA escribibles y aplicarás una medida real: publicar el broker solo en el propio equipo.
+Harás el inventario de superficies, comprobarás si las medidas declaradas se cumplen, encontrarás las variables [OPC-UA](../glosario/01-datos-arquitectura.md#opcua) escribibles y aplicarás una medida real: publicar el broker solo en el propio equipo.
 
 ---
 
@@ -138,7 +138,7 @@ tail -1 data/predicciones.jsonl
 
 → **[M08-02 — Gobierno y trazabilidad](M08-02-gobierno-trazabilidad.md)**
 
-Dictaminarás dos piezas cambiando la versión entre medias, comprobarás que el rastro no se reescribe, verificarás que la huella del registro es la del modelo en disco y clasificarás el uso del sistema.
+Dictaminarás dos piezas cambiando la versión entre medias, comprobarás que el rastro no se reescribe, verificarás que la [huella](../glosario/05-operacion-gobierno.md#version-huella) del registro es la del modelo en disco y clasificarás el uso del sistema.
 
 ---
 
@@ -154,7 +154,7 @@ Saber qué se expone y protegerlo con medidas comprobables, y poder explicar cad
 |-----------|------------------------|
 | Inventario de superficies y medidas concretas | M08-01 |
 | Comprobar que las medidas se cumplen | M08-01 |
-| Canales con autenticación y servicios solo donde hacen falta | M08-01 |
+| Canales con [autenticación](../glosario/05-operacion-gobierno.md#autenticacion) y servicios solo donde hacen falta | M08-01 |
 | Registro de cada decisión con entrada, dictamen, modelo y hora | M08-02 |
 | Clasificar el uso: asiste o decide | M08-02 |
 
@@ -164,7 +164,7 @@ Saber qué se expone y protegerlo con medidas comprobables, y poder explicar cad
 |-------|-------|------------|
 | Un dictamen falso aceptado por el broker | Demo del bloque 1 | El canal también es superficie |
 | Una medida escrita que no se cumple | M08-01 | Hay que comprobar, no solo declarar |
-| Variables OPC-UA que cualquiera puede escribir | M08-01 | Lo que lee el SCADA puede falsearse |
+| Variables OPC-UA que cualquiera puede escribir | M08-01 | Lo que lee el [SCADA](../glosario/01-datos-arquitectura.md#scada) puede falsearse |
 | La versión cambia y el modelo no | M07-01, M08-02 | La huella identifica el modelo; la etiqueta, no |
 
 ### Todo empieza en el M01

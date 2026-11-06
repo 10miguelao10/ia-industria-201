@@ -12,14 +12,14 @@ Comprender qué es **ejecutar un modelo generativo en local**: qué hace falta p
 
 ### Prerrequisitos
 
-- El fichero `infra/modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf` (~470 MB). Lo deja la prueba del puesto; si falta, paso 1.
+- El fichero `infra/modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf` (~[470 MB](../glosario/04-ia-generativa.md#cuantizacion)). Lo deja la prueba del puesto; si falta, paso 1.
 - RAM: el contenedor `llm` tiene un techo de 2 GB. CPU, sin GPU.
 
 ### Qué está pasando
 
 Los **técnicos de mantenimiento** quieren un asistente al que preguntar cosas de la estación en lenguaje normal. La condición de la planta es clara: **ningún dato sale de la fábrica**. Nada de enviar preguntas ni procedimientos a un servicio de internet.
 
-La solución es un **modelo de lenguaje que se ejecuta en el propio puesto**. Es pequeño (Qwen2.5 de 0,5B, 500 millones de parámetros, comprimido a 4 bits), funciona en CPU y no necesita GPU. En este lab lo arrancas y mides lo que tarda en responder, que es lo que decide si el asistente es usable en planta.
+La solución es un **[modelo de lenguaje](../glosario/04-ia-generativa.md#llm) que se ejecuta en el propio puesto**. Es pequeño (Qwen2.5 de 0,5B, 500 millones de parámetros, comprimido a 4 bits), funciona en CPU y no necesita GPU. En este lab lo arrancas y mides lo que tarda en responder, que es lo que decide si el asistente es usable en planta.
 
 ### 1 — Tener el modelo en disco
 
@@ -113,7 +113,7 @@ ia-linea-llm-1        192MiB / 2GiB
 real	0m2,759s
 ```
 
-**Cómo se lee:** el contenedor marca unos 200 MB porque el modelo se lee del fichero según lo necesita (el sistema lo mantiene en memoria caché, que `docker stats` no cuenta entera). El tiempo es lo que importa: aquí, menos de 3 segundos para 200 tokens; en un portátil más modesto, varias veces más. Ese número decide si el asistente es usable en el puesto: un técnico no espera un minuto por una respuesta.
+**Cómo se lee:** el contenedor marca unos 200 MB porque el modelo se lee del fichero según lo necesita (el sistema lo mantiene en memoria caché, que `docker stats` no cuenta entera). El tiempo es lo que importa: aquí, menos de 3 segundos para 200 [tokens](../glosario/04-ia-generativa.md#token); en un portátil más modesto, varias veces más. Ese número decide si el asistente es usable en el puesto: un técnico no espera un minuto por una respuesta.
 
 ## Experimenta: la misma pregunta, tres veces
 
@@ -135,7 +135,7 @@ respuesta: El tornillo de la brida de EST-01 se aprieta con el pincho de la esta
 respuesta: El tornillo de la brida de EST-01 se aprieta con el pinza de la estación.
 ```
 
-**Cómo se lee:** **tres respuestas distintas e inventadas**. El modelo elige cada palabra con algo de azar, así que no es determinista; y como no conoce el procedimiento, se inventa algo que suene a respuesta. Las dos cosas juntas dicen cómo **no** usar un modelo de lenguaje: como fuente de datos de la planta. En el M05-03 verás cómo se corrige.
+**Cómo se lee:** **tres respuestas distintas e [inventadas](../glosario/04-ia-generativa.md#alucinacion)**. El modelo elige cada palabra [con algo de azar](../glosario/04-ia-generativa.md#temperatura-llm), así que no es determinista; y como no conoce el procedimiento, se inventa algo que suene a respuesta. Las dos cosas juntas dicen cómo **no** usar un modelo de lenguaje: como fuente de datos de la planta. En el M05-03 verás cómo se corrige.
 
 ## Reto
 
@@ -146,7 +146,7 @@ respuesta: El tornillo de la brida de EST-01 se aprieta con el pinza de la estac
 <details>
 <summary>Ver solución</summary>
 
-Sin GPU y con 2 GB para el contenedor no respondería a tiempo. El de 0,5B cabe y basta para ver inferencia, recuperación de documentos y los límites de un modelo pequeño.
+Sin GPU y con 2 GB para el contenedor no respondería a tiempo. El de 0,5B cabe y basta para ver [inferencia](../glosario/05-operacion-gobierno.md#inferencia), recuperación de documentos y los límites de un modelo pequeño.
 
 </details>
 
@@ -185,7 +185,7 @@ Es un modelo de lenguaje que se ejecuta **en el propio equipo**, sin enviar nada
 
 - Se empieza por la **condición de la planta** (aquí: ningún dato sale de la fábrica, sin GPU).
 - Se elige el **modelo más capaz que responda a tiempo** en el equipo real.
-- Se compensa su tamaño dándole **buen contexto** (los documentos de la planta, en M05-03) en lugar de esperar que lo sepa todo.
+- Se compensa su tamaño dándole **[buen contexto](../glosario/04-ia-generativa.md#contexto)** (los documentos de la planta, en M05-03) en lugar de esperar que lo sepa todo.
 
 ### En una frase
 

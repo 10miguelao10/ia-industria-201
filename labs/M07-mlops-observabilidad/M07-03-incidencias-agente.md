@@ -8,17 +8,17 @@
 
 ### Objetivo
 
-Comprender cómo se **procesan incidencias con un agente y un modelo local**: qué parte del trabajo hace el código y qué parte el modelo, cómo debe ser un agente que diagnostica sin tocar el proceso, cómo se detecta que su diagnóstico no es fiable y cómo se mejora.
+Comprender cómo se **procesan [incidencias](../glosario/05-operacion-gobierno.md#incidencia) con un [agente](../glosario/04-ia-generativa.md#agente) y un modelo local**: qué parte del trabajo hace el código y qué parte el modelo, cómo debe ser un agente que diagnostica sin tocar el proceso, cómo se detecta que su diagnóstico no es fiable y cómo se mejora.
 
 ### Prerrequisitos
 
-- M01-03 hecho: `prometheus` en marcha, con la estación y el archivador publicando métricas.
+- M01-03 hecho: `prometheus` en marcha, con la estación y el archivador publicando [métricas](../glosario/02-observabilidad.md#metrica).
 - M05-01 hecho: el fichero del modelo en `infra/modelos/`.
 - `mosquitto`, `sensor`, `archivador`, `prometheus` y `llm` en marcha. Para el panel si lo tienes arrancado: el modelo pide memoria.
 
 ### Qué está pasando
 
-En el M01-03 las alertas aparecían en Prometheus, pero alguien tenía que verlas, entender qué significaban, buscar los datos y decidir qué hacer. De madrugada, con varias alertas a la vez, eso cuesta.
+En el M01-03 las [alertas](../glosario/02-observabilidad.md#alerta) aparecían en [Prometheus](../glosario/02-observabilidad.md#prometheus), pero alguien tenía que verlas, entender qué significaban, buscar los datos y decidir qué hacer. De madrugada, con varias alertas a la vez, eso cuesta.
 
 Un **agente de incidencias** hace el primer trabajo: cuando hay una alerta, **reúne los datos**, **consulta el procedimiento** y **redacta un diagnóstico con la acción propuesta**. No ejecuta nada: la acción la decide y la hace una persona.
 
@@ -40,11 +40,11 @@ Un **agente de incidencias** hace el primer trabajo: cuando hay una alerta, **re
 
 El reparto es deliberado. Ya viste en el M05 que un modelo de 0,5B no siempre obedece: por eso **la elección de herramientas no se la dejamos al modelo**. El código decide qué mirar; el modelo solo pone las palabras.
 
-El **runbook** (`infra/linea/docs/runbook-est01.md`) es el documento que dice qué hacer ante cada alerta. Es el equivalente del procedimiento del M05-03, pero para incidencias.
+El **[runbook](../glosario/04-ia-generativa.md#runbook)** (`infra/linea/docs/runbook-est01.md`) es el documento que dice qué hacer ante cada alerta. Es el equivalente del procedimiento del M05-03, pero para incidencias.
 
 | En la realidad | En este laboratorio |
 |----------------|---------------------|
-| Sistema de alertas (Alertmanager, SCADA) | Prometheus del M01-03 |
+| Sistema de alertas (Alertmanager, [SCADA](../glosario/01-datos-arquitectura.md#scada)) | Prometheus del M01-03 |
 | Runbook o procedimiento de incidencias | `infra/linea/docs/runbook-est01.md` |
 | Asistente de guardia o ticket de incidencia | El comando `m07-03` y `data/incidencias.jsonl` |
 
@@ -87,7 +87,7 @@ FALLO: no hay alertas activas; provoca una incidencia primero
 
 Aquí el `FALLO` es lo esperado: no hay nada que diagnosticar.
 
-> Si en el M01-03 corregiste `archivador.py`, el reinicio del broker ya no deja de guardar. Para ver la incidencia completa, vuelve al archivador original con `git checkout linea/archivador.py` y `docker compose restart archivador`.
+> Si en el M01-03 corregiste `archivador.py`, el reinicio del [broker](../glosario/01-datos-arquitectura.md#broker) ya no deja de guardar. Para ver la incidencia completa, vuelve al archivador original con `git checkout linea/archivador.py` y `docker compose restart archivador`.
 
 ### 3 — Provocar una incidencia
 
@@ -131,7 +131,7 @@ Tarda unos segundos: el modelo redacta un diagnóstico por cada alerta, en la CP
 | Línea | Quién la produce | ¿Te puedes fiar? |
 |-------|------------------|------------------|
 | `herramientas` | El código, según la alerta | Sí: es una tabla fija (`PLAN` en `cli.py`) |
-| `hechos` | Las herramientas, midiendo Prometheus y el histórico | Sí: son medidas |
+| `hechos` | Las herramientas, midiendo Prometheus y el [histórico](../glosario/01-datos-arquitectura.md#historico) | Sí: son medidas |
 | `diagnóstico` | El modelo local | **Hay que comprobarlo contra los hechos** |
 
 <details>
@@ -209,7 +209,7 @@ FALLO: no hay alertas activas; provoca una incidencia primero
 
 ## Investiga el registro de incidencias
 
-**Qué ocurre:** cada diagnóstico queda en `data/incidencias.jsonl`, una línea por incidencia. Es la trazabilidad del agente: qué alerta, qué midió, qué dijo y en qué estado quedó.
+**Qué ocurre:** cada diagnóstico queda en `data/incidencias.jsonl`, una línea por incidencia. Es la [trazabilidad](../glosario/05-operacion-gobierno.md#trazabilidad) del agente: qué alerta, qué midió, qué dijo y en qué estado quedó.
 
 ```bash
 tail -1 data/incidencias.jsonl
@@ -267,7 +267,7 @@ No en este punto. Ya has visto que el diagnóstico puede contradecir los datos: 
 
 ### 2 — Una alerta sin herramientas propias
 
-Baja el umbral de `TemperaturaHusilloAlta` a 62,5 °C y su `for` a 0 s, como en el M01-03, y lanza el agente cuando esté activa. ¿Qué herramientas usa y qué propone?
+Baja el [umbral](../glosario/03-aprendizaje-automatico.md#umbral) de `TemperaturaHusilloAlta` a 62,5 °C y su `for` a 0 s, como en el M01-03, y lanza el agente cuando esté activa. ¿Qué herramientas usa y qué propone?
 
 <details>
 <summary>Ver solución</summary>

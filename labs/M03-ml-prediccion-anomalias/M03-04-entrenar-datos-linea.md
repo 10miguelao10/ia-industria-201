@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué supone **entrenar con datos recogidos de la propia producción**: cómo debe partirse un dataset real, qué puede descubrir un modelo sobre el proceso, qué límites le ponen los datos y las etiquetas, y cómo se mejora recogiendo mejor.
+Comprender qué supone **entrenar con datos recogidos de la propia producción**: cómo debe partirse un [dataset](../glosario/01-datos-arquitectura.md#dataset) real, qué puede descubrir un modelo sobre el proceso, qué límites le ponen los datos y las [etiquetas](../glosario/03-aprendizaje-automatico.md#etiqueta), y cómo se mejora recogiendo mejor.
 
 ### Prerrequisitos
 
@@ -17,7 +17,7 @@ Comprender qué supone **entrenar con datos recogidos de la propia producción**
 
 ### Qué está pasando
 
-Hasta ahora, en M03-01 a M03-03, los modelos aprendían de un histórico generado de golpe por el laboratorio. En el M02-04 construiste **tu propio dataset**: las carcasas que tu estación ha fabricado, con las señales que guardó el archivador y el resultado que apuntó calidad.
+Hasta ahora, en M03-01 a M03-03, los modelos aprendían de un [histórico](../glosario/01-datos-arquitectura.md#historico) generado de golpe por el laboratorio. En el M02-04 construiste **tu propio dataset**: las carcasas que tu estación ha fabricado, con las [señales](../glosario/03-aprendizaje-automatico.md#senal) que guardó el archivador y el resultado que apuntó calidad.
 
 Ahora entrenas con él. Es lo que haría un equipo en planta: no hay un fichero preparado, sino unos cientos de piezas de unos minutos de producción, con sus huecos y sus errores de inspección.
 
@@ -25,8 +25,8 @@ Vas a entrenar los dos tipos de modelo que ya conoces, con la misma regla del M0
 
 | Modelo | Qué es |
 |--------|--------|
-| Árbol de decisión | Reglas del tipo «si la corriente pasa de X y la vibración de Y…». Se puede leer |
-| Red neuronal (32 neuronas) | La que pruebas en el «Experimenta» del M03-03, con las señales escaladas. En el M04-04 verás cómo se entrena paso a paso. No se puede leer |
+| [Árbol de decisión](../glosario/03-aprendizaje-automatico.md#arbol) | Reglas del tipo «si la corriente pasa de X y la vibración de Y…». Se puede leer |
+| Red neuronal (32 neuronas) | La que pruebas en el «Experimenta» del M03-03, con las señales [escaladas](../glosario/03-aprendizaje-automatico.md#escalado). En el M04-04 verás cómo se entrena paso a paso. No se puede leer |
 
 Y vas a ver algo que en el M03 no podías: **qué señales ha usado el modelo**, para compararlo con el criterio de calidad que descubriste a mano en el M02-04.
 
@@ -55,7 +55,7 @@ OK m03-04: árbol recall=0.83 fpr=0.01; red recall=0.67 fpr=0.02
 
 **Cómo se lee:**
 
-- **Los dos modelos encuentran la mayoría de los defectos** de las carcasas más recientes, con muy pocas falsas alarmas.
+- **Los dos modelos encuentran la mayoría de los defectos** de las carcasas más recientes, con muy pocas [falsas alarmas](../glosario/03-aprendizaje-automatico.md#matriz-confusion).
 - **El árbol gana a la red** en estos datos: con tres señales y unos cientos de piezas, un modelo sencillo basta.
 - **La importancia** dice cuánto ha usado el árbol cada señal. Corriente y vibración suman el 90 %: **son las mismas dos señales** del criterio que descubriste en el M02-04. El modelo ha encontrado el criterio de calidad sin que nadie se lo dijera.
 - La temperatura pesa poco: no influye en el defecto, y lo poco que pesa es el árbol ajustándose al ruido.

@@ -7,16 +7,16 @@
 
 ## Qué aprenderás
 
-- Distinguir qué hace la planta (OT), qué hace el sistema de información (IT) y qué añade la IA.
-- Reconocer las piezas de una **arquitectura de datos industrial** y seguir un dato desde la máquina hasta el histórico.
+- Distinguir qué hace la planta ([OT](../glosario/01-datos-arquitectura.md#ot)), qué hace el sistema de información (IT) y qué añade la IA.
+- Reconocer las piezas de una **arquitectura de datos industrial** y seguir un dato desde la máquina hasta el [histórico](../glosario/01-datos-arquitectura.md#historico).
 - Interpretar un **panel de supervisión** y saber cuándo no puedes fiarte de lo que enseña.
-- Vigilar la propia arquitectura con **métricas y alertas**, y detectar fallos que no dan ningún error.
+- Vigilar la propia arquitectura con **[métricas](../glosario/02-observabilidad.md#metrica) y [alertas](../glosario/02-observabilidad.md#alerta)**, y detectar fallos que no dan ningún error.
 - Entender por qué todo esto va **antes** de cualquier modelo de IA.
 
 | Bloque | Concepto | Laboratorio |
 |--------|----------|-------------|
 | 1 | Arquitectura de datos: el camino del dato | [M01-01](M01-01-arquitectura-datos.md) |
-| 2 | Observabilidad: del dato al indicador | [M01-02](M01-02-visualizacion-supervision.md) |
+| 2 | [Observabilidad](../glosario/02-observabilidad.md#observabilidad): del dato al indicador | [M01-02](M01-02-visualizacion-supervision.md) |
 | 3 | Métricas y alertas: vigilar la arquitectura | [M01-03](M01-03-metricas-alertas.md) |
 
 ## Antes de empezar
@@ -42,9 +42,9 @@ Una solución industrial con IA no empieza en el modelo. Empieza en una señal d
 
 | Etapa | Qué decide | Límite |
 |-------|------------|--------|
-| Automatismo y SCADA | Umbrales y enclavamientos escritos por una persona | No ve combinaciones raras de varias señales |
+| Automatismo y [SCADA](../glosario/01-datos-arquitectura.md#scada) | Umbrales y enclavamientos escritos por una persona | No ve combinaciones raras de varias señales |
 | Histórico y MES | Qué ha pasado en el turno | Describe; no anticipa |
-| Modelo | Una estimación (defecto, anomalía, asistencia) a partir de ejemplos | Se equivoca, y hay que vigilarlo |
+| Modelo | Una estimación (defecto, [anomalía](../glosario/03-aprendizaje-automatico.md#anomalia), asistencia) a partir de ejemplos | Se equivoca, y hay que vigilarlo |
 
 > [!IMPORTANT]
 > El modelo **no sustituye** el enclavamiento de seguridad. Informa a una persona o a un automatismo que ya tiene sus propias protecciones.
@@ -65,7 +65,7 @@ Este módulo trabaja los dos primeros eslabones y el de vigilancia. Los modelos 
 
 ### La línea del curso: EST-01
 
-Todo el curso trabaja sobre **EST-01**, una estación de mecanizado de carcasas simulada. Fabrica **unas 60 carcasas por minuto**, pero no con la precisión de un reloj: el tiempo de ciclo varía un poco de una carcasa a otra, las primeras tras arrancar van más lentas y de vez en cuando hay **microparadas** de unos segundos, como en una máquina real. Mientras mecaniza cada carcasa, tres sensores miden la temperatura del husillo, la vibración y la corriente del motor. Cada pieza de la arquitectura es un contenedor Docker en tu puesto.
+Todo el curso trabaja sobre **EST-01**, una estación de mecanizado de [carcasas](../glosario/01-datos-arquitectura.md#pieza) simulada. Fabrica **unas 60 carcasas por minuto**, pero no con la precisión de un reloj: el [tiempo de ciclo](../glosario/01-datos-arquitectura.md#tiempo-ciclo) varía un poco de una carcasa a otra, las primeras tras arrancar van más lentas y de vez en cuando hay **microparadas** de unos segundos, como en una máquina real. Mientras mecaniza cada carcasa, tres sensores miden la temperatura del husillo, la vibración y la corriente del motor. Cada pieza de la arquitectura es un contenedor Docker en tu puesto.
 
 ---
 
@@ -84,10 +84,10 @@ Una **arquitectura de datos industrial** es la cadena de componentes que lleva e
 | Pieza | En EST-01 | Qué hace | Qué **no** hace |
 |-------|-----------|----------|-----------------|
 | Origen | `sensor` | Al terminar cada carcasa, publica su **registro**: pieza, hora y medidas | — |
-| Transporte | `mosquitto` (broker MQTT) | Entrega una copia de cada registro a todos los suscritos | **No guarda nada.** Lo que nadie escucha se pierde |
+| Transporte | `mosquitto` ([broker](../glosario/01-datos-arquitectura.md#broker) [MQTT](../glosario/01-datos-arquitectura.md#mqtt)) | Entrega una copia de cada registro a todos los suscritos | **No guarda nada.** Lo que nadie escucha se pierde |
 | Almacén | `archivador` + `historial.sqlite` | Guarda cada registro como una fila | No comprueba si un identificador ya existía |
 
-En planta, el origen sería la máquina, sus sensores, el PLC y una pasarela que publica; el almacén, un historian o la base de datos del MES.
+En planta, el origen sería la máquina, sus sensores, el PLC y una [pasarela](../glosario/01-datos-arquitectura.md#pasarela) que publica; el almacén, un historian o la base de datos del MES.
 
 > [!NOTE]
 > **Dos viajes distintos.** La pieza física viaja por las estaciones de la línea (mecanizado → montaje → calidad). Su **registro** viaja por las piezas de la arquitectura (sensor → transporte → almacén → panel). En el laboratorio solo hay una estación: cada registro es una carcasa distinta que termina su ciclo allí.
@@ -240,7 +240,7 @@ Para saber si el proceso va bien, la máquina tiene que **emitir señales** y al
 El **panel** es la capa que convierte el histórico en **indicadores**: enseña la última carcasa, la tendencia y un aviso con un **margen fijo de 70 °C**, el del procedimiento de la estación. Es una regla escrita por una persona, no un modelo.
 
 Dos precisiones:
-- El panel enseña **indicadores de proceso** (temperatura, vibración), no **KPI de producción** como el OEE o la tasa de rechazo.
+- El panel enseña **indicadores de proceso** (temperatura, vibración), no **[KPI](../glosario/02-observabilidad.md#kpi) de producción** como el OEE o la tasa de rechazo.
 - Un aviso en pantalla **no es una alerta**: solo lo ve quien esté mirando. Las alertas llegan en el bloque 3.
 
 ### Demostración
@@ -355,7 +355,7 @@ Calcularás los indicadores tú, moverás el margen para ver cómo se comporta e
 
 El panel vigila **el proceso**. Pero ¿quién vigila **la arquitectura que trae los datos**? Si el archivador deja de guardar, el panel sigue en verde con datos viejos.
 
-Para eso, cada componente publica unos pocos **números sobre sí mismo** (sus **métricas**): cuántas carcasas ha fabricado la estación, cuántos registros ha guardado el archivador, cuándo guardó el último. **Prometheus** va a preguntarlos cada 5 segundos y unas **reglas de alerta** los revisan, mire quien mire la pantalla.
+Para eso, cada componente publica unos pocos **números sobre sí mismo** (sus **métricas**): cuántas carcasas ha fabricado la estación, cuántos registros ha guardado el archivador, cuándo guardó el último. **[Prometheus](../glosario/02-observabilidad.md#prometheus)** va a preguntarlos cada 5 segundos y unas **reglas de alerta** los revisan, mire quien mire la pantalla.
 
 ```
  sensor :9102/metrics ─────┐
@@ -528,7 +528,7 @@ La cadena que lleva el dato desde la máquina hasta quien lo usa: **origen → t
 
 ### Cómo se perfecciona
 
-Clave de pieza que no se repite (MES, DataMatrix) más la hora; conciliación de lo fabricado con lo registrado; indicadores con la hora del último dato; alertas que vigilan el trabajo de cada componente, no solo que esté vivo; reconexiones correctas, y, para no perder nada en los cortes, QoS 1 o *store-and-forward* en el edge.
+Clave de pieza que no se repite (MES, DataMatrix) más la hora; conciliación de lo fabricado con lo registrado; indicadores con la [hora del último dato](../glosario/02-observabilidad.md#frescura); alertas que vigilan el trabajo de cada componente, no solo que esté vivo; reconexiones correctas, y, para no perder nada en los cortes, [QoS](../glosario/01-datos-arquitectura.md#qos) 1 o *store-and-forward* en el [edge](../glosario/01-datos-arquitectura.md#edge).
 
 ### En una frase
 

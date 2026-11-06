@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender cómo se **construye un dataset para entrenar a partir de la producción real**: de dónde salen las señales y de dónde las etiquetas, cómo deben unirse dos sistemas distintos, qué errores aparecen al unirlos y cómo se evitan.
+Comprender cómo se **construye un [dataset](../glosario/01-datos-arquitectura.md#dataset) para entrenar a partir de la producción real**: de dónde salen las señales y de dónde las [etiquetas](../glosario/03-aprendizaje-automatico.md#etiqueta), cómo deben unirse dos sistemas distintos, qué errores aparecen al unirlos y cómo se evitan.
 
 ### Prerrequisitos
 
@@ -17,7 +17,7 @@ Comprender cómo se **construye un dataset para entrenar a partir de la producci
 
 ### Qué está pasando
 
-En el M02-03 trabajaste con un histórico generado de golpe, con su columna `defecto` ya puesta. En una planta nadie te da eso: **hay que construirlo**. Las piezas de información vienen de dos sistemas distintos:
+En el M02-03 trabajaste con un [histórico](../glosario/01-datos-arquitectura.md#historico) generado de golpe, con su columna `defecto` ya puesta. En una planta nadie te da eso: **hay que construirlo**. Las piezas de información vienen de dos sistemas distintos:
 
 ```
  estación ──▶ broker ──┬──▶ archivador ──▶ historial.sqlite       (señales: temperatura, vibración, corriente)

@@ -7,9 +7,9 @@
 
 ## Qué aprenderás
 
-- Qué es un **modelo de aprendizaje automático** y cómo aprende de piezas pasadas.
+- Qué es un **[modelo](../glosario/03-aprendizaje-automatico.md#modelo) de aprendizaje automático** y cómo aprende de piezas pasadas.
 - Cómo se **evalúa** un modelo para que el resultado sea creíble, y qué números mirar.
-- Cómo se detectan **anomalías** sin tener ejemplos de defecto.
+- Cómo se detectan **[anomalías](../glosario/03-aprendizaje-automatico.md#anomalia)** sin tener ejemplos de defecto.
 - Cómo se **elige** el modelo que va a la línea con una regla escrita de antemano.
 - Qué pasa al entrenar con **datos de tu propia línea**.
 
@@ -22,20 +22,20 @@
 
 ## Antes de empezar
 
-Los bloques 1 a 3 usan el histórico preparado en el M02-03 (`infra/data/limpio.csv`). Si no lo tienes, genéralo:
+Los bloques 1 a 3 usan el [histórico](../glosario/01-datos-arquitectura.md#historico) preparado en el M02-03 (`infra/data/limpio.csv`). Si no lo tienes, genéralo:
 
 ```bash
 cd infra
 docker compose --profile lab run --rm --no-deps lab m02-03
 ```
 
-El bloque 4 usa el dataset propio del M02-04 (`infra/data/dataset_linea.csv`).
+El bloque 4 usa el [dataset](../glosario/01-datos-arquitectura.md#dataset) propio del M02-04 (`infra/data/dataset_linea.csv`).
 
 ## Introducción: de la regla escrita al modelo aprendido
 
 Hasta ahora, las decisiones las tomaban **reglas escritas por personas**: «si la temperatura pasa de 70 °C, avisa». Una regla así es clara, pero solo mira una señal y solo sabe lo que su autor supo escribir.
 
-Un **modelo** aprende la regla **a partir de ejemplos**: se le enseñan muchas piezas pasadas con sus señales y su resultado, y busca qué combinaciones de señales acaban en defecto.
+Un **modelo** aprende la regla **a partir de ejemplos**: se le enseñan muchas piezas pasadas con sus [señales](../glosario/03-aprendizaje-automatico.md#senal) y su resultado, y busca qué combinaciones de señales acaban en defecto.
 
 | | Regla escrita | Modelo aprendido |
 |--|---------------|------------------|
@@ -52,14 +52,14 @@ Un modelo **se equivoca**: la pregunta no es si acierta, sino **cuánto y en qu�
 
 ### Teoría
 
-Un **clasificador** recibe las señales de una pieza (temperatura, vibración, corriente, presión) y devuelve una **probabilidad de defecto**. Si pasa de un **umbral** (normalmente 0,5), dice «defecto».
+Un **clasificador** recibe las señales de una pieza (temperatura, vibración, corriente, presión) y devuelve una **probabilidad de defecto**. Si pasa de un **[umbral](../glosario/03-aprendizaje-automatico.md#umbral)** (normalmente 0,5), dice «defecto».
 
-Para saber si sirve, se le examina con piezas que **no ha visto**, y se cuentan cuatro casos:
+Para saber si sirve, se le examina con piezas que **[no ha visto](../glosario/03-aprendizaje-automatico.md#particion)**, y se cuentan cuatro casos:
 
 | | El modelo dijo «defecto» | El modelo dijo «buena» |
 |--|--------------------------|------------------------|
 | **Era defectuosa** | Defecto encontrado | **Defecto que se escapa** |
-| **Era buena** | **Falsa alarma** | Bien |
+| **Era buena** | **[Falsa alarma](../glosario/03-aprendizaje-automatico.md#matriz-confusion)** | Bien |
 
 En planta importan dos números: **cuántos defectos encuentra** (recall) y **cuántas piezas buenas para sin motivo** (falsas alarmas). El porcentaje de acierto global engaña cuando el defecto es raro.
 
@@ -138,7 +138,7 @@ Entrenarás un modelo con el pasado y lo examinarás con el futuro, leerás su m
 
 ### Teoría
 
-A veces **no hay etiqueta**: la máquina hace algo que no se había visto nunca (un rodamiento que empieza a fallar) y nadie ha marcado aún esas piezas. Un **detector de anomalías** no aprende qué es un defecto: aprende **cómo es lo normal** y avisa de lo que se aleja.
+A veces **no hay [etiqueta](../glosario/03-aprendizaje-automatico.md#etiqueta)**: la máquina hace algo que no se había visto nunca (un rodamiento que empieza a fallar) y nadie ha marcado aún esas piezas. Un **detector de anomalías** no aprende qué es un defecto: aprende **cómo es lo normal** y avisa de lo que se aleja.
 
 La clave es mirar **todas las señales a la vez**. Un ciclo puede tener cada señal dentro de su rango y ser raro en conjunto (por ejemplo, mucha vibración con muy poca corriente).
 
@@ -191,7 +191,7 @@ Cuando hay varios modelos candidatos, la elección es una **decisión de proceso
 2. La **regla de elección se escribe antes** de ver los resultados.
 3. El elegido queda con **nombre y versión**, porque es lo que se despliega y se audita.
 
-Y una cuarta, que en planta pesa mucho: **que se pueda explicar**. Un árbol de decisión se lee como reglas; una red neuronal, no.
+Y una cuarta, que en planta pesa mucho: **que se pueda explicar**. Un [árbol de decisión](../glosario/03-aprendizaje-automatico.md#arbol) se lee como reglas; una red neuronal, no.
 
 ### Demostración
 
@@ -243,7 +243,7 @@ entrenamiento     537           47
 
 → **[M03-03 — Comparación de modelos predictivos](M03-03-comparacion-modelos.md)**
 
-Compararás una regresión logística y un árbol con la misma vara, leerás las reglas que ha aprendido el árbol y añadirás una red neuronal como tercer candidato, con y sin escalar las señales.
+Compararás una [regresión logística](../glosario/03-aprendizaje-automatico.md#regresion-logistica) y un árbol con la misma vara, leerás las reglas que ha aprendido el árbol y añadirás una red neuronal como tercer candidato, con y sin [escalar](../glosario/03-aprendizaje-automatico.md#escalado) las señales.
 
 ---
 
@@ -307,7 +307,7 @@ Una regla que se aprende de ejemplos en lugar de escribirse. Mira todas las señ
 | Fallo | Dónde | Qué enseña |
 |-------|-------|------------|
 | Acierto del 94 % con 18 defectos escapados | Demo del bloque 1 | El acierto global engaña |
-| Modelo sin equilibrar que deja escapar defectos | M03-01 | Hay que decirle que el defecto es raro |
+| Modelo sin [equilibrar](../glosario/03-aprendizaje-automatico.md#desequilibrio) que deja escapar defectos | M03-01 | Hay que decirle que el defecto es raro |
 | Red sin escalar que no encuentra ningún defecto | M03-03 | Un error silencioso: el comando no falla |
 | Árbol que aprende un corte espurio | M03-04 | Con pocos datos, el modelo aprende parte del ruido |
 

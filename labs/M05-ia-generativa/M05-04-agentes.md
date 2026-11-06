@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué es un **agente**: cómo usa herramientas para trabajar con datos vivos, cómo debe controlarse lo que puede hacer, cómo se detecta un mal uso y cómo se diseña para que no toque el proceso.
+Comprender qué es un **[agente](../glosario/04-ia-generativa.md#agente)**: cómo usa herramientas para trabajar con datos vivos, cómo debe controlarse lo que puede hacer, cómo se detecta un mal uso y cómo se diseña para que no toque el proceso.
 
 ### Prerrequisitos
 
@@ -82,7 +82,7 @@ El estado sigue cambiando cada segundo, así que puede no coincidir ya con el de
 
 ## Comprueba tu entendimiento
 
-**La cifra no es inventada**
+**La cifra no es [inventada](../glosario/04-ia-generativa.md#alucinacion)**
 
 Compara el número de la frase del agente con el de `traza_agente.jsonl`.
 
@@ -158,7 +158,7 @@ Es un modelo al que se le dan **herramientas**: funciones que puede pedir que se
 
 - **Mínimo privilegio**: solo herramientas de lectura, y solo las necesarias.
 - Si alguna vez hace falta una acción, que **la confirme una persona** y que pase por los mismos controles que cualquier otra orden.
-- **Nunca** una herramienta que escriba en el paro de seguridad o en la consigna del proceso.
+- **Nunca** una herramienta que escriba en el paro de seguridad o en la [consigna](../glosario/05-operacion-gobierno.md#consigna) del proceso.
 
 ### En una frase
 

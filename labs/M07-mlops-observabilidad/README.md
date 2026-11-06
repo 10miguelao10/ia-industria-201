@@ -7,19 +7,19 @@
 
 ## Qué aprenderás
 
-- Cómo se publica un modelo como **servicio** y cómo se sabe qué modelo exacto ha dado cada dictamen.
+- Cómo se publica un modelo como **servicio** y cómo se sabe qué modelo exacto ha dado cada [dictamen](../glosario/05-operacion-gobierno.md#dictamen).
 - Por qué un modelo **se degrada sin avisar** y cómo se vigila.
-- Cómo un **agente local** puede diagnosticar las incidencias de la operación, y cómo se revisa lo que propone.
+- Cómo un **[agente](../glosario/04-ia-generativa.md#agente) local** puede diagnosticar las [incidencias](../glosario/05-operacion-gobierno.md#incidencia) de la operación, y cómo se revisa lo que propone.
 
 | Bloque | Concepto | Laboratorio |
 |--------|----------|-------------|
-| 1 | Servicio de inferencia | [M07-01](M07-01-servicio-inferencia.md) |
-| 2 | Monitorización y deriva | [M07-02](M07-02-monitorizacion.md) |
+| 1 | Servicio de [inferencia](../glosario/05-operacion-gobierno.md#inferencia) | [M07-01](M07-01-servicio-inferencia.md) |
+| 2 | Monitorización y [deriva](../glosario/05-operacion-gobierno.md#deriva) | [M07-02](M07-02-monitorizacion.md) |
 | 3 | Gestión de incidencias con un agente | [M07-03](M07-03-incidencias-agente.md) |
 
 ## Antes de empezar
 
-El bloque 1 y 2 necesitan el modelo de defecto del M03-03. El bloque 3, Prometheus (M01-03) y el modelo de lenguaje (M05).
+El bloque 1 y 2 necesitan el modelo de defecto del M03-03. El bloque 3, [Prometheus](../glosario/02-observabilidad.md#prometheus) (M01-03) y el [modelo de lenguaje](../glosario/04-ia-generativa.md#llm) (M05).
 
 ```bash
 cd infra
@@ -29,7 +29,7 @@ docker compose up -d api
 
 ## Introducción: un modelo en producción no está terminado
 
-Poner un modelo en marcha no es el final del trabajo. **MLOps** es todo lo que viene después: desplegarlo de forma controlada, saber en todo momento qué versión está contestando, vigilar si sigue sirviendo y tener un procedimiento cuando algo falla.
+Poner un modelo en marcha no es el final del trabajo. **[MLOps](../glosario/05-operacion-gobierno.md#mlops)** es todo lo que viene después: desplegarlo de forma controlada, saber en todo momento qué versión está contestando, vigilar si sigue sirviendo y tener un procedimiento cuando algo falla.
 
 ```
  entrenar ──▶ versionar ──▶ desplegar como servicio ──▶ vigilar ──▶ ¿degradado? ──▶ reentrenar ──▶ versionar…
@@ -43,7 +43,7 @@ Poner un modelo en marcha no es el final del trabajo. **MLOps** es todo lo que v
 
 Si cada aplicación (MES, panel de calidad, tablet de mantenimiento) tuviera su copia del modelo, cada una acabaría con una versión distinta. Por eso el modelo se publica como un **servicio**: un único proceso que tiene el modelo cargado y responde a todas.
 
-Para poder explicar cada dictamen, el servicio dice **qué versión** contestó. Pero una versión es una **etiqueta** que alguien escribe. Lo que identifica el modelo exacto es su **huella**: un código calculado a partir del propio fichero, que cambia si cambia un solo byte.
+Para poder explicar cada dictamen, el servicio dice **qué versión** contestó. Pero una versión es una **etiqueta** que alguien escribe. Lo que identifica el modelo exacto es su **[huella](../glosario/05-operacion-gobierno.md#version-huella)**: un código calculado a partir del propio fichero, que cambia si cambia un solo byte.
 
 ### Demostración
 
@@ -144,7 +144,7 @@ Medirás la tasa de piezas a revisión con el proceso normal y desplazado, con 2
 
 ### Teoría
 
-Cuando salta una alerta, alguien tiene que entender qué pasa, buscar los datos y decidir qué hacer. Un **agente de incidencias** hace el primer trabajo: reúne los datos con herramientas de lectura, consulta el **runbook** (el procedimiento de incidencias) y redacta un diagnóstico con la acción propuesta. **No ejecuta nada.**
+Cuando salta una [alerta](../glosario/02-observabilidad.md#alerta), alguien tiene que entender qué pasa, buscar los datos y decidir qué hacer. Un **agente de incidencias** hace el primer trabajo: reúne los datos con herramientas de lectura, consulta el **[runbook](../glosario/04-ia-generativa.md#runbook)** (el procedimiento de incidencias) y redacta un diagnóstico con la acción propuesta. **No ejecuta nada.**
 
 ### Demostración
 

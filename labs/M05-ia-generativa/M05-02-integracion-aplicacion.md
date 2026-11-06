@@ -18,7 +18,7 @@ Comprender cómo se **integra un modelo generativo en una aplicación**: qué co
 
 El técnico no va a abrir una terminal para hablar con el modelo: usará una **aplicación**, por ejemplo en la tablet del puesto o en la intranet de mantenimiento. Esa aplicación habla con el modelo por **HTTP**, mandando la pregunta y recibiendo la respuesta en JSON, igual que con cualquier otro servicio de la planta.
 
-También tiene que saber **fallar bien**. Si el servicio del modelo está caído, la aplicación debe decir «no hay servicio» y no quedarse colgada ni enseñar un texto inventado.
+También tiene que saber **fallar bien**. Si el servicio del modelo está caído, la aplicación debe decir «no hay servicio» y no quedarse colgada ni enseñar un texto [inventado](../glosario/04-ia-generativa.md#alucinacion).
 
 ### 0 — Ver el contrato del servicio
 
@@ -47,7 +47,7 @@ curl -s http://localhost:8088/v1/chat/completions \
 
 - `content` es el texto generado.
 - `finish_reason: "length"` indica que se cortó al llegar a `max_tokens`.
-- `usage` cuenta los tokens (trozos de palabra) de entrada y de salida.
+- `usage` cuenta los [tokens](../glosario/04-ia-generativa.md#token) (trozos de palabra) de entrada y de salida.
 
 ### 2 — Una aplicación que también sabe fallar
 

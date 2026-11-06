@@ -7,10 +7,10 @@
 
 ## Qué aprenderás
 
-- Qué es un **modelo de lenguaje** y qué supone ejecutarlo **en el propio puesto**.
+- Qué es un **[modelo de lenguaje](../glosario/04-ia-generativa.md#llm)** y qué supone ejecutarlo **en el propio puesto**.
 - Cómo se **integra** en una aplicación y cómo debe comportarse esa aplicación cuando el modelo falla.
-- Por qué un modelo **se inventa** respuestas y cómo se le hace responder desde los **documentos** de la planta.
-- Qué es un **agente** y cómo se limita lo que puede hacer.
+- Por qué un modelo **[se inventa](../glosario/04-ia-generativa.md#alucinacion)** respuestas y cómo se le hace responder desde los **documentos** de la planta.
+- Qué es un **[agente](../glosario/04-ia-generativa.md#agente)** y cómo se limita lo que puede hacer.
 
 | Bloque | Concepto | Laboratorio |
 |--------|----------|-------------|
@@ -21,7 +21,7 @@
 
 ## Antes de empezar
 
-El modelo es un fichero de unos 470 MB en `infra/modelos/`. Lo deja la prueba del puesto. El contenedor que lo ejecuta necesita hasta 2 GB de memoria: si tienes el panel o Prometheus en marcha y vas justo de memoria, páralos.
+El modelo es un fichero de unos [470 MB](../glosario/04-ia-generativa.md#cuantizacion) en `infra/modelos/`. Lo deja la prueba del puesto. El contenedor que lo ejecuta necesita hasta 2 GB de memoria: si tienes el panel o [Prometheus](../glosario/02-observabilidad.md#prometheus) en marcha y vas justo de memoria, páralos.
 
 ```bash
 cd infra
@@ -148,7 +148,7 @@ Llamarás al servicio como lo haría una aplicación, leerás su respuesta campo
 
 ### Teoría
 
-La forma de que un modelo responda sobre **tu** planta sin inventar es darle el texto que necesita **en la misma pregunta**. Se hace en dos pasos, lo que se conoce como **RAG** (recuperar y generar):
+La forma de que un modelo responda sobre **tu** planta sin inventar es darle el texto que necesita **en la misma pregunta**. Se hace en dos pasos, lo que se conoce como **[RAG](../glosario/04-ia-generativa.md#rag)** (recuperar y generar):
 
 ```
  pregunta ──▶ RECUPERAR: buscar el párrafo del procedimiento ──▶ GENERAR: el modelo responde usando solo ese párrafo

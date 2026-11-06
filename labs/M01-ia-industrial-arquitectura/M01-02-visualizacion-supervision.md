@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué es la **observabilidad de un proceso**: qué señales tiene que emitir para poder entender su estado, cómo se convierten en indicadores que se interpretan de un vistazo, qué límites tiene vigilar con un umbral fijo y cómo se completa.
+Comprender qué es la **[observabilidad](../glosario/02-observabilidad.md#observabilidad) de un proceso**: qué señales tiene que emitir para poder entender su estado, cómo se convierten en indicadores que se interpretan de un vistazo, qué límites tiene vigilar con un umbral fijo y cómo se completa.
 
 ### Prerrequisitos
 
@@ -26,7 +26,7 @@ En este lab trabajas la capa que convierte esas señales en **indicadores**: el 
  estación ──▶ broker ──▶ archivador ──▶ historial.sqlite ──▶ panel ──▶ operario
 ```
 
-El panel **no escucha al broker**: lee el histórico. Enseña tres indicadores de la última carcasa, la tendencia de las últimas 120 lecturas y un aviso con un **margen fijo de 70 °C**, el del procedimiento de la estación. Es una regla escrita por una persona, no un modelo.
+El panel **no escucha al [broker](../glosario/01-datos-arquitectura.md#broker)**: lee el [histórico](../glosario/01-datos-arquitectura.md#historico). Enseña tres indicadores de la última [carcasa](../glosario/01-datos-arquitectura.md#pieza), la tendencia de las últimas 120 lecturas y un aviso con un **margen fijo de 70 °C**, el del procedimiento de la estación. Es una regla escrita por una persona, no un modelo.
 
 Conviene distinguir tres cosas que se parecen:
 
@@ -36,11 +36,11 @@ Conviene distinguir tres cosas que se parecen:
 | **Observabilidad** | ¿Puedo entender qué le pasa al proceso con lo que emite, incluso ante preguntas no previstas? | En tiempo real y después | Panel + logs (M01-01, paso 3) + histórico consultable con `lab sql` |
 | **Análisis a posteriori** | ¿Qué pasó, por qué y con qué se relaciona? | Después | Preparación de datos y modelos (M02 y M03) |
 
-Y una precisión: el panel enseña **indicadores de proceso** (temperatura, vibración, lecturas fuera de margen). No enseña **KPI de producción** como el OEE, el tiempo de ciclo o la tasa de rechazo. Vigila la salud del proceso, no el rendimiento de la línea.
+Y una precisión: el panel enseña **indicadores de proceso** (temperatura, vibración, lecturas fuera de margen). No enseña **[KPI](../glosario/02-observabilidad.md#kpi) de producción** como el OEE, el [tiempo de ciclo](../glosario/01-datos-arquitectura.md#tiempo-ciclo) o la tasa de rechazo. Vigila la salud del proceso, no el rendimiento de la línea.
 
 | En la realidad | En este laboratorio |
 |----------------|---------------------|
-| SCADA, HMI o un panel tipo Grafana sobre el histórico | Contenedor `panel` (Streamlit), código en `infra/linea/panel.py` |
+| [SCADA](../glosario/01-datos-arquitectura.md#scada), HMI o un panel tipo Grafana sobre el histórico | Contenedor `panel` (Streamlit), código en `infra/linea/panel.py` |
 | Margen de operación del procedimiento | 70 °C, en `infra/linea/config.py` |
 
 ### 1 — Arrancar el panel
@@ -106,7 +106,7 @@ fuera = int((df["temperatura_c"] > UMBRAL_TEMPERATURA).sum())       # regla fija
 
 Si la carcasa anterior pasó de 70 °C pero la última no, ¿de qué color está el recuadro?
 
-→ Verde. El color solo mira **la última** lectura. La anterior aparece en el contador «Lecturas fuera en esta ventana».
+→ Verde. El color solo mira **la última** lectura. La anterior aparece en el [contador](../glosario/02-observabilidad.md#metrica) «Lecturas fuera en esta ventana».
 
 ## Investiga: calcula tú los indicadores
 
@@ -272,7 +272,7 @@ docker compose start archivador
 
 ## Mejora el panel: ¿el dato está vivo?
 
-**Qué ocurre:** vas a añadir al panel lo que le faltaba en el reto 2: la **hora del último dato** y un aviso si lleva más de 10 segundos sin llegar nada. Es una mejora de observabilidad: el panel no solo vigila el proceso, también vigila que su propia información esté al día.
+**Qué ocurre:** vas a añadir al panel lo que le faltaba en el reto 2: la **[hora del último dato](../glosario/02-observabilidad.md#frescura)** y un aviso si lleva más de 10 segundos sin llegar nada. Es una mejora de observabilidad: el panel no solo vigila el proceso, también vigila que su propia información esté al día.
 
 Abre `infra/linea/panel.py` en VS Code. Busca esta línea:
 
@@ -313,9 +313,9 @@ Si quieres volver al panel original: `git checkout linea/panel.py` y `docker com
 
 ## IA sobre el dato: un resumen para el operario
 
-**Qué ocurre:** en lugar de mirar el panel, el operario le pide al **modelo de lenguaje local** (el que verás a fondo en el M05) que le diga en dos frases cómo va la estación. El comando `lab resumen` toma las últimas 60 lecturas del histórico, calcula unas medias y se las pasa al modelo para que redacte.
+**Qué ocurre:** en lugar de mirar el panel, el operario le pide al **[modelo de lenguaje](../glosario/04-ia-generativa.md#llm) local** (el que verás a fondo en el M05) que le diga en dos frases cómo va la estación. El comando `lab resumen` toma las últimas 60 lecturas del histórico, calcula unas medias y se las pasa al modelo para que redacte.
 
-Necesita el modelo en marcha. Si tienes Prometheus arrancado, puedes pararlo un momento para dejar memoria:
+Necesita el modelo en marcha. Si tienes [Prometheus](../glosario/02-observabilidad.md#prometheus) arrancado, puedes pararlo un momento para dejar memoria:
 
 ```bash
 docker compose up -d llm
@@ -375,7 +375,7 @@ datos: {…, "hora_actual": "2026-11-06T01:20:07+00:00", "segundos_desde_ultimo_
 resumen: La estación EST-01 está en funcionamiento y tiene una temperatura media de 62.07°C, … y no ha tenido lecturas por encima de 70°C en los últimos 60 minutos.
 ```
 
-**Cómo se lee:** con el dato delante (`97` segundos sin datos), el modelo **sigue diciendo que la estación está en funcionamiento**. Y además se inventa «los últimos 60 minutos»: son 60 lecturas, es decir, 60 segundos. Un modelo de lenguaje redacta con fluidez, pero **no razona** sobre si sus datos tienen sentido.
+**Cómo se lee:** con el dato delante (`97` segundos sin datos), el modelo **sigue diciendo que la estación está en funcionamiento**. Y además [se inventa](../glosario/04-ia-generativa.md#alucinacion) «los últimos 60 minutos»: son 60 lecturas, es decir, 60 segundos. Un modelo de lenguaje redacta con fluidez, pero **no razona** sobre si sus datos tienen sentido.
 
 ### 4 — Que lo compruebe el código
 
@@ -393,7 +393,7 @@ resumen: Sin datos nuevos desde hace 34 s (último: 2026-11-06T01:23:18+00:00). 
 OK resumen: comprobado por código: datos no actuales, no se pregunta al modelo
 ```
 
-**Cómo se lee:** la comprobación que importa la hace una regla sencilla y fiable, no el modelo. El modelo solo redacta cuando el dato es bueno. Es la misma idea que verás en el agente del M07-03: **el código mide y decide; el modelo pone las palabras**.
+**Cómo se lee:** la comprobación que importa la hace una regla sencilla y fiable, no el modelo. El modelo solo redacta cuando el dato es bueno. Es la misma idea que verás en el [agente](../glosario/04-ia-generativa.md#agente) del M07-03: **el código mide y decide; el modelo pone las palabras**.
 
 ## Errores frecuentes
 
@@ -443,7 +443,7 @@ Es poder entender el estado del proceso a partir de lo que emite. Necesita tres 
 | Datos congelados | Hora del último dato y aviso de dato no actual (lo has hecho) |
 | Ventanas distintas | Decir siempre en qué ventana se calcula cada indicador |
 | Escala compartida | Una gráfica por señal, cada una con su escala |
-| Aviso que solo ve quien mira | Alertas que llegan a alguien y se registran (M03-02 y M07-02) |
+| Aviso que solo ve quien mira | [Alertas](../glosario/02-observabilidad.md#alerta) que llegan a alguien y se registran (M03-02 y M07-02) |
 | Regla fija sobre una señal | Detectores y modelos que miran varias señales a la vez (M03) |
 | Un modelo de lenguaje que resume datos viejos sin avisar | Comprobar con código que el dato está al día antes de dejarle hablar (`resumen comprobado`) |
 

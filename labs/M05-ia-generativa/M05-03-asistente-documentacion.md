@@ -17,9 +17,9 @@ Comprender qué es un **asistente basado en documentación**: por qué un modelo
 
 ### Qué está pasando
 
-Un técnico pregunta: **«¿A qué par se aprieta el tornillo de la brida?»**. El modelo no sabe nada de EST-01, y si contesta de memoria puede inventarse un número que suene bien. En planta, un par de apriete inventado es una pieza mal montada.
+Un técnico pregunta: **«¿A qué par se aprieta el tornillo de la brida?»**. El modelo no sabe nada de EST-01, y si contesta de memoria puede inventarse un número que suene bien. En planta, un par de apriete [inventado](../glosario/04-ia-generativa.md#alucinacion) es una pieza mal montada.
 
-La respuesta tiene que salir del **procedimiento de la estación**. Así que antes de preguntar al modelo se busca el párrafo del procedimiento que habla de eso, y se le da junto con la pregunta y la instrucción de usar solo ese texto. Es lo que se conoce como recuperar y luego generar (RAG).
+La respuesta tiene que salir del **procedimiento de la estación**. Así que antes de preguntar al modelo se busca el párrafo del procedimiento que habla de eso, y se le da junto con la pregunta y la instrucción de usar solo ese texto. Es lo que se conoce como recuperar y luego generar ([RAG](../glosario/04-ia-generativa.md#rag)).
 
 Y si el procedimiento no dice nada del tema, lo correcto es decir que no está, no inventarlo.
 
@@ -174,7 +174,7 @@ No. La próxima pregunta recupera el párrafo nuevo. El modelo no se toca: por e
 
 ## Mejora: buscar solo con las palabras que importan
 
-**Qué ocurre:** quitas de la búsqueda las **palabras vacías** («a», «de», «la», «qué»…) y los títulos, que no dicen de qué trata un párrafo. La opción `filtrar` lo hace.
+**Qué ocurre:** quitas de la búsqueda las **[palabras vacías](../glosario/04-ia-generativa.md#palabras-vacias)** («a», «de», «la», «qué»…) y los títulos, que no dicen de qué trata un párrafo. La opción `filtrar` lo hace.
 
 ```bash
 docker compose --profile lab run --rm --no-deps lab buscar "¿A qué temperatura hay que avisar?" filtrar

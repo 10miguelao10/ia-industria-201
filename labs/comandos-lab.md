@@ -1,6 +1,6 @@
 # Fichas de los comandos `lab`
 
-[← Volver al índice del curso](../README.md)
+[← Volver al índice del curso](../README.md) · [Glosario de conceptos](glosario/README.md)
 
 En los laboratorios, muchas comprobaciones se lanzan así:
 

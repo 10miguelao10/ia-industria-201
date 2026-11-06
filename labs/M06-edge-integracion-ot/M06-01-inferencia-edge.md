@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué es la **inferencia en el edge**: por qué el modelo se ejecuta junto a la máquina, cómo debe medirse si llega a tiempo, qué riesgos tiene y cómo se asegura que funcione sin red.
+Comprender qué es la **[inferencia](../glosario/05-operacion-gobierno.md#inferencia) en el [edge](../glosario/01-datos-arquitectura.md#edge)**: por qué el modelo se ejecuta junto a la máquina, cómo debe medirse si llega a tiempo, qué riesgos tiene y cómo se asegura que funcione sin red.
 
 ### Prerrequisitos
 
@@ -17,7 +17,7 @@ Comprender qué es la **inferencia en el edge**: por qué el modelo se ejecuta j
 
 ### Qué está pasando
 
-El modelo de defecto del M03-03 tiene que dar su dictamen de cada carcasa **antes de que salga la siguiente**, y en EST-01 sale una por segundo. Además, la línea no puede depender de que funcione la red de la oficina o internet.
+El modelo de defecto del M03-03 tiene que dar su [dictamen](../glosario/05-operacion-gobierno.md#dictamen) de cada carcasa **antes de que salga la siguiente**, y en EST-01 sale una por segundo. Además, la línea no puede depender de que funcione la red de la oficina o internet.
 
 Por eso el modelo se ejecuta en el **equipo edge**, el ordenador que está junto a la máquina. En este laboratorio ese equipo es tu puesto: el modelo se carga desde un fichero del disco, sin ninguna dirección de red.
 
@@ -33,7 +33,7 @@ docker compose stop llm
 
 ### 2 — Medir en caliente
 
-Vas a cargar el modelo de defecto desde el disco y medir cuántos milisegundos tarda en dictaminar una pieza. La latencia que importa es la de la pieza siguiente, no la del arranque.
+Vas a cargar el modelo de defecto desde el disco y medir cuántos milisegundos tarda en dictaminar una pieza. La [latencia](../glosario/05-operacion-gobierno.md#latencia) que importa es la de la pieza siguiente, no la del arranque.
 
 ```bash
 docker compose --profile lab run --rm --no-deps lab m06-01
@@ -76,7 +76,7 @@ ms = (time.perf_counter() - t0) * 1000 / 20             # media por pieza
 
 ## Experimenta: otro modelo, el mismo tiempo
 
-**Qué ocurre:** mides la latencia del otro candidato del M03, la regresión logística. El parámetro `modelo` elige el fichero.
+**Qué ocurre:** mides la latencia del otro candidato del M03, la [regresión logística](../glosario/03-aprendizaje-automatico.md#regresion-logistica). El parámetro `modelo` elige el fichero.
 
 ```bash
 docker compose --profile lab run --rm --no-deps lab m06-01 modelo=modelo_logreg.joblib

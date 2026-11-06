@@ -8,7 +8,7 @@
 
 ### Objetivo
 
-Comprender qué es **predecir una anomalía a partir del comportamiento normal y actuar antes de que ocurra**: cómo se aprende lo normal de las métricas de la propia estación, cómo debe ser un sistema que propone o aplica una acción, cómo se detecta que el modelo ha aprendido mal, y cómo se pone un límite a lo que puede hacer.
+Comprender qué es **predecir una [anomalía](../glosario/03-aprendizaje-automatico.md#anomalia) a partir del [comportamiento normal](../glosario/03-aprendizaje-automatico.md#banda-normal) y actuar antes de que ocurra**: cómo se aprende lo normal de las [métricas](../glosario/02-observabilidad.md#metrica) de la propia estación, cómo debe ser un sistema que propone o aplica una acción, cómo se detecta que el modelo ha aprendido mal, y cómo se pone un límite a lo que puede hacer.
 
 ### Prerrequisitos
 
@@ -18,7 +18,7 @@ Comprender qué es **predecir una anomalía a partir del comportamiento normal y
 
 ### Qué está pasando
 
-La refrigeración del husillo puede fallar. Cuando pasa, la temperatura no salta de golpe: **sube poco a poco**, unos 3 °C por minuto. La alerta del M01-03 solo avisa al pasar de 70 °C, y para entonces se han fabricado minutos de carcasas con el husillo demasiado caliente.
+La refrigeración del husillo puede fallar. Cuando pasa, la temperatura no salta de golpe: **sube poco a poco**, unos 3 °C por minuto. La [alerta](../glosario/02-observabilidad.md#alerta) del M01-03 solo avisa al pasar de 70 °C, y para entonces se han fabricado minutos de carcasas con el husillo demasiado caliente.
 
 Un sistema que **conoce cómo se comporta la estación cuando va bien** puede ver antes que algo se sale de lo normal, y calcular hacia dónde va:
 
@@ -26,14 +26,14 @@ Un sistema que **conoce cómo se comporta la estación cuando va bien** puede ve
 |--|----------------------|----------------------------------|
 | Qué mira | Si la temperatura pasa de 70 °C | Si se sale de lo normal **y** hacia dónde va |
 | Cuándo avisa | Cuando ya ha pasado | Minutos antes |
-| Qué aprende | Nada: el umbral lo escribe una persona | El rango y la variación normales, de las métricas |
+| Qué aprende | Nada: el [umbral](../glosario/03-aprendizaje-automatico.md#umbral) lo escribe una persona | El rango y la variación normales, de las métricas |
 
-Y puede proponer una acción: **subir la refrigeración**. La estación acepta una **consigna** de refrigeración por MQTT (tema `linea/est01/consigna`), pero **solo entre los niveles 1 y 3**: el límite lo pone la propia máquina, no el modelo.
+Y puede proponer una acción: **subir la refrigeración**. La estación acepta una **[consigna](../glosario/05-operacion-gobierno.md#consigna)** de refrigeración por [MQTT](../glosario/01-datos-arquitectura.md#mqtt) ([tema](../glosario/01-datos-arquitectura.md#tema) `linea/est01/consigna`), pero **solo entre los niveles 1 y 3**: el límite lo pone la propia máquina, no el modelo.
 
 | En la realidad | En este laboratorio |
 |----------------|---------------------|
 | Fallo de refrigeración, desgaste de herramienta | `lab evento fallo-refrigeracion` (simulado) |
-| Historian o Prometheus con meses de datos | 10 minutos de métricas exportadas de Prometheus |
+| Historian o [Prometheus](../glosario/02-observabilidad.md#prometheus) con meses de datos | 10 minutos de métricas exportadas de Prometheus |
 | Modelo de comportamiento normal y de tendencia | `lab m06-03 aprender` y `lab m06-03 vigilar` |
 | Consigna del PLC con límites | Refrigeración 1–3, recortada por la estación |
 | Operario que confirma la acción | Tú, con `lab consigna 3` |
@@ -50,7 +50,7 @@ estacion_temperatura_husillo_celsius
 
 ### 2 — Exportar las métricas
 
-**Qué ocurre:** bajas de Prometheus los últimos 10 minutos de temperatura y tiempo de ciclo a un fichero, para usarlos como datos de entrenamiento. Es un comando de ayuda que usa la API de Prometheus (`query_range`).
+**Qué ocurre:** bajas de Prometheus los últimos 10 minutos de temperatura y [tiempo de ciclo](../glosario/01-datos-arquitectura.md#tiempo-ciclo) a un fichero, para usarlos como datos de entrenamiento. Es un comando de ayuda que usa la [API](../glosario/05-operacion-gobierno.md#api) de Prometheus (`query_range`).
 
 ```bash
 # Últimos 10 minutos, una muestra cada 5 s, a data/metricas.csv
@@ -271,7 +271,7 @@ curl -s http://localhost:9102/metrics | grep refrigeracion_nivel
 estacion_refrigeracion_nivel 3.0
 ```
 
-La estación ha aplicado **3**, su máximo. El límite está en la máquina: aunque el modelo (o una persona, o un mensaje falso en el broker) pida algo fuera de rango, la estación no lo hace. Es el diseño correcto: los límites de seguridad viven en el control, no en quien da la orden. Vuelve a `lab consigna 1`.
+La estación ha aplicado **3**, su máximo. El límite está en la máquina: aunque el modelo (o una persona, o un mensaje falso en el [broker](../glosario/01-datos-arquitectura.md#broker)) pida algo fuera de rango, la estación no lo hace. Es el diseño correcto: los límites de seguridad viven en el control, no en quien da la orden. Vuelve a `lab consigna 1`.
 
 </details>
 
