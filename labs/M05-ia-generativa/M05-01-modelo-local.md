@@ -137,16 +137,158 @@ respuesta: El tornillo de la brida de EST-01 se aprieta con el pinza de la estac
 
 **Cómo se lee:** **tres respuestas distintas e [inventadas](../glosario/04-ia-generativa.md#alucinacion)**. El modelo elige cada palabra [con algo de azar](../glosario/04-ia-generativa.md#temperatura-llm), así que no es determinista; y como no conoce el procedimiento, se inventa algo que suene a respuesta. Las dos cosas juntas dicen cómo **no** usar un modelo de lenguaje: como fuente de datos de la planta. En el M05-03 verás cómo se corrige.
 
+## Constrúyelo tú: tu propio cliente del modelo
+
+**Qué está pasando:** hasta aquí has preguntado al modelo con `curl` y con `lab preguntar`. Ahora escribes tú el cliente: compruebas que el servicio está vivo, le haces una pregunta, mides cuánto tarda y cuántos tokens usa, y averiguas cómo crece el tiempo con la longitud de la respuesta. Son los números con los que se decide si un modelo local sirve en un puesto.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** asegurarte de que tu código llega al modelo antes de preguntarle nada.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m05_01_mi_cliente_llm.py`](../../infra/construye/m05_01_mi_cliente_llm.py). Arriba están las **decisiones** (`PREGUNTA`, `LONGITUDES`); debajo, el paso 1 ya escrito: pide `/salud` al contenedor `llm`. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m05_01_mi_cliente_llm.py
+```
+
+**Resultado esperado:**
+
+```text
+salud: {'estado': 'ok', 'modelo': 'qwen2.5-0.5b-instruct-q4_k_m.gguf'}
+```
+
+**Cómo se lee:** el servicio contesta y dice qué fichero de modelo tiene cargado: el de 470 MB que descargaste. Todo pasa dentro de tu equipo: la dirección es `llm:8088`, el contenedor de al lado. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**.
+
+### 2 — Hacer una pregunta
+
+**Para qué:** hablar con el modelo exactamente como lo hará una aplicación de planta.
+
+**Qué ocurre:** mandas la `PREGUNTA` por HTTP, en el formato de mensajes que espera el servicio, y enseñas la respuesta y cuánto ha tardado.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+def preguntar(texto, max_tokens=80):
+    peticion = {"messages": [{"role": "user", "content": texto}], "max_tokens": max_tokens}
+    inicio = time.time()
+    respuesta = httpx.post(f"{LLM}/v1/chat/completions", json=peticion, timeout=180).json()
+    return respuesta, time.time() - inicio
+
+respuesta, segundos = preguntar(PREGUNTA)
+print(f"respuesta ({segundos:.1f} s): {respuesta['choices'][0]['message']['content']}")
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (línea nueva; cambian el texto y el tiempo):
+
+```text
+respuesta (1.8 s): El mantenimiento preventivo es una práctica que se utiliza para prevenir el uso excesivo de recursos y evitar el desperdicio. Este proceso se basa en la observación y la revisión periódicas de los sistemas y los equipos, con el objetivo de detectar y prevenir problemas antes de que se vuelvan negativos. Es un proceso que se utiliza en muchos sectores
+```
+
+**Cómo se lee:** una respuesta razonable en menos de dos segundos, sin GPU, aunque le pediste **una** frase y escribe tres, y se corta a media frase: llegó a los 80 tokens de `max_tokens`. La petición es un JSON con la conversación (`messages`) y un máximo de longitud; la respuesta, otro JSON. Cualquier aplicación que sepa hacer una petición HTTP puede usar el modelo.
+
+### 3 — Contar los tokens
+
+**Para qué:** medir el trabajo del modelo en su propia unidad.
+
+**Qué ocurre:** la respuesta trae, en `usage`, cuántos tokens tenía la pregunta y cuántos ha escrito el modelo. Con el tiempo, calculas los tokens por segundo.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+uso = respuesta["usage"]
+print(f"tokens: pregunta={uso['prompt_tokens']} respuesta={uso['completion_tokens']}  "
+      f"velocidad={uso['completion_tokens'] / segundos:.0f} tokens/s")
+```
+
+**Resultado esperado** (línea nueva; cambian los números):
+
+```text
+tokens: pregunta=44 respuesta=80  velocidad=45 tokens/s
+```
+
+**Cómo se lee:** unos 45 tokens por segundo en este equipo. La pregunta ocupa 44 tokens aunque tiene 9 palabras: el servicio añade por dentro las instrucciones de formato de la conversación. Un token es un trozo de palabra. Esta cifra decide si el modelo es usable: un técnico no espera un minuto por una respuesta.
+
+### 4 — Cómo crece el tiempo con la longitud
+
+**Para qué:** saber cuánto tardará una respuesta antes de pedirla.
+
+**Qué ocurre:** pides una respuesta larga con distintos máximos de tokens (`LONGITUDES`) y mides cuántos escribe y cuánto tarda en cada caso.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+print("max_tokens  escritos  segundos")
+for maximo in LONGITUDES:
+    r, s = preguntar("Escribe un párrafo largo sobre el mantenimiento de un husillo.", maximo)
+    print(f"{maximo:10d}  {r['usage']['completion_tokens']:8d}  {s:8.1f}")
+```
+
+**Resultado esperado** (líneas nuevas; cambian los números):
+
+```text
+max_tokens  escritos  segundos
+        20        20       0.5
+        80        80       1.4
+       200       200       3.3
+```
+
+**Cómo se lee:** el tiempo crece **casi en proporción a los tokens escritos**: unos 0,015 s por token, más un poco fijo por petición. El modelo escribe token a token, y cada uno cuesta lo mismo. Por eso, en una aplicación, `max_tokens` es también un límite de tiempo.
+
+### 5 — Decide tú: una pregunta de la planta
+
+**Para qué:** ver qué hace el modelo cuando le preguntas algo que no puede saber.
+
+**Qué ocurre:** cambias `PREGUNTA` por `"¿A qué par se aprieta el tornillo de la brida de EST-01? Si no lo sabes, di: no lo sé."` y ejecutas dos veces.
+
+**Resultado esperado** (dos ejecuciones; la respuesta cambia en cada una):
+
+```text
+respuesta (1.4 s): Lo siento, pero no puedo proporcionar información sobre mi personalidad o características específicas. Soy Qwen, un modelo de IA creado por Alibaba Cloud, y no tengo una personalidad ni características específicas. ...
+respuesta (3.1 s): Lo siento, pero no puedo proporcionar información sobre mi par o mi identidad personal. Soy un modelo de inteligencia artificial creado por Alibaba Cloud, y no tengo una identidad física ni una par. ...
+```
+
+**Cómo se lee:** no dice «no lo sé», y tampoco contesta a lo que le preguntas: **entiende la pregunta al revés** y habla de sí mismo («mi par», «mi identidad»). En otras ejecuciones se inventa una cifra, como en «Experimenta». Un modelo de 0,5 B no conoce la planta ni entiende bien el contexto: sin el documento, sus respuestas no son fiables ni cuando parecen prudentes. Pedirle prudencia en la pregunta no basta; hay que darle el dato, que es lo que harás en el M05-03. Vuelve a dejar la pregunta de antes.
 ## Reto
 
-### 1 — Modelo más grande
+### 1 — ¿Y un modelo más grande?
 
-¿Por qué este curso no usa un modelo de varios GB?
+**La situación:** alguien propone cambiar el modelo de 0,5 B (500 millones de parámetros) por uno de 7 B, que contesta mucho mejor. El contenedor `llm` tiene 2 GB de memoria y el técnico del puesto no debería esperar más de 30 s por una respuesta de unos 200 tokens.
+
+**Qué haces:** con la velocidad que mediste en el paso 3, añades al final de tu script un cálculo aproximado para modelos de 1,5 B y de 7 B. Supón que, sin GPU, la velocidad baja y la memoria sube en proporción a los parámetros, y que el fichero de 0,5 B ocupa 470 MB.
+
+**Pistas:** un modelo 14 veces más grande (7 / 0,5) escribe unas 14 veces más despacio y ocupa unas 14 veces más; los segundos para 200 tokens son `200 / velocidad`.
+
+**Lo que buscas:** qué tamaño de modelo cabe en el contenedor y responde a tiempo.
 
 <details>
 <summary>Ver solución</summary>
 
-Sin GPU y con 2 GB para el contenedor no respondería a tiempo. El de 0,5B cabe y basta para ver [inferencia](../glosario/05-operacion-gobierno.md#inferencia), recuperación de documentos y los límites de un modelo pequeño.
+```python
+# Reto 1: estimar otros tamaños con la velocidad medida
+velocidad = uso["completion_tokens"] / segundos
+print("modelo  tokens/s  segundos_para_200  memoria_aprox")
+for tamano in (0.5, 1.5, 7):
+    veces = tamano / 0.5
+    print(f"{tamano:4.1f} B  {velocidad / veces:8.1f}  {200 / (velocidad / veces):17.0f}  {470 * veces / 1000:10.1f} GB")
+```
+
+```text
+modelo  tokens/s  segundos_para_200  memoria_aprox
+ 0.5 B      64.6                  3         0.5 GB
+ 1.5 B      21.5                  9         1.4 GB
+ 7.0 B       4.6                 43         6.6 GB
+```
+
+El de **7 B tardaría más de 40 s** en cada respuesta y **no cabe** en 2 GB. El de 1,5 B todavía cabe y responde a tiempo, a costa de ser tres veces más lento. Tus números cambian con cada ejecución, porque la velocidad medida varía, pero la conclusión no. Es una estimación (la velocidad real depende del procesador y de cómo esté comprimido el modelo), pero da el orden de magnitud. **La regla:** el tamaño de un modelo local se elige por lo que cabe en el equipo del puesto y por el tiempo que se puede esperar, no por lo bien que contesta. Lo que le falta a un modelo pequeño se compensa dándole el documento (M05-03) o los datos (M05-04).
 
 </details>
 
@@ -157,6 +299,10 @@ Sin GPU y con 2 GB para el contenedor no respondería a tiempo. El de 0,5B cabe 
 | `FALLO: el servicio local no responde` | sigue cargando o falta el `.gguf` | `docker compose logs llm` y `ls -lh modelos/` |
 | `Falta el modelo en /modelos/…` en los logs | el fichero no está o tiene otro nombre | paso 1 |
 | tarda mucho | es la primera carga en CPU | espera a que `/salud` conteste antes de repetir |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `httpx.ConnectError` | el contenedor `llm` está parado o todavía cargando el modelo | `docker compose up -d llm` y espera a que `/salud` conteste |
 
 ## Conclusiones
 

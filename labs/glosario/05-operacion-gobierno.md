@@ -32,7 +32,7 @@ De menos a más autonomía. Cada escalón exige más garantías que el anterior.
 
 **En la línea:** en el M06-01, la regresión logística tarda 0,35 ms por pieza en el edge; un ciclo dura 1 s.
 
-**Lo usas en:** <!--usos:inferencia-->[M05-01](../M05-ia-generativa/M05-01-modelo-local.md) · [M06](../M06-edge-integracion-ot/README.md) · [M06-01](../M06-edge-integracion-ot/M06-01-inferencia-edge.md) · [M07](../M07-mlops-observabilidad/README.md) · [M07-01](../M07-mlops-observabilidad/M07-01-servicio-inferencia.md) · [M08](../M08-ciberseguridad-gobierno/README.md)<!--/usos-->
+**Lo usas en:** <!--usos:inferencia-->[M06](../M06-edge-integracion-ot/README.md) · [M06-01](../M06-edge-integracion-ot/M06-01-inferencia-edge.md) · [M07](../M07-mlops-observabilidad/README.md) · [M07-01](../M07-mlops-observabilidad/M07-01-servicio-inferencia.md) · [M08](../M08-ciberseguridad-gobierno/README.md)<!--/usos-->
 
 <a id="latencia"></a>
 ### Latencia

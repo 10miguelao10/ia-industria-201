@@ -159,19 +159,6 @@ respuesta: Sin más contexto, no puedo determinar exactamente la respuesta. …
 
 Con el párrafo equivocado, el modelo al menos dice que no lo sabe. Pero el dato estaba en el procedimiento.
 
-## Reto
-
-### 1 — Documento nuevo
-
-Si añades un párrafo al procedimiento, ¿hay que reentrenar el modelo?
-
-<details>
-<summary>Ver solución</summary>
-
-No. La próxima pregunta recupera el párrafo nuevo. El modelo no se toca: por eso este enfoque sirve para documentación que cambia.
-
-</details>
-
 ## Mejora: buscar solo con las palabras que importan
 
 **Qué ocurre:** quitas de la búsqueda las **[palabras vacías](../glosario/04-ia-generativa.md#palabras-vacias)** («a», «de», «la», «qué»…) y los títulos, que no dicen de qué trata un párrafo. La opción `filtrar` lo hace.
@@ -192,12 +179,214 @@ puntos  palabras en común                párrafo
 
 **Cómo se lee:** ahora gana el párrafo correcto. Pero solo con 1 punto: «avisar» no coincide con «avisa», la palabra que usa el procedimiento. Contar palabras exactas es frágil ante sinónimos y conjugaciones. Los asistentes reales buscan **por significado** (con *embeddings*, que convierten cada texto en números de forma que textos parecidos quedan cerca), y por eso encuentran el párrafo aunque la pregunta use otras palabras.
 
+## Constrúyelo tú: tu propio asistente con el procedimiento
+
+**Qué está pasando:** `lab m05-03` busca el párrafo del procedimiento y se lo da al modelo, todo por dentro. Ahora construyes tú el asistente entero, que es lo que se llama RAG: partes el documento en párrafos, eliges el que habla de la pregunta, se lo das al modelo con la orden de usar solo ese texto y **compruebas** que la respuesta sale de ahí. Al final le preguntas algo que el procedimiento no dice, y haces que conteste «no está» sin llegar a preguntar al modelo.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** tener el documento troceado, que es lo que el asistente va a buscar.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m05_03_mi_asistente.py`](../../infra/construye/m05_03_mi_asistente.py). Arriba están las **decisiones** (`PREGUNTA`, la lista de palabras vacías `VACIAS` y `MINIMO_PALABRAS`); debajo, el paso 1 ya escrito: lee `infra/linea/docs/procedimiento-est01.md` y lo parte en párrafos, sin los títulos. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m05_03_mi_asistente.py
+```
+
+**Resultado esperado:**
+
+```text
+el procedimiento tiene 5 párrafos (sin contar los títulos)
+```
+
+**Cómo se lee:** cada párrafo es un trozo que el asistente puede elegir para dárselo al modelo. Trocear es la primera decisión de un RAG: trozos demasiado largos meten texto que no importa; demasiado cortos, cortan la información. Aquí, un párrafo por apartado. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**.
+
+### 2 — Las palabras que importan
+
+**Para qué:** comparar textos por su contenido, sin que cuenten palabras que salen en cualquier frase.
+
+**Qué ocurre:** escribes una función que pasa un texto a minúsculas, se queda con sus palabras y quita las vacías. La pruebas con la pregunta.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+def palabras(texto):
+    todas = set(re.findall(r"[a-záéíóúñ0-9]+", texto.lower()))    # solo letras y números
+    return todas - VACIAS
+
+print("palabras de la pregunta:", sorted(palabras(PREGUNTA)))
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+palabras de la pregunta: ['aprieta', 'brida', 'par', 'tornillo']
+```
+
+**Cómo se lee:** de la pregunta solo quedan cuatro palabras: las que dicen de qué trata. «A», «qué», «se», «el» y «de» se han ido: salen en cualquier párrafo y harían ganar a uno equivocado, como viste en «Investiga».
+
+### 3 — Elegir el párrafo
+
+**Para qué:** encontrar el trozo del procedimiento que contesta a la pregunta.
+
+**Qué ocurre:** cuentas, para cada párrafo, cuántas palabras tiene en común con la pregunta, y te quedas con el que más tiene.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+def puntos(parrafo, pregunta):
+    return len(palabras(parrafo) & palabras(pregunta))      # palabras en común
+
+def elegir(pregunta):
+    mejor = max(parrafos, key=lambda p: puntos(p, pregunta))
+    return mejor, puntos(mejor, pregunta)
+
+parrafo, en_comun = elegir(PREGUNTA)
+print(f"párrafo elegido ({en_comun} palabras en común): {parrafo}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+párrafo elegido (4 palabras en común): El tornillo de la brida se aprieta a 12 N·m. Si el par queda por debajo, la pieza se manda a revisión y no se acepta en línea.
+```
+
+**Cómo se lee:** gana el párrafo del par de apriete, con el 12 N·m dentro. Es la «R» de RAG: **recuperar** el texto antes de generar. Esta búsqueda por palabras es la más sencilla; en el glosario tienes sus hermanos, como la búsqueda por significado, que encuentra «apretar» aunque el texto diga «par».
+
+### 4 — Preguntar con el párrafo delante
+
+**Para qué:** que el modelo conteste con el procedimiento, no de memoria.
+
+**Qué ocurre:** mandas al modelo el párrafo elegido y la pregunta, con unas instrucciones de sistema que le piden usar solo ese texto.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+def generar(pregunta, parrafo):
+    mensajes = [{"role": "system", "content": "Responde solo con el texto que se te da. Copia los números tal cual."},
+                {"role": "user", "content": f"Texto: {parrafo}\n\nPregunta: {pregunta}"}]
+    r = httpx.post("http://llm:8088/v1/chat/completions", json={"messages": mensajes, "max_tokens": 40}, timeout=60)
+    return r.json()["choices"][0]["message"]["content"].strip()
+
+respuesta = generar(PREGUNTA, parrafo)
+print("respuesta:", respuesta)
+```
+
+**Resultado esperado** (línea nueva; la frase cambia):
+
+```text
+respuesta: El tornillo de la brida se aprieta a 12 N·m.
+```
+
+**Cómo se lee:** ahora contesta 12 N·m, el dato del procedimiento, y no algo inventado como en el M05-01. El modelo es el mismo; lo que ha cambiado es que tiene el dato delante. Es la «G» de RAG: **generar** a partir de lo recuperado.
+
+### 5 — Comprobar que no se ha inventado nada
+
+**Para qué:** no fiarte de la respuesta solo porque suena bien.
+
+**Qué ocurre:** sacas los números de la respuesta y compruebas que **todos** están en el párrafo. Si alguno no está, el modelo se lo ha inventado y no se enseña.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+numeros_respuesta = set(re.findall(r"\d+", respuesta))
+numeros_parrafo = set(re.findall(r"\d+", parrafo))
+inventados = numeros_respuesta - numeros_parrafo
+print("comprobación:", "OK, todos los números salen del procedimiento" if not inventados else f"NO: inventa {inventados}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+comprobación: OK, todos los números salen del procedimiento
+```
+
+**Cómo se lee:** el 12 de la respuesta está en el párrafo: la respuesta se puede enseñar. Es una comprobación sencilla, pero detecta lo más peligroso en planta: un número inventado. Un asistente bien hecho no solo pregunta al modelo; **verifica** lo que contesta.
+
+### 6 — Decide tú: una pregunta que el procedimiento no contesta
+
+**Para qué:** conseguir que el asistente diga «no está» en lugar de inventar.
+
+**Qué ocurre:** cambias `PREGUNTA` por `"¿De qué color es el tornillo de recambio?"` y añades al final este bloque, que decide qué enseñar según cuántas palabras tiene en común el párrafo elegido. Ejecuta con `MINIMO_PALABRAS = 1` y después con `MINIMO_PALABRAS = 2`:
+
+```python
+# Si ningún párrafo habla de la pregunta, no se pregunta al modelo
+if en_comun < MINIMO_PALABRAS:
+    print("asistente: el procedimiento no dice nada sobre eso. Consulta al responsable de la estación.")
+else:
+    print("asistente:", respuesta)
+```
+
+**Resultado esperado** (las líneas que importan):
+
+```text
+# MINIMO_PALABRAS = 1 (dos ejecuciones)
+párrafo elegido (1 palabras en común): El tornillo de la brida se aprieta a 12 N·m. ...
+respuesta: No se proporciona el texto para responder esta pregunta.
+asistente: No se proporciona el texto para responder esta pregunta.
+
+respuesta: Blanco
+comprobación: OK, todos los números salen del procedimiento
+asistente: Blanco
+
+# MINIMO_PALABRAS = 2
+asistente: el procedimiento no dice nada sobre eso. Consulta al responsable de la estación.
+```
+
+**Cómo se lee:** con 1, el asistente elige el párrafo del par porque comparte la palabra «tornillo». Unas veces el modelo dice que no tiene el dato; otras **se inventa «Blanco»**, y tu comprobación del paso 5 lo deja pasar, porque solo busca números inventados. Con 2, ningún párrafo llega al mínimo y **el asistente dice que no está**, sin enseñar lo que contestó el modelo. No es el modelo el que decide que no sabe: lo decide tu código, con una regla que se puede comprobar. En una versión final, la condición iría antes del paso 4, para no preguntar al modelo en balde. Vuelve a dejar la pregunta del par, `MINIMO_PALABRAS = 1`, y quita el bloque.
+## Reto
+
+### 1 — Un párrafo nuevo en el procedimiento
+
+**La situación:** mantenimiento añade al procedimiento de EST-01 un apartado nuevo: «El husillo se lubrica cada 500 horas de trabajo con grasa G-2». Alguien pregunta si hay que reentrenar el modelo para que el asistente lo sepa.
+
+**Qué haces:** en tu asistente de «Constrúyelo tú», añades al final un bloque que mete ese párrafo en la lista `parrafos` y pregunta «¿Cada cuántas horas se lubrica el husillo?», usando tus funciones `elegir` y `generar`. No toques el modelo ni el servicio `llm`.
+
+**Pistas:** `parrafos.append("…")` añade un párrafo a la lista; después, `elegir(pregunta)` y `generar(pregunta, parrafo)` como en los pasos 3 y 4.
+
+**Lo que buscas:** si el asistente contesta bien sin reentrenar nada.
+
+<details>
+<summary>Ver solución</summary>
+
+```python
+# Reto 1: un párrafo nuevo en el procedimiento, sin tocar el modelo
+parrafos.append("El husillo se lubrica cada 500 horas de trabajo con grasa G-2. Anotar la fecha en la hoja de la estación.")
+pregunta = "¿Cada cuántas horas se lubrica el husillo?"
+nuevo, comun = elegir(pregunta)
+r = generar(pregunta, nuevo)
+print(f"párrafo elegido ({comun} en común): {nuevo}")
+print("respuesta:", r)
+```
+
+```text
+párrafo elegido (4 en común): El husillo se lubrica cada 500 horas de trabajo con grasa G-2. Anotar la fecha en la hoja de la estación.
+respuesta: 500 horas
+```
+
+**Contesta bien, y el modelo no ha cambiado en nada.** Lo que sabe el asistente está en el documento, no en el modelo: basta con actualizar el documento. Si lo añadieras de verdad a `infra/linea/docs/procedimiento-est01.md`, también lo usarían `lab m05-03` y `lab preguntar`. **La regla:** para documentación que cambia (procedimientos, fichas técnicas, avisos de calidad), RAG es mucho más práctico que reentrenar: se actualiza editando un texto, y cada respuesta se puede rastrear hasta el párrafo del que salió. Quita el bloque del reto cuando acabes.
+
+</details>
+
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
 | `FALLO: la respuesta no contiene el 12` | el modelo pequeño no copió el número | repite. Si el fragmento impreso no tiene el 12, falló la recuperación |
 | `FALLO` con error de conexión | `llm` parado | `docker compose ps` y `docker compose up -d llm` |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `httpx.ConnectError` en el paso 4 | el contenedor `llm` está parado o cargando | `docker compose up -d llm` y espera a que `/salud` conteste |
 
 ## Conclusiones
 
