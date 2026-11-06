@@ -193,16 +193,194 @@ red (8,)               defectos encontrados 13 de 21  falsas alarmas   1 de 210
 
 Con 8 neuronas encuentra menos defectos. El tamaño de la red también se elige.
 
+## Constrúyelo tú: tu propia comparación de modelos
+
+**Qué está pasando:** `lab m03-03` compara dos candidatos y elige uno con una regla que está dentro del comando. Ahora montas tú la comparación: **escribes la regla antes de mirar los resultados**, defines los candidatos, los examinas a todos con la misma vara y guardas el elegido con nombre y versión. Como la comparación es tuya, podrás añadir un candidato que el comando no tiene, uno de los «hermanos» del mapa de familias del glosario, y cambiar la regla para ver cómo cambia el ganador.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** asegurarte de que todos los candidatos van a examinarse con las mismas piezas.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m03_03_mi_comparacion.py`](../../infra/construye/m03_03_mi_comparacion.py). El paso 1 ya está escrito: el corte por orden de fabricación del M03-01 y una función `examinar` que entrena un modelo y cuenta sus aciertos y errores. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m03_03_mi_comparacion.py
+```
+
+**Resultado esperado:**
+
+```text
+entrenar=537 examen=231 defectos_en_examen=21
+```
+
+**Cómo se lee:** las mismas 231 piezas de examen y los mismos 21 defectos del M03-01. Todo lo que compares a partir de aquí se mide con esta vara. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**.
+
+### 2 — Escribir la regla antes de mirar
+
+**Para qué:** que la elección no dependa de qué resultado te guste más una vez visto.
+
+**Qué ocurre:** escribes la regla de elección como una función: gana el que encuentra más defectos; si empatan, el que da menos falsas alarmas. La imprimes para que quede escrita antes de ver ningún número.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+REGLA = "más defectos encontrados; si empatan, menos falsas alarmas"
+
+def clave(resultado):
+    return (resultado["recall"], -resultado["fpr"])     # Python compara la tupla de izquierda a derecha
+
+print(f"regla de elección: {REGLA}")
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+regla de elección: más defectos encontrados; si empatan, menos falsas alarmas
+```
+
+**Cómo se lee:** la regla queda fijada antes de entrenar nada. Si la escribieras después de ver los resultados, sería muy fácil elegir la que da la razón a tu favorito.
+
+### 3 — Los candidatos
+
+**Para qué:** decidir qué modelos compiten, con su configuración, antes de examinarlos.
+
+**Qué ocurre:** defines los tres candidatos del lab en un diccionario: la regresión logística del M03-01, el árbol de decisión y la red neuronal de «Experimenta», esta con sus señales [escaladas](../glosario/03-aprendizaje-automatico.md#escalado).
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+candidatos = {
+    "logreg": LogisticRegression(class_weight="balanced", max_iter=400),
+    "arbol": DecisionTreeClassifier(max_depth=3, class_weight="balanced", random_state=7),
+    "red": make_pipeline(StandardScaler(), MLPClassifier(hidden_layer_sizes=(64, 32), max_iter=1000, random_state=0)),
+}
+print(f"candidatos: {list(candidatos)}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+candidatos: ['logreg', 'arbol', 'red']
+```
+
+**Cómo se lee:** tres familias distintas del mapa de familias: una suma ponderada, preguntas en cadena y capas de neuronas. `make_pipeline` pega el escalado delante de la red, para que nunca se entrene sin él.
+
+### 4 — Examinarlos con la misma vara
+
+**Para qué:** tener los resultados de todos en una sola tabla, comparables.
+
+**Qué ocurre:** pasas cada candidato por `examinar` y enseñas sus defectos encontrados y sus falsas alarmas.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+resultados = {nombre: examinar(modelo) for nombre, modelo in candidatos.items()}
+print("candidato  encontrados  falsas_alarmas")
+for nombre, r in resultados.items():
+    print(f"{nombre:9s}  {r['encontrados']:5d} de 21  {r['falsas']:6d} de 210")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+candidato  encontrados  falsas_alarmas
+logreg        15 de 21      38 de 210
+arbol         16 de 21       3 de 210
+red           16 de 21       2 de 210
+```
+
+**Cómo se lee:** son los mismos números de `lab m03-03` y de `lab m03-red`: has reconstruido la comparación. La regresión logística queda muy por detrás; el árbol y la red empatan en defectos encontrados.
+
+### 5 — Elegir con la regla y guardar
+
+**Para qué:** que el elegido salga de la regla, no de una opinión, y quede rastreable.
+
+**Qué ocurre:** aplicas `clave` para elegir el ganador, guardas el modelo en `mi_modelo.joblib` y, al lado, una ficha con su nombre, su versión, la regla y sus resultados.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+ganador = max(resultados, key=lambda nombre: clave(resultados[nombre]))
+joblib.dump(candidatos[ganador], "/data/mi_modelo.joblib")
+ficha = {"modelo": ganador, "version": VERSION, "regla": REGLA, **resultados[ganador]}
+with open("/data/mi_modelo.json", "w") as f:
+    json.dump(ficha, f, indent=1)
+print(f"elegido: {ganador} -> mi_modelo.joblib, ficha en mi_modelo.json")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+elegido: red -> mi_modelo.joblib, ficha en mi_modelo.json
+```
+
+**Cómo se lee:** gana **la red**: empata con el árbol en defectos encontrados y da una falsa alarma menos, así que la segunda parte de la regla decide. Es la regla aplicada al pie de la letra; si te parece una mala elección, es la regla lo que hay que cambiar (reto 1). La ficha `mi_modelo.json` dice qué se eligió, con qué regla y con qué resultados: es lo que se despliega y se audita.
+
+### 6 — Decide tú: un candidato que el comando no tiene
+
+**Para qué:** ver dónde queda un hermano del mapa de familias que no usamos en el curso.
+
+**Qué ocurre:** añades al diccionario `candidatos` del paso 3 un **bosque aleatorio**: muchos árboles que votan. Añade también su `import` arriba del fichero, junto a los demás:
+
+```python
+from sklearn.ensemble import RandomForestClassifier      # arriba, con los demás import
+
+    "bosque": RandomForestClassifier(n_estimators=200, class_weight="balanced", random_state=0),   # dentro de candidatos
+```
+
+**Resultado esperado** (líneas que cambian):
+
+```text
+candidatos: ['logreg', 'arbol', 'red', 'bosque']
+candidato  encontrados  falsas_alarmas
+logreg        15 de 21      38 de 210
+arbol         16 de 21       3 de 210
+red           16 de 21       2 de 210
+bosque        16 de 21       0 de 210
+elegido: bosque -> mi_modelo.joblib, ficha en mi_modelo.json
+```
+
+**Cómo se lee:** el bosque encuentra los mismos 16 defectos y **no da ninguna falsa alarma**: por la regla, gana. Es el hermano del árbol que el mapa de familias recomienda cuando se busca el máximo acierto con datos de proceso. Pero son 200 árboles votando: ya no hay unas reglas que enseñar a calidad. Entre 3, 2 y 0 falsas alarmas de 210, ¿compensa perder la explicación? Eso no lo decide el código: lo decide la regla, y la regla la escribes tú (reto 1). Deja el bosque en la lista para el reto.
 ## Reto
 
-### 1 — Empate
+### 1 — Una regla que pida poder explicarlo
 
-Si los dos recall fueran iguales, ¿con cuál te quedas?
+**La situación:** con tu comparación de «Constrúyelo tú», la regla elige el bosque (0 falsas alarmas) o la red (2), por delante del árbol (3). Los tres encuentran los mismos 16 defectos de 21. Calidad pide que el modelo que vaya a la línea **se pueda explicar**: quiere leer sus reglas y discutirlas.
+
+**Qué haces:** escribes una regla nueva en la que, a igualdad de defectos encontrados, gane el candidato que se puede explicar, y solo después cuenten las falsas alarmas. Añádela al final de tu script, con el bosque todavía en la lista de candidatos.
+
+**Pistas:** un diccionario `EXPLICABLE = {"logreg": True, "arbol": True, "red": False, "bosque": False}`; una función que, dado el nombre de un candidato, devuelva la tupla `(recall, explicable, -fpr)`; `max(resultados, key=esa_funcion)` elige el ganador.
+
+**Lo que buscas:** qué candidato elige la regla nueva, y cuánto cuesta esa elección en falsas alarmas.
 
 <details>
 <summary>Ver solución</summary>
 
-Con el de menor tasa de falsas alarmas. Es la segunda clave de la regla.
+```python
+REGLA_2 = "más defectos encontrados; si empatan, el que se puede explicar; después, menos falsas alarmas"
+EXPLICABLE = {"logreg": True, "arbol": True, "red": False, "bosque": False}
+
+def clave_explicable(nombre):
+    r = resultados[nombre]
+    return (r["recall"], EXPLICABLE[nombre], -r["fpr"])
+
+print(f"con la regla «{REGLA_2}»: elegido {max(resultados, key=clave_explicable)}")
+```
+
+```text
+con la regla «más defectos encontrados; si empatan, el que se puede explicar; después, menos falsas alarmas»: elegido arbol
+```
+
+**Gana el árbol**, a cambio de 3 falsas alarmas en 210 piezas en vez de 0: unas 3 revisiones más cada 200 piezas. Es la elección que haría la mayoría de las plantas. **La regla:** el criterio de elección es una decisión de proceso, y tiene que incluir todo lo que importa (aquí, poder explicarlo), escrito antes de mirar. Si lo añades después de ver que no gana tu favorito, ya no es una regla. Quita el bosque y el bloque del reto cuando acabes.
 
 </details>
 
@@ -212,6 +390,10 @@ Con el de menor tasa de falsas alarmas. Es la segunda clave de la regla.
 |---------|----------------|-----------------|
 | `No such file … limpio.csv` | no está el CSV | lanza `m02-03` |
 | `VERSION` vacío | el comando no terminó en `OK` | repite `m03-03` |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `FileNotFoundError: /data/limpio.csv` | no tienes el [dataset](../glosario/01-datos-arquitectura.md#dataset) limpio | lanza `lab m03-01`, que lo genera |
 
 ## Conclusiones
 

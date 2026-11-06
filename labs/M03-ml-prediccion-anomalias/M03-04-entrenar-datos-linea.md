@@ -152,27 +152,244 @@ Que algo no cuadra, y habría que investigar antes de usarlo: un dataset demasia
 
 </details>
 
+## Constrúyelo tú: tu propio modelo de tu línea
+
+**Qué está pasando:** `lab m03-04` entrena con tu dataset y enseña lo que ha aprendido. Ahora lo entrenas tú: un árbol de decisión con las carcasas de tu propia línea, del que lees las reglas y compruebas si coinciden con el criterio de calidad que descubriste en el M02-04. Después contestas con tu código dos preguntas que en planta siempre se hacen: **cuántos datos hacen falta** y **cuánto puede llegar a acertar** un modelo contra unas etiquetas imperfectas.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** asegurarte de que entrenas con tu propia producción, cortada por tiempo.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m03_04_mi_modelo_linea.py`](../../infra/construye/m03_04_mi_modelo_linea.py). El paso 1 ya está escrito: lee el `dataset_linea.csv` del M02-04, lo ordena por hora y lo corta en un 70 % para entrenar y un 30 % para examinar. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m03_04_mi_modelo_linea.py
+```
+
+**Resultado esperado** (cambian los números):
+
+```text
+carcasas: entrenar=1588 examen=681 defectuosas_en_examen=97
+```
+
+**Cómo se lee:** tus carcasas, no unas generadas por el laboratorio: los números dependen de cuánto tiempo dejaste fabricar con calidad en marcha. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**.
+
+### 2 — Entrenar un árbol y leer sus reglas
+
+**Para qué:** ver qué ha aprendido el modelo de tu línea, en una forma que se puede discutir con calidad.
+
+**Qué ocurre:** entrenas un árbol de decisión con `PROFUNDIDAD` preguntas como mucho y lo imprimes como texto: cada línea es una pregunta sobre una señal.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+arbol = DecisionTreeClassifier(max_depth=PROFUNDIDAD, class_weight="balanced", random_state=7)
+arbol.fit(entrenar[SENALES], entrenar["defecto"])
+print(export_text(arbol, feature_names=SENALES, class_names=["buena", "defectuosa"]))
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas, recortadas; los cortes cambian un poco con tus datos):
+
+```text
+|--- corriente_a <= 4.09
+|   |--- temperatura_c <= 62.84
+|   |   |--- vibracion_mm_s <= 0.27
+|   |   |   |--- class: buena
+|   |   |--- vibracion_mm_s >  0.27
+|   |   |   |--- class: buena
+|   |--- temperatura_c >  62.84
+|   |   |--- ...
+|   |   |   |--- class: buena
+|--- corriente_a >  4.09
+|   |--- vibracion_mm_s <= 0.26
+|   |   |--- ...
+|   |   |   |--- class: buena
+|   |--- vibracion_mm_s >  0.26
+|   |   |--- temperatura_c <= 65.67
+|   |   |   |--- class: defectuosa
+|   |   |--- temperatura_c >  65.67
+|   |   |   |--- class: defectuosa
+```
+
+**Cómo se lee:** la primera pregunta es la corriente (**4,09 A**) y la segunda, la vibración (**0,26 mm/s**): muy cerca de 4,08 y 0,265, el criterio oculto de calidad que descubriste con SQL en el M02-04. El árbol lo ha encontrado solo, a partir de los ejemplos. Las preguntas sobre la temperatura llevan a la misma respuesta por los dos lados: no aportan nada, porque en esta línea la temperatura no influye en el defecto.
+
+### 3 — Examinar el modelo
+
+**Para qué:** medir el árbol con las carcasas más recientes, que [no ha visto](../glosario/03-aprendizaje-automatico.md#particion).
+
+**Qué ocurre:** le pides la decisión para cada carcasa de examen y cuentas defectos encontrados y falsas alarmas.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+def examinar(modelo, datos=examen):
+    tn, fp, fn, tp = confusion_matrix(datos["defecto"], modelo.predict(datos[SENALES]), labels=[0, 1]).ravel()
+    return tp, fn, fp, tn
+
+tp, fn, fp, tn = examinar(arbol)
+print(f"encontrados={tp} de {tp + fn}  falsas_alarmas={fp} de {fp + tn}")
+```
+
+**Resultado esperado** (línea nueva; cambian los números):
+
+```text
+encontrados=82 de 97  falsas_alarmas=2 de 584
+```
+
+**Cómo se lee:** casi todas las defectuosas encontradas y pocas falsas alarmas: con datos de la propia línea, el modelo funciona mucho mejor que en el M03-01. No porque el algoritmo sea mejor, sino porque **aquí el defecto depende de las señales que se miden**.
+
+### 4 — ¿Cuántos datos hacen falta?
+
+**Para qué:** saber a partir de cuánta producción merece la pena entrenar.
+
+**Qué ocurre:** entrenas el mismo árbol con solo las primeras 60, 120, 300 y 600 carcasas de entrenamiento, y lo examinas siempre con el mismo examen. Así ves cómo mejora con más datos.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+print("carcasas_para_aprender  defectuosas_entre_ellas  encontrados  falsas_alarmas")
+for n in (60, 120, 300, 600, len(entrenar)):
+    parte = entrenar.iloc[:n]
+    modelo = DecisionTreeClassifier(max_depth=PROFUNDIDAD, class_weight="balanced", random_state=7)
+    modelo.fit(parte[SENALES], parte["defecto"])
+    tp, fn, fp, tn = examinar(modelo)
+    print(f"{n:22d}  {int(parte['defecto'].sum()):23d}  {tp:5d} de {tp + fn}  {fp:7d} de {fp + tn}")
+```
+
+**Resultado esperado** (líneas nuevas; cambian los números):
+
+```text
+carcasas_para_aprender  defectuosas_entre_ellas  encontrados  falsas_alarmas
+                    60                        8     83 de 97       61 de 584
+                   120                       15     83 de 97       61 de 584
+                   300                       33     82 de 97       31 de 584
+                   600                       77     82 de 97        2 de 584
+                  1588                      184     82 de 97        2 de 584
+```
+
+**Cómo se lee:** con pocas carcasas el árbol **ya encuentra los defectos**, pero con muchas falsas alarmas: 61 de 584 con 60 carcasas, 2 a partir de 600. Con pocos ejemplos aprende un criterio aproximado («corriente alta») y le falta afinar el segundo corte. Fíjate en la segunda columna: lo que manda **no es cuántas carcasas hay, sino cuántas defectuosas**. En planta se pregunta «¿cuántos defectos tenemos registrados?», no «¿cuántas piezas?».
+
+### 5 — ¿Los fallos son del modelo o de la etiqueta?
+
+**Para qué:** saber cuánto puede llegar a acertar un modelo contra unas etiquetas que tienen errores.
+
+**Qué ocurre:** tomas las carcasas de examen en las que el árbol y calidad no coinciden y les aplicas el criterio real (vibración ≥ 0,265 y corriente > 4,08). Si el criterio da la razón al árbol, el que se equivocó fue la inspección.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+pred = arbol.predict(examen[SENALES])
+criterio = ((examen["vibracion_mm_s"] >= 0.265) & (examen["corriente_a"] > 4.08)).astype(int)
+discrepan = pred != examen["defecto"]
+razon_al_modelo = int((discrepan & (pred == criterio)).sum())
+print(f"el árbol y calidad no coinciden en {int(discrepan.sum())} carcasas; en {razon_al_modelo} el criterio da la razón al árbol")
+```
+
+**Resultado esperado** (línea nueva; cambian los números):
+
+```text
+el árbol y calidad no coinciden en 17 carcasas; en 17 el criterio da la razón al árbol
+```
+
+**Cómo se lee:** **en las 17 discrepancias, el árbol tenía razón y la etiqueta estaba mal**: es el 3 % de error de la inspección. Los 15 defectos «escapados» y las 2 «falsas alarmas» del paso 3 son, en realidad, errores de calidad. La medida dice que el modelo falla, pero falla la inspección. Por eso no se puede esperar un 100 % contra etiquetas imperfectas.
+
+### 6 — Decide tú: cuántas preguntas puede hacer el árbol
+
+**Para qué:** ver qué pasa si el modelo es demasiado sencillo o demasiado complejo para el criterio real.
+
+**Qué ocurre:** pruebas `PROFUNDIDAD = 1` y después `PROFUNDIDAD = 8`, y miras las reglas del paso 2 y el resultado del paso 3.
+
+**Resultado esperado** (líneas que cambian):
+
+```text
+# PROFUNDIDAD = 1
+|--- corriente_a <= 4.09
+|   |--- class: buena
+|--- corriente_a >  4.09
+|   |--- class: defectuosa
+
+encontrados=83 de 97  falsas_alarmas=104 de 584
+
+# PROFUNDIDAD = 8 (el árbol ocupa más de 200 líneas)
+encontrados=76 de 97  falsas_alarmas=18 de 584
+```
+
+**Cómo se lee:** con **una sola pregunta**, el árbol solo puede mirar una señal: no le cabe «corriente alta **y** vibración alta», y da 104 falsas alarmas. Con **ocho**, sus reglas se llenan de cortes como «temperatura entre 61,01 y 61,02» que solo explican casos sueltos del entrenamiento, incluidos los errores de la inspección: memoriza en lugar de aprender, el [sobreajuste](../glosario/03-aprendizaje-automatico.md#sobreajuste) del M04-04. Encuentra menos defectos y da más falsas alarmas que con tres, y ya no se puede enseñar a calidad. Tres preguntas bastan porque el criterio real tiene dos. Vuelve a dejar `PROFUNDIDAD = 3`.
 ## Reto
+
+Los dos retos se hacen con tu script de «Constrúyelo tú», añadiendo un bloque al final.
 
 ### 1 — Entrenar con muy poca producción
 
-Si solo tuvieras 2 minutos de producción (unas 120 piezas, con unos 15 defectos), ¿te fiarías del modelo?
+**La situación:** alguien propone entrenar con los dos primeros minutos de producción, unas 120 carcasas, para tener el modelo cuanto antes. En el paso 4 viste que con 120 carcasas el árbol daba 61 falsas alarmas. ¿Es siempre así, o depende de qué dos minutos te toquen?
+
+**Qué haces:** entrenas el árbol con tres ventanas distintas de 120 carcasas del tramo de entrenamiento (las primeras, unas del medio y unas del final) y lo examinas siempre con el mismo examen.
+
+**Pistas:** `entrenar.iloc[inicio:inicio + 120]` toma 120 carcasas a partir de `inicio`; repite el bucle del paso 4 con `for inicio in (0, 700, 1400)`.
+
+**Lo que buscas:** cuánto cambia el resultado según la ventana.
 
 <details>
 <summary>Ver solución</summary>
 
-No. Con unos 15 defectos, el 30 % de examen tendría 4 o 5: un acierto más o menos cambia el resultado un 20 %. Y con tan pocos ejemplos, el modelo puede aprender casualidades. `m02-04` no construye el dataset por debajo de 200 piezas precisamente por eso. En planta, cuántos datos hacen falta depende sobre todo de **cuántos defectos** hay, no de cuántas piezas.
+```python
+# Reto 1: tres ventanas distintas de 120 carcasas
+for inicio in (0, 700, 1400):
+    parte = entrenar.iloc[inicio:inicio + 120]
+    modelo = DecisionTreeClassifier(max_depth=PROFUNDIDAD, class_weight="balanced", random_state=7)
+    modelo.fit(parte[SENALES], parte["defecto"])
+    tp, fn, fp, tn = examinar(modelo)
+    print(f"carcasas {inicio}-{inicio + 119}: defectuosas={int(parte['defecto'].sum()):2d}  encontrados={tp} de {tp + fn}  falsas_alarmas={fp} de {fp + tn}")
+```
+
+```text
+carcasas 0-119: defectuosas=15  encontrados=83 de 97  falsas_alarmas=61 de 584
+carcasas 700-819: defectuosas=15  encontrados=80 de 97  falsas_alarmas=124 de 584
+carcasas 1400-1519: defectuosas=14  encontrados=83 de 97  falsas_alarmas=80 de 584
+```
+
+Con el mismo número de carcasas y de defectuosas, las falsas alarmas van **de 61 a 124** según los dos minutos que te toquen. Con tan pocos ejemplos, el modelo depende de la casualidad. **La regla:** antes de fiarte de un modelo entrenado con poca producción, entrénalo con varias ventanas distintas; si el resultado cambia mucho, faltan datos. Por eso `m02-04` no construye el dataset por debajo de 200 carcasas.
 
 </details>
 
-### 2 — El techo del acierto
+### 2 — Mirar las carcasas en las que discrepan
 
-Calidad se equivoca en un 3 % de las inspecciones. ¿Qué pasa si el modelo «falla» en una carcasa cuya etiqueta estaba mal?
+**La situación:** en el paso 5 viste que, en las 17 carcasas en las que el árbol y calidad no coinciden, el criterio da la razón al árbol. Calidad quiere verlas antes de creérselo.
+
+**Qué haces:** enseñas esas carcasas con sus señales, lo que dijo calidad, lo que dijo el árbol y lo que dice el criterio.
+
+**Pistas:** `examen.assign(arbol=pred, criterio=criterio)` añade dos columnas; `[discrepan]` se queda con las filas en las que no coinciden.
+
+**Lo que buscas:** una carcasa que calidad marcó como defectuosa y cuyas señales son claramente normales.
 
 <details>
 <summary>Ver solución</summary>
 
-Que el modelo tenía razón y la medida dice que se ha equivocado. Por eso no se puede esperar un 100 % contra etiquetas imperfectas. Cuando un modelo bueno discrepa de calidad, merece la pena revisar esa pieza: a veces quien se equivoca es la inspección.
+```python
+# Reto 2: las carcasas en las que el árbol y calidad no coinciden
+tabla = examen.assign(arbol=pred, criterio=criterio)[discrepan]
+print(tabla[["pieza_id", "vibracion_mm_s", "corriente_a", "defecto", "arbol", "criterio"]].head(5).to_string(index=False))
+```
+
+```text
+pieza_id  vibracion_mm_s  corriente_a  defecto  arbol  criterio
+   P0536           0.235         3.99        1      0         0
+   P0562           0.250         4.03        1      0         0
+   P0563           0.265         4.12        0      1         1
+   P0618           0.265         3.98        1      0         0
+   P0635           0.220         4.00        1      0         0
+```
+
+La P0536, por ejemplo: vibración 0,235 y corriente 3,99, las dos por debajo de los cortes, y calidad la marcó como defectuosa. Todo indica un error de la inspección. **La regla:** cuando un modelo bueno discrepa de calidad, esa carcasa es la primera que hay que volver a revisar; a menudo quien se equivoca es la inspección, y corregir esas etiquetas mejora el siguiente entrenamiento.
 
 </details>
 
@@ -183,6 +400,10 @@ Que el modelo tenía razón y la medida dice que se ha equivocado. Por eso no se
 | `FALLO: falta dataset_linea.csv` | No se hizo M02-04 | Haz M02-04 y repite |
 | Ningún defecto en el examen (`de 0`) | Muy poca producción o una tanda sin defectos | Deja fabricar más, repite `m02-04` y luego `m03-04` |
 | Resultados muy distintos cada vez | Pocos datos | Normal con pocos cientos de piezas; fíjate en la importancia, que es más estable |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `FileNotFoundError: /data/dataset_linea.csv` | no has hecho el M02-04 | arranca calidad, deja fabricar unos minutos y lanza `lab m02-04` |
 
 ## Conclusiones
 

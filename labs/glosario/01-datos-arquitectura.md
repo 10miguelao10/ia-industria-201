@@ -207,6 +207,6 @@ Relacionado: [dataset](#dataset) · [fuga de información](03-aprendizaje-automa
 
 **Dónde se rompe:** si unes mal las tablas (pieza equivocada, hora desfasada), el modelo aprende relaciones que no existen.
 
-**Lo usas en:** <!--usos:dataset-->[M02](../M02-captura-integracion-datos/README.md) · [M02-03](../M02-captura-integracion-datos/M02-03-preparacion-datos.md) · [M02-04](../M02-captura-integracion-datos/M02-04-dataset-linea.md) · [M03](../M03-ml-prediccion-anomalias/README.md) · [M03-01](../M03-ml-prediccion-anomalias/M03-01-prediccion-defectos.md) · [M03-04](../M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md)<!--/usos-->
+**Lo usas en:** <!--usos:dataset-->[M02](../M02-captura-integracion-datos/README.md) · [M02-03](../M02-captura-integracion-datos/M02-03-preparacion-datos.md) · [M02-04](../M02-captura-integracion-datos/M02-04-dataset-linea.md) · [M03](../M03-ml-prediccion-anomalias/README.md) · [M03-01](../M03-ml-prediccion-anomalias/M03-01-prediccion-defectos.md) · [M03-03](../M03-ml-prediccion-anomalias/M03-03-comparacion-modelos.md) · [M03-04](../M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md)<!--/usos-->
 
 Relacionado: [etiqueta](03-aprendizaje-automatico.md#etiqueta) · [señal](03-aprendizaje-automatico.md#senal)

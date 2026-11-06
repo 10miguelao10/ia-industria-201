@@ -239,7 +239,7 @@ Relacionado: [anomalía](#anomalia) · [umbral](#umbral)
 
 **Dónde se rompe:** si se parte al azar, el modelo aprende con piezas posteriores a las que examina, y el examen sale mejor de lo que será la realidad.
 
-**Lo usas en:** <!--usos:particion-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-01](../M03-ml-prediccion-anomalias/M03-01-prediccion-defectos.md) · [M03-02](../M03-ml-prediccion-anomalias/M03-02-anomalias.md) · [M04](../M04-vision-control-calidad/README.md) · [M04-01](../M04-vision-control-calidad/M04-01-clasificacion-componentes.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md)<!--/usos-->
+**Lo usas en:** <!--usos:particion-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-01](../M03-ml-prediccion-anomalias/M03-01-prediccion-defectos.md) · [M03-02](../M03-ml-prediccion-anomalias/M03-02-anomalias.md) · [M03-04](../M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md) · [M04](../M04-vision-control-calidad/README.md) · [M04-01](../M04-vision-control-calidad/M04-01-clasificacion-componentes.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md)<!--/usos-->
 
 <a id="fuga"></a>
 ### Fuga de información
@@ -291,7 +291,7 @@ Relacionado: [zona de duda](#zona-duda) · [matriz de confusión](#matriz-confus
 
 **Quién lo necesita:** las redes neuronales, k-NN y las distancias como Mahalanobis, sí. Los árboles, no.
 
-**Lo usas en:** <!--usos:escalado-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-04](../M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md)<!--/usos-->
+**Lo usas en:** <!--usos:escalado-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-03](../M03-ml-prediccion-anomalias/M03-03-comparacion-modelos.md) · [M03-04](../M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md)<!--/usos-->
 
 <a id="sobreajuste"></a>
 ### Sobreajuste
@@ -300,7 +300,7 @@ Relacionado: [zona de duda](#zona-duda) · [matriz de confusión](#matriz-confus
 
 **Cómo se detecta:** comparando el acierto en entrenamiento con el de examen. En el M04-04, con el 10 % de las fotos: 100 % frente a 50 %.
 
-**Lo usas en:** <!--usos:sobreajuste-->[M04](../M04-vision-control-calidad/README.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md)<!--/usos-->
+**Lo usas en:** <!--usos:sobreajuste-->[M03-04](../M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md) · [M04](../M04-vision-control-calidad/README.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md)<!--/usos-->
 
 <a id="anomalia"></a>
 ### Anomalía
