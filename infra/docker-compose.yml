@@ -116,5 +116,6 @@ services:
       - ./data:/data
       - ./linea:/opt/linea
       - ./modelos:/modelos:ro
+      - ./construye:/construye
     mem_limit: 2g
     profiles: ["lab"]

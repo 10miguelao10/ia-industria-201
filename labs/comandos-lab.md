@@ -339,6 +339,41 @@ Se usa en [M06-03](M06-edge-integracion-ot/M06-03-prediccion-actuacion.md).
 
 ---
 
+### construye
+
+**Qué hace:** ejecuta **un script tuyo** de la carpeta `infra/construye/` dentro del contenedor `lab`, con las mismas librerías y los mismos datos que los demás comandos. Lo usan las secciones «Constrúyelo tú» de los labs.
+
+| | |
+|--|--|
+| Parámetros | el nombre del fichero, por ejemplo `m03_01_mi_modelo.py` |
+| Necesita en marcha | Lo que necesite tu script (el de M03-01, nada) |
+| Lee | tu script en `infra/construye/` y lo que él lea de `/data` |
+| Escribe | lo que escriba tu script |
+| `OK` si | lo decide tu script (los esqueletos imprimen su propia línea `OK`) |
+| `FALLO` si | no existe el fichero, o queda un hueco «TU PARTE» sin completar |
+
+```bash
+# Ejecuta tu script infra/construye/m03_01_mi_modelo.py
+docker compose --profile lab run --rm --no-deps lab construye m03_01_mi_modelo.py
+```
+
+<details>
+<summary>Código (<code>infra/linea/cli.py</code>, función <code>cmd_construye</code>)</summary>
+
+```python
+def cmd_construye(args):
+    ruta = Path("/construye") / args[0]         # infra/construye/ de tu equipo
+    if not ruta.exists():
+        return fallo(f"no encuentro {ruta.name} en infra/construye/")
+    try:
+        runpy.run_path(str(ruta), run_name="__main__")   # ejecuta tu fichero tal cual
+    except NotImplementedError as pendiente:   # el esqueleto avisa del hueco que falta
+        return fallo(f"te falta completar: {pendiente}")
+    return 0
+```
+
+</details>
+
 ## M01 — Arquitectura y supervisión
 
 ### m01-01
