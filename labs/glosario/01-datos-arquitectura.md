@@ -121,7 +121,7 @@ Relacionado: [tema](#tema) · [QoS](#qos) · [mensaje retenido](#retenido)
 
 **En la línea:** no hay un SCADA comercial; sus funciones están repartidas: el panel (pantalla), el archivador (histórico), Prometheus (alarmas) y las consignas por MQTT (órdenes).
 
-**Lo usas en:** <!--usos:scada-->[M01](../M01-ia-industrial-arquitectura/README.md) · [M01-02](../M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md) · [M01-03](../M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) · [M02](../M02-captura-integracion-datos/README.md) · [M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M07-03](../M07-mlops-observabilidad/M07-03-incidencias-agente.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md)<!--/usos-->
+**Lo usas en:** <!--usos:scada-->[M01](../M01-ia-industrial-arquitectura/README.md) · [M01-02](../M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md) · [M01-03](../M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) · [M02](../M02-captura-integracion-datos/README.md) · [M02-01](../M02-captura-integracion-datos/M02-01-telemetria.md) · [M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M07-03](../M07-mlops-observabilidad/M07-03-incidencias-agente.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md)<!--/usos-->
 
 <a id="modbus"></a>
 ### Modbus
@@ -194,7 +194,7 @@ Relacionado: [mapa de registros](#mapa-registros) · [pasarela](#pasarela)
 
 **Dónde se rompe:** rellenar huecos con la media parece inocente, pero inventa piezas «normales» justo donde el sensor falló, y puede esconder defectos.
 
-**Lo usas en:** <!--usos:limpieza-->[M02](../M02-captura-integracion-datos/README.md) · [M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M02-03](../M02-captura-integracion-datos/M02-03-preparacion-datos.md)<!--/usos-->
+**Lo usas en:** <!--usos:limpieza-->[M02](../M02-captura-integracion-datos/README.md) · [M02-03](../M02-captura-integracion-datos/M02-03-preparacion-datos.md)<!--/usos-->
 
 Relacionado: [dataset](#dataset) · [fuga de información](03-aprendizaje-automatico.md#fuga)
 

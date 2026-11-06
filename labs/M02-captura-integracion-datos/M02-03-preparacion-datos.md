@@ -307,12 +307,195 @@ OK notas: 5 de 8 notas extraídas sin error
 
 Puedes editar `infra/linea/docs/prompt-notas-ejemplos.txt` (por ejemplo, añadir un ejemplo de rebaba con causa `herramienta`) y repetir el paso 3 para ver si mejora.
 
+## Constrúyelo tú: tu propia limpieza
+
+**Qué está pasando:** `lab m02-03` limpia el crudo por ti y deja `limpio.csv`. Ahora haces tú esa limpieza, problema a problema, con pandas: cuentas lo que está mal, apartas los valores imposibles, corriges las unidades, decides qué hacer con los huecos y quitas los duplicados. Al final compruebas que tu resultado es idéntico al del comando y pruebas la otra decisión, rellenar con la media, para ver qué esconde.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** asegurarte de que tu código lee el mismo crudo que el comando.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m02_03_mi_limpieza.py`](../../infra/construye/m02_03_mi_limpieza.py). Arriba están las **decisiones** (`IMPOSIBLE`, `DECIMAS_DESDE`, `HUECOS`); debajo, el paso 1 ya escrito: lee `crudo.csv` con pandas. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m02_03_mi_limpieza.py
+```
+
+**Resultado esperado:**
+
+```text
+crudo: 800 filas, columnas ['pieza_id', 'temperatura_c', 'vibracion_mm_s', 'corriente_a', 'presion_bar', 'defecto']
+```
+
+**Cómo se lee:** una tabla con una fila por pieza y sus columnas, la misma que abriste en VS Code en el paso 2 del lab. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**; `/data/` dentro es `infra/data/` en tu equipo.
+
+### 2 — Contar los problemas
+
+**Para qué:** saber qué hay que arreglar antes de tocar nada.
+
+**Qué ocurre:** cuentas cuatro problemas en la temperatura y en los identificadores: huecos, sensor clavado, valores en décimas y piezas repetidas.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+t = crudo["temperatura_c"]
+huecos = int(t.isna().sum())
+imposibles = int((t >= IMPOSIBLE).sum())
+en_decimas = int(((t > DECIMAS_DESDE) & (t < IMPOSIBLE)).sum())
+repetidas = int(crudo["pieza_id"].duplicated().sum())
+print(f"huecos={huecos} imposibles={imposibles} en_decimas={en_decimas} repetidas={repetidas}")
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+huecos=26 imposibles=6 en_decimas=12 repetidas=0
+```
+
+**Cómo se lee:** es la misma cuenta que hiciste con `lab sql` en «Investiga», ahora en tu código. Cada problema tiene una causa distinta en la máquina, y por eso cada uno se trata de forma distinta en los pasos siguientes. Este crudo no trae piezas repetidas, pero el paso 5 las quita igual: en un histórico real aparecen, por ejemplo, al reiniciar la estación (M01-01).
+
+### 3 — Apartar los valores imposibles
+
+**Para qué:** que un sensor clavado no entre como temperatura, pero quede constancia de cuándo pasó.
+
+**Qué ocurre:** guardas aparte las filas con 9999 y, en la copia de trabajo, los conviertes en valor vacío: a partir de aquí son huecos.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+trabajo = crudo.copy()
+apartadas = trabajo[trabajo["temperatura_c"] >= IMPOSIBLE]
+trabajo.loc[trabajo["temperatura_c"] >= IMPOSIBLE, "temperatura_c"] = None
+print(f"apartadas por sensor clavado: {list(apartadas['pieza_id'])}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+apartadas por sensor clavado: ['H0059', 'H0322', 'H0510', 'H0601', 'H0633', 'H0799']
+```
+
+**Cómo se lee:** seis piezas en las que el sensor no midió. No se borran sin más: se apartan con su identificador, porque un sensor que se clava a menudo es una avería que mantenimiento tiene que conocer.
+
+### 4 — Corregir las unidades
+
+**Para qué:** que todas las temperaturas estén en grados.
+
+**Qué ocurre:** las temperaturas por encima de `DECIMAS_DESDE` vienen en décimas de grado: las divides por 10.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+en_decimas = trabajo["temperatura_c"] > DECIMAS_DESDE
+trabajo.loc[en_decimas, "temperatura_c"] = trabajo.loc[en_decimas, "temperatura_c"] / 10
+print(f"corregidas de décimas a grados: {int(en_decimas.sum())}; máxima ahora={trabajo['temperatura_c'].max():.2f} °C")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+corregidas de décimas a grados: 12; máxima ahora=69.26 °C
+```
+
+**Cómo se lee:** la temperatura máxima ya es razonable. El corte de 150 no sale de la estadística sino del proceso: el husillo nunca pasa de 150 °C y nunca baja de 15. Si lo hiciera, este paso confundiría una temperatura real con un error de unidades.
+
+### 5 — Decidir qué hacer con los huecos
+
+**Para qué:** tratar la falta de dato con una decisión explícita, no por accidente.
+
+**Qué ocurre:** según `HUECOS`, excluyes las piezas sin temperatura o las rellenas con la media. Después quitas las piezas repetidas y guardas el resultado en `mi_limpio.csv`.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+sin_dato = trabajo["temperatura_c"].isna()
+if HUECOS == "media":
+    media = round(trabajo["temperatura_c"].mean(), 2)
+    trabajo["temperatura_c"] = trabajo["temperatura_c"].fillna(media)
+    print(f"huecos rellenados con la media {media} °C: {int(sin_dato.sum())}")
+else:
+    trabajo = trabajo[~sin_dato]
+    print(f"piezas excluidas por no tener temperatura: {int(sin_dato.sum())}")
+limpio = trabajo.drop_duplicates("pieza_id")
+limpio.to_csv("/data/mi_limpio.csv", index=False)
+print(f"mi_limpio.csv: {len(limpio)} piezas")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+piezas excluidas por no tener temperatura: 32
+mi_limpio.csv: 768 piezas
+```
+
+**Cómo se lee:** 32 piezas sin temperatura (26 huecos y las 6 del sensor clavado) quedan fuera: de 800 a 768. Excluir pierde datos, pero no inventa ninguno.
+
+### 6 — Comprobar contra el limpio del comando
+
+**Para qué:** saber si has reconstruido exactamente la limpieza de `lab m02-03`.
+
+**Qué ocurre:** lees el `limpio.csv` que dejó el comando y comparas las piezas y las temperaturas con las tuyas.
+
+Pega debajo de `# --- PASO 6`:
+
+```python
+del_comando = pd.read_csv("/data/limpio.csv")
+mismas_piezas = set(limpio["pieza_id"]) == set(del_comando["pieza_id"])
+union = limpio.merge(del_comando, on="pieza_id", suffixes=("_mio", "_comando"))
+diferentes = int((union["temperatura_c_mio"].round(2) != union["temperatura_c_comando"].round(2)).sum())
+print(f"mismas piezas que el comando: {mismas_piezas}  temperaturas distintas: {diferentes}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+mismas piezas que el comando: True  temperaturas distintas: 0
+```
+
+**Cómo se lee:** las mismas piezas y ninguna temperatura distinta: tu limpieza es la del comando. Ahora sabes qué hace cada línea de `limpio.csv`, el fichero del que aprenderá el modelo del M03.
+
+### 7 — Decide tú: rellenar con la media
+
+**Para qué:** ver qué esconde la decisión aparentemente más cómoda.
+
+**Qué ocurre:** cambias `HUECOS = "excluir"` por `HUECOS = "media"` y ejecutas. Añade también, al final del fichero, este bloque, que mira cómo eran de verdad las piezas que has rellenado:
+
+```python
+# Las piezas que rellenaste: ¿cuántas eran defectuosas?
+rellenadas = crudo[sin_dato.values]
+print(f"de las {len(rellenadas)} rellenadas, defectuosas={int(rellenadas['defecto'].sum())}; "
+      f"todas tienen ahora {media} °C, una temperatura normal")
+```
+
+**Resultado esperado** (líneas que cambian):
+
+```text
+huecos rellenados con la media 62.04 °C: 32
+mi_limpio.csv: 800 piezas
+mismas piezas que el comando: False  temperaturas distintas: 0
+de las 32 rellenadas, defectuosas=6; todas tienen ahora 62.04 °C, una temperatura normal
+```
+
+**Cómo se lee:** no sale ningún error y el fichero tiene más piezas, 800, así que parece mejor. Pero **6 de las 32 rellenadas eran defectuosas**, más del doble de la proporción habitual (68 de 800): la temperatura que faltaba era probablemente la causa del defecto, y ahora es 62,04 °C, una temperatura normal. Un modelo que aprenda de ellas aprenderá que con temperatura normal también salen piezas malas, sin explicación. La comprobación del paso 6 ya no cuadra, y es lo correcto: has cambiado una decisión. Vuelve a dejar `HUECOS = "excluir"` y quita el bloque.
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
 | `FALLO: la temperatura limpia no está en grados` | una décima no se escaló | vuelve a lanzar `m02-03`: el comando es quien limpia |
 | `FALLO: no se apartaron los 9999` | el crudo no trae 9999 | borra `data/crudo.csv` y repite el comando |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `FileNotFoundError: /data/crudo.csv` | no has lanzado el paso 1 del lab | `docker compose --profile lab run --rm --no-deps lab m02-03` |
 
 ## Conclusiones
 

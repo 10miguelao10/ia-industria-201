@@ -251,12 +251,29 @@ Aparecen unas 60 **inspecciones sin registro**: calidad inspeccionó esas carcas
 
 ### 2 — El error de la inspección
 
-Si el 3 % de las inspecciones se equivocan, ¿podrá un modelo acertar el 100 %?
+**La situación:** en «Investiga» descubriste el criterio de calidad: una carcasa sale mala cuando la vibración es de 0,265 mm/s o más **y** la corriente pasa de 4,08 A. Pero calidad no aplica una regla: inspecciona, y a veces se equivoca.
+
+**Qué haces:** en tu script de «Constrúyelo tú», añades al final un bloque que aplica ese criterio a cada carcasa de tu dataset y cuenta en cuántas no coincide con lo que dijo calidad. Hazlo después del paso 5.
+
+**Pistas:** `(dataset["vibracion_mm_s"] >= 0.265) & (dataset["corriente_a"] > 4.08)` da `True` o `False` por carcasa; `.astype(int)` lo convierte en 1 o 0, como la columna `defecto`; `(a != b).sum()` cuenta las diferencias.
+
+**Lo que buscas:** el porcentaje de carcasas en las que calidad y el criterio no coinciden. ¿Podría un modelo acertar más que eso contra estas etiquetas?
 
 <details>
 <summary>Ver solución</summary>
 
-No contra estas etiquetas. Si la etiqueta está mal, un modelo que acierta de verdad «falla» según el dataset. Ese error de etiquetado pone un techo al acierto medible. En planta, mejorar la inspección (o revisar las etiquetas dudosas) suele aportar más que cambiar de modelo.
+```python
+# Reto 2: el criterio descubierto en «Investiga», aplicado a cada carcasa
+regla = ((dataset["vibracion_mm_s"] >= 0.265) & (dataset["corriente_a"] > 4.08)).astype(int)
+desacuerdos = int((regla != dataset["defecto"]).sum())
+print(f"la regla y calidad no coinciden en {desacuerdos} de {len(dataset)} carcasas ({desacuerdos / len(dataset):.1%})")
+```
+
+```text
+la regla y calidad no coinciden en 66 de 2294 carcasas (2.9%)
+```
+
+**Un 2,9 %**: es el error de la inspección, que en esta línea es del 3 %. Ni siquiera el criterio exacto acierta el 100 % contra estas etiquetas, así que **ningún modelo podrá medir un acierto mayor del 97 %**, por bueno que sea. Si un modelo midiera un 100 %, estaría aprendiendo los errores de la inspección. Para subir ese techo hay que mejorar la inspección o revisar las etiquetas dudosas, que es lo que haces en «Mejora».
 
 </details>
 
@@ -295,6 +312,142 @@ pieza_id                        ts  vibracion_mm_s  corriente_a  dijo_calidad  d
 
 **Cómo se lee:** alrededor de un 5 % de las piezas discrepan. Son, casi seguro, el error de la inspección: carcasas con vibración normal marcadas como malas, o al revés. En planta, esta lista es oro: se mandan esas piezas a una **segunda revisión** y se corrigen sus etiquetas antes de entrenar. Un modelo entrenado con etiquetas revisadas aprende el proceso, no los errores de la inspección.
 
+## Constrúyelo tú: tu propio dataset
+
+**Qué está pasando:** `lab m02-04` une el histórico con la base de calidad y deja `dataset_linea.csv`. Ahora haces tú esa unión con pandas: lees las dos bases, las unes primero mal (solo por identificador) para ver el error con tus propios ojos, después bien (identificador y hora), y cuentas lo que no se ha podido unir. Al final tienes tu dataset y sabes de dónde sale cada una de sus filas.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** asegurarte de que tu código lee las dos bases que vas a unir.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m02_04_mi_dataset.py`](../../infra/construye/m02_04_mi_dataset.py). El paso 1 ya está escrito: lee la tabla `lecturas` del histórico (las señales de cada carcasa) y la tabla `inspecciones` de calidad (el resultado de cada carcasa), las dos en solo lectura. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m02_04_mi_dataset.py
+```
+
+**Resultado esperado** (cambian los números):
+
+```text
+histórico: 2327 registros   calidad: 2418 inspecciones
+```
+
+**Cómo se lee:** dos sistemas distintos, cada uno con su base y sus números. El histórico tiene más registros porque empezó antes: calidad solo inspecciona desde que la arrancaste en el paso 1 del lab. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**.
+
+### 2 — Unir solo por identificador
+
+**Para qué:** ver qué pasa con la unión que parece obvia.
+
+**Qué ocurre:** unes las dos tablas por `pieza_id`, como haría cualquiera la primera vez, y cuentas cuántas filas salen y cuántos identificadores tienen más de una inspección.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+por_id = lecturas.merge(inspecciones, on="pieza_id")
+inspecciones_por_id = inspecciones.groupby("pieza_id").size()
+print(f"unión por pieza_id: {len(por_id)} filas")
+print(f"identificadores con más de una inspección: {int((inspecciones_por_id > 1).sum())}")
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas; cambian los números):
+
+```text
+unión por pieza_id: 5508 filas
+identificadores con más de una inspección: 986
+```
+
+**Cómo se lee:** salen **más filas que registros** tiene el histórico. Cada vez que la estación se ha reiniciado, ha vuelto a numerar desde `P0001`: un mismo identificador corresponde a varias carcasas, y la unión cruza cada una con todas las inspecciones de ese nombre.
+
+### 3 — Ver una carcasa mal unida
+
+**Para qué:** comprobar con un caso concreto que la unión por identificador mezcla carcasas distintas.
+
+**Qué ocurre:** eliges un identificador que calidad ha marcado unas veces como buena y otras como defectuosa (fueron carcasas distintas con el mismo nombre) y enseñas las primeras filas de la unión.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+# Un identificador que calidad ha marcado unas veces como buena y otras como defectuosa
+resultados = inspecciones.groupby("pieza_id")["defecto"].nunique()
+ejemplo = resultados[resultados > 1].index[0]
+filas = por_id[por_id["pieza_id"] == ejemplo][["pieza_id", "ts", "ts_pieza", "defecto"]]
+print(f"{ejemplo}: {len(filas)} filas en la unión; las primeras:")
+print(filas.head(6).to_string(index=False))
+```
+
+**Resultado esperado** (líneas nuevas; cambian las horas):
+
+```text
+P0005: 15 filas en la unión; las primeras:
+pieza_id                        ts                  ts_pieza  defecto
+   P0005 2026-11-06T03:10:01+00:00 2026-11-06T03:28:07+00:00        1
+   P0005 2026-11-06T03:10:01+00:00 2026-11-06T14:20:09+00:00        0
+   P0005 2026-11-06T03:10:01+00:00 2026-11-06T14:22:47+00:00        1
+   P0005 2026-11-06T03:11:16+00:00 2026-11-06T03:28:07+00:00        1
+   P0005 2026-11-06T03:11:16+00:00 2026-11-06T14:20:09+00:00        0
+   P0005 2026-11-06T03:11:16+00:00 2026-11-06T14:22:47+00:00        1
+```
+
+**Cómo se lee:** en cada fila, `ts` es la hora del registro y `ts_pieza` la de la carcasa que inspeccionó calidad. El registro de las 03:10:01 aparece **tres veces, con tres resultados: defectuosa, buena y defectuosa**, y ninguno es el suyo: las tres inspecciones son de otras carcasas que se llamaron P0005 después de un reinicio. Solo las filas en las que `ts` y `ts_pieza` coinciden son la misma carcasa. Un modelo que aprendiera de esta unión vería unas mismas señales dar a la vez buena y defectuosa.
+
+### 4 — Unir por identificador y hora
+
+**Para qué:** unir cada registro con su propia inspección y contar lo que no casa.
+
+**Qué ocurre:** unes por `pieza_id` **y** por la hora (la `ts` del histórico con la `ts_pieza` de calidad). Después cuentas los registros sin inspección y las inspecciones sin registro, desde que calidad empezó.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+bien = lecturas.merge(inspecciones, left_on=["pieza_id", "ts"], right_on=["pieza_id", "ts_pieza"])
+desde = inspecciones["ts_pieza"].min()                    # calidad empezó a inspeccionar aquí
+registros_desde = int((lecturas["ts"] >= desde).sum())
+print(f"unión por pieza_id + hora: {len(bien)} filas")
+print(f"registros sin inspección: {registros_desde - len(bien)}   inspecciones sin registro: {len(inspecciones) - len(bien)}")
+```
+
+**Resultado esperado** (líneas nuevas; cambian los números):
+
+```text
+unión por pieza_id + hora: 2270 filas
+registros sin inspección: 0   inspecciones sin registro: 148
+```
+
+**Cómo se lee:** ahora cada fila es una carcasa con sus señales y su resultado. Los dos recuentos de lo que no casa son la **huella de los fallos de la arquitectura**: los registros sin inspección son carcasas que calidad no vio; las inspecciones sin registro, carcasas cuyas señales no se guardaron. Aquí son 148 porque en este histórico se paró el archivador varias veces mientras calidad seguía inspeccionando, como en el reto 1.
+
+### 5 — Guardar el dataset
+
+**Para qué:** dejar una tabla lista para entrenar y comprobar que coincide con la del comando.
+
+**Qué ocurre:** te quedas con las señales y la etiqueta, ordenas por hora, guardas `mi_dataset.csv` y lo comparas con el `dataset_linea.csv` que dejó `lab m02-04`.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+dataset = bien[["pieza_id", "ts", "temperatura_c", "vibracion_mm_s", "corriente_a", "defecto"]].sort_values("ts")
+dataset.to_csv("/data/mi_dataset.csv", index=False)
+print(f"mi_dataset.csv: {len(dataset)} piezas, defectuosas={int(dataset['defecto'].sum())} ({dataset['defecto'].mean():.0%})")
+del_comando = pd.read_csv("/data/dataset_linea.csv")
+print(f"dataset_linea.csv del comando: {len(del_comando)} piezas (el tuyo tiene las carcasas fabricadas desde entonces)")
+```
+
+**Resultado esperado** (líneas nuevas; cambian los números):
+
+```text
+mi_dataset.csv: 2270 piezas, defectuosas=281 (12%)
+dataset_linea.csv del comando: 2269 piezas (el tuyo tiene las carcasas fabricadas desde entonces)
+```
+
+**Cómo se lee:** tu dataset es el del comando más las carcasas fabricadas desde que lo lanzaste: la línea no ha dejado de producir. Si lanzas `lab m02-04` y tu script uno detrás de otro, las cifras casi coinciden. La proporción de defectuosas es la que tendrá que aprender el modelo del M03-04.
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
@@ -303,6 +456,11 @@ pieza_id                        ts  vibracion_mm_s  corriente_a  dijo_calidad  d
 | `FALLO: solo … piezas con señales y resultado` | Ha fabricado poco tiempo con calidad en marcha | Espera unos minutos más y repite |
 | `no such table: calidad.inspecciones` en `lab sql` | Calidad todavía no ha creado su base | Arranca `calidad` y espera unos segundos |
 | La unión por `pieza_id` da lo mismo que por pieza + hora | No hay identificadores repetidos desde que calidad arrancó | Reinicia la estación (`docker compose restart sensor`) y espera un minuto |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `no such table: inspecciones` | calidad no ha arrancado todavía | `docker compose up -d calidad` y deja fabricar unos minutos |
+| `FileNotFoundError: /data/dataset_linea.csv` en el paso 5 | no has lanzado `lab m02-04` | lanza el paso 4 del lab y vuelve a ejecutar |
 
 ## Conclusiones
 

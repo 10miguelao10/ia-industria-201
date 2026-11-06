@@ -66,7 +66,7 @@ De menos a más autonomía. Cada escalón exige más garantías que el anterior.
 
 **En la línea:** `linea/est01/consigna`, nivel de refrigeración de 1 a 3. La estación rechaza lo que esté fuera.
 
-**Lo usas en:** <!--usos:consigna-->[M05-04](../M05-ia-generativa/M05-04-agentes.md) · [M06-02](../M06-edge-integracion-ot/M06-02-integracion-ot.md) · [M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md)<!--/usos-->
+**Lo usas en:** <!--usos:consigna-->[M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M05-04](../M05-ia-generativa/M05-04-agentes.md) · [M06-02](../M06-edge-integracion-ot/M06-02-integracion-ot.md) · [M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md)<!--/usos-->
 
 <a id="mlops"></a>
 ### MLOps
@@ -137,7 +137,7 @@ datos → entrenar → evaluar → versionar → desplegar → vigilar ─┐
 
 **Qué es:** comprobar **quién** es el que se conecta antes de dejarle leer o escribir. Sin autenticación, el sistema no distingue al modelo de cualquier otro.
 
-**Lo usas en:** <!--usos:autenticacion-->[M08](../M08-ciberseguridad-gobierno/README.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md)<!--/usos-->
+**Lo usas en:** <!--usos:autenticacion-->[M02-01](../M02-captura-integracion-datos/M02-01-telemetria.md) · [M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md)<!--/usos-->
 
 <a id="trazabilidad"></a>
 ### Trazabilidad (el rastro)

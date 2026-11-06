@@ -220,30 +220,6 @@ done
 
 **Cómo se lee:** si preguntas más rápido de lo que la estación fabrica, lees dos veces la misma carcasa; si preguntas más despacio, te saltas alguna. Con Modbus, quien integra tiene que decidir **cada cuánto preguntar**, igual que hace [Prometheus](../glosario/02-observabilidad.md#prometheus) con sus muestras (M01-03). Con MQTT, cada carcasa llega una vez.
 
-## Reto
-
-### 1 — La escala olvidada
-
-Un sistema lee el registro 0 y lo guarda tal cual como temperatura. ¿Qué pasa? ¿Da algún error?
-
-<details>
-<summary>Ver solución</summary>
-
-Guarda 630 °C donde había 63,0 °C. No da ningún error: es un número válido. El primer síntoma aparecería mucho después, en un modelo que «aprende» que el husillo trabaja a 600 °C, o en un panel con una alarma que no salta nunca. Es exactamente el problema de las «décimas» que vas a [limpiar](../glosario/01-datos-arquitectura.md#limpieza) en el M02-03.
-
-</details>
-
-### 2 — Variables que se pueden escribir
-
-En `infra/linea/opcua_server.py`, busca la línea `await nodo.set_writable()`. ¿Qué permite? ¿Qué riesgo tiene?
-
-<details>
-<summary>Ver solución</summary>
-
-Marca las variables como **escribibles**: cualquier cliente que llegue al puerto 4840 podría cambiar la temperatura o la pieza publicadas, y el SCADA mostraría un valor falso. En un servidor real, las variables de proceso son de solo lectura para quien no deba escribir, y el acceso va con usuario y cifrado. Lo retomarás en la evaluación de riesgos del M08-01.
-
-</details>
-
 ## Mejora: una pasarela Modbus → MQTT
 
 **Qué ocurre:** en planta, una **pasarela** (un equipo edge o un programa) lee los equipos que solo hablan Modbus y publica sus datos en MQTT, **ya con nombre y unidad**. Así, el resto de sistemas no tiene que conocer el mapa de registros. El comando `lab pasarela` hace de pasarela durante unos segundos.
@@ -293,6 +269,271 @@ for _ in range(segundos):
 
 </details>
 
+## Constrúyelo tú: tu propia pasarela Modbus → MQTT
+
+**Qué está pasando:** en «Mejora» lanzaste una pasarela ya hecha con `lab pasarela`. Ahora la escribes tú: lees los registros del autómata en crudo, les aplicas el mapa de registros, compruebas que cuentan lo mismo que el MQTT de la estación y publicas el resultado con nombres y unidades. Al final la conviertes en un bucle que pregunta cada cierto tiempo, y eliges ese tiempo: es la decisión central de cualquier integración por Modbus.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** asegurarte de que tu código llega al autómata antes de escribir nada.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m02_02_mi_pasarela.py`](../../infra/construye/m02_02_mi_pasarela.py). Arriba están las **decisiones**: el `MAPA` de registros (el mismo de «Investiga»), `PERIODO_S` y `LECTURAS`. Debajo, el paso 1 ya escrito: abre una conexión Modbus TCP con el contenedor `modbus`. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m02_02_mi_pasarela.py
+```
+
+**Resultado esperado:**
+
+```text
+Modbus conectado: True
+```
+
+**Cómo se lee:** `True`: hay conexión con el autómata. Modbus no pide usuario ni contraseña: basta con llegar al puerto. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**.
+
+### 2 — Leer los registros en crudo
+
+**Para qué:** ver exactamente lo que da el autómata, sin interpretar nada.
+
+**Qué ocurre:** pides los registros 0 a 3 y los enseñas tal cual llegan: números enteros, sin nombre ni unidad.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+def leer_crudo():
+    respuesta = plc.read_holding_registers(0, 4, slave=1)      # 4 registros desde el 0
+    return respuesta.registers
+
+crudo = leer_crudo()
+print("registros 0-3 en crudo:", crudo)
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (línea nueva; cambian los números):
+
+```text
+registros 0-3 en crudo: [611, 235, 397, 931]
+```
+
+**Cómo se lee:** cuatro enteros. Sin el mapa no se sabe que 621 son 62,1 °C ni que el último es la secuencia: el protocolo no lo dice. Es la diferencia con OPC-UA, que entrega cada variable con nombre y tipo.
+
+### 3 — Aplicar el mapa de registros
+
+**Para qué:** convertir números sin significado en señales con nombre y unidad.
+
+**Qué ocurre:** recorres el `MAPA`: para cada registro, su nombre y su escala. Divides el valor crudo por la escala y guardas el resultado con su nombre.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+def interpretar(crudo):
+    return {nombre: crudo[registro] / escala for registro, (nombre, escala) in MAPA.items()}
+
+senales = interpretar(crudo)
+print("con el mapa:", senales)
+```
+
+**Resultado esperado** (línea nueva; cambian los números):
+
+```text
+con el mapa: {'temperatura_c': 61.1, 'vibracion_mm_s': 0.235, 'corriente_a': 3.97, 'secuencia': 931.0}
+```
+
+**Cómo se lee:** ahora sí: grados, milímetros por segundo, amperios y el número de carcasa (sale con decimal, `931.0`, porque la división siempre da un número con decimales). Toda la integración depende de que este mapa esté bien; un error aquí no da ningún fallo, solo números falsos (lo pruebas en el reto 1).
+
+### 4 — Comprobar contra el MQTT de la estación
+
+**Para qué:** saber si lo que lees por Modbus es lo mismo que publica la estación por MQTT.
+
+**Qué ocurre:** escuchas una carcasa en `linea/est01/ciclo`, lees el autómata justo después y comparas las dos temperaturas.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+llegado = []
+oyente = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+oyente.on_message = lambda c, d, m: llegado.append(json.loads(m.payload))
+oyente.connect("mosquitto", 1883)
+oyente.subscribe("linea/est01/ciclo")
+oyente.loop_start()
+while not llegado:                       # espera a que llegue una carcasa
+    time.sleep(0.1)
+oyente.loop_stop()
+por_modbus = interpretar(leer_crudo())
+print(f"MQTT:   {llegado[0]['pieza_id']}  {llegado[0]['temperatura_c']} °C")
+print(f"Modbus: secuencia {por_modbus['secuencia']:.0f}  {por_modbus['temperatura_c']} °C")
+```
+
+**Resultado esperado** (líneas nuevas; cambian los números):
+
+```text
+MQTT:   P0932  61.3 °C
+Modbus: secuencia 932  61.3 °C
+```
+
+**Cómo se lee:** la misma carcasa (el número de la pieza coincide con la secuencia) y la misma temperatura. Fíjate en que por Modbus la temperatura tiene **un solo decimal**: el registro guarda la temperatura × 10 en un entero, así que si la estación mide 62,06 °C, por Modbus llega 62,0. Si alguna vez la secuencia no coincide, es que la estación terminó otra carcasa entre las dos lecturas.
+
+### 5 — Publicar en MQTT con nombres y unidades
+
+**Para qué:** dejar el dato listo para cualquier consumidor, sin que tenga que conocer el mapa.
+
+**Qué ocurre:** creas el cliente MQTT de la pasarela y publicas en `linea/est01/pasarela` un registro con la hora, el origen (`modbus`) y las señales ya convertidas.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+salida = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+salida.connect("mosquitto", 1883)
+salida.loop_start()
+
+def publicar(senales):
+    registro = {"fuente": "modbus", "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), **senales}
+    salida.publish("linea/est01/pasarela", json.dumps(registro)).wait_for_publish()
+    return registro
+
+print("publicado:", json.dumps(publicar(por_modbus)))
+```
+
+**Resultado esperado** (línea nueva; cambian los números):
+
+```text
+publicado: {"fuente": "modbus", "ts": "2026-11-06T14:38:40+00:00", "temperatura_c": 61.3, "vibracion_mm_s": 0.25, "corriente_a": 4.07, "secuencia": 932.0}
+```
+
+**Cómo se lee:** un registro que cualquiera entiende: dice de dónde viene, cuándo y qué es cada número. Es lo que hace una pasarela en planta: traducir un protocolo de máquina a uno que use el resto de sistemas.
+
+### 6 — El bucle de la pasarela
+
+**Para qué:** convertir la lectura suelta en un servicio que pregunta sin parar, y medir cuánto aprovecha cada pregunta.
+
+**Qué ocurre:** preguntas `LECTURAS` veces, una cada `PERIODO_S`. Solo publicas si la secuencia ha cambiado, es decir, si hay carcasa nueva. Cuentas las lecturas repetidas (misma carcasa que la anterior) y las carcasas saltadas (la secuencia avanzó más de uno).
+
+Pega debajo de `# --- PASO 6`:
+
+```python
+publicadas = repetidas = saltadas = 0
+ultima = None
+for _ in range(LECTURAS):
+    senales = interpretar(leer_crudo())
+    secuencia = int(senales["secuencia"])
+    if secuencia == ultima:
+        repetidas += 1                                  # preguntaste y no había nada nuevo
+    else:
+        if ultima is not None and secuencia > ultima + 1:
+            saltadas += secuencia - ultima - 1          # hubo carcasas que no llegaste a leer
+        publicar(senales)
+        publicadas += 1
+        ultima = secuencia
+    time.sleep(PERIODO_S)
+salida.loop_stop()
+print(f"cada {PERIODO_S} s: lecturas={LECTURAS} publicadas={publicadas} repetidas={repetidas} carcasas_saltadas={saltadas}")
+```
+
+**Resultado esperado** (línea nueva; cambian los números):
+
+```text
+cada 1.0 s: lecturas=10 publicadas=10 repetidas=0 carcasas_saltadas=0
+```
+
+**Cómo se lee:** preguntando cada segundo, al ritmo de la estación, cada lectura trae una carcasa nueva. Como el ciclo varía alrededor de 1 s, en otra ejecución puede salir alguna repetida o saltada. Por MQTT no pasa: la estación avisa cuando hay carcasa. Por Modbus, eres tú quien decide cada cuánto preguntar.
+
+### 7 — Decide tú: preguntar más deprisa o más despacio
+
+**Para qué:** elegir el periodo de lectura sabiendo lo que se gana y lo que se pierde.
+
+**Qué ocurre:** pruebas `PERIODO_S = 0.3` y después `PERIODO_S = 2.5`, con `LECTURAS = 20`, y comparas la última línea.
+
+**Resultado esperado** (última línea de cada prueba; cambian los números):
+
+```text
+cada 0.3 s: lecturas=20 publicadas=7 repetidas=13 carcasas_saltadas=0
+cada 2.5 s: lecturas=20 publicadas=20 repetidas=0 carcasas_saltadas=29
+```
+
+**Cómo se lee:** cada 0,3 s, **13 de 20 preguntas no traen nada nuevo**: cargas al autómata y a la red para nada. Cada 2,5 s, **se escapan 29 carcasas** en 50 s: no las ves nunca. Ningún periodo da justo una lectura por carcasa, porque el ciclo de la máquina varía. Es la diferencia entre preguntar (Modbus) y recibir (MQTT) de «Experimenta». Vuelve a dejar `PERIODO_S = 1.0` y `LECTURAS = 10`.
+## Reto
+
+Los dos retos usan tu pasarela de «Constrúyelo tú» o un script del mismo directorio.
+
+### 1 — La escala olvidada
+
+**La situación:** un integrador copia el mapa de registros de memoria y se olvida de que la temperatura viene multiplicada por 10.
+
+**Qué haces:** en tu pasarela, cambias la escala del registro 0 en el `MAPA`, de `("temperatura_c", 10)` a `("temperatura_c", 1)`, y ejecutas. Mira la línea `publicado:`. Después, haz que la pasarela **se niegue** a publicar un valor imposible: añade al final del fichero una función que compruebe, antes de publicar, que cada señal está dentro de lo físicamente posible.
+
+**Pistas:** un diccionario `RANGOS = {"temperatura_c": (0, 150), …}` con el mínimo y el máximo de cada señal; recorrerlo con `for nombre, (minimo, maximo) in RANGOS.items()`; si una señal no cumple `minimo <= valor <= maximo`, imprimir un aviso y no llamar a `publicar`.
+
+**Lo que buscas:** saber si una escala mal puesta da algún error, y conseguir que tu pasarela lo detecte.
+
+<details>
+<summary>Ver solución</summary>
+
+Con la escala olvidada:
+
+```text
+publicado: {"fuente": "modbus", "ts": "2026-11-06T14:40:22+00:00", "temperatura_c": 626.0, "vibracion_mm_s": 0.28, "corriente_a": 4.03, "secuencia": 1034.0}
+```
+
+**626 °C publicados sin ningún error.** Para la pasarela es un número válido; el primer síntoma llegaría mucho después, en un panel o en un modelo que aprende que el husillo trabaja a 600 °C.
+
+La comprobación, al final del fichero:
+
+```python
+RANGOS = {"temperatura_c": (0, 150), "vibracion_mm_s": (0, 5), "corriente_a": (0, 20)}   # lo físicamente posible
+
+def publicar_si_es_posible(senales):
+    for nombre, (minimo, maximo) in RANGOS.items():
+        if not minimo <= senales[nombre] <= maximo:
+            print(f"RECHAZADO: {nombre}={senales[nombre]} fuera de {minimo}-{maximo}; revisa el mapa de registros")
+            return None
+    return publicar(senales)
+
+publicar_si_es_posible(interpretar(leer_crudo()))
+```
+
+```text
+RECHAZADO: temperatura_c=611.0 fuera de 0-150; revisa el mapa de registros
+```
+
+Con la escala bien puesta no imprime nada y publica. **La regla:** una pasarela no puede saber si el mapa está bien, pero sí si el resultado es posible. Comprobar rangos en la entrada es la defensa más barata contra un error de integración silencioso. Vuelve a poner la escala 10 y quita el bloque del reto.
+
+</details>
+
+### 2 — Variables que se pueden escribir
+
+**La situación:** en `infra/linea/opcua_server.py`, las variables de la estación se declaran con `await nodo.set_writable()`. Un SCADA lee esas variables para enseñarlas en pantalla.
+
+**Qué haces:** ejecutas el script [`infra/construye/m02_02_escribir_opcua.py`](../../infra/construye/m02_02_escribir_opcua.py). Léelo antes: se conecta al servidor OPC-UA sin usuario ni contraseña, escribe 999 en la variable `Temperatura` y la vuelve a leer justo después y un segundo después.
+
+```bash
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m02_02_escribir_opcua.py
+```
+
+**Lo que buscas:** saber si un cliente cualquiera puede cambiar lo que ve el SCADA, y cuánto dura el cambio.
+
+<details>
+<summary>Ver solución</summary>
+
+```text
+antes de escribir: 61.01
+justo después:     999.0
+un segundo después: 61.31
+```
+
+**Ha podido escribir**, sin [autenticarse](../glosario/05-operacion-gobierno.md#autenticacion). Durante ese instante, un SCADA que leyera la variable enseñaría 999 °C. Aquí dura menos de medio segundo porque el servidor del laboratorio vuelve a escribir el valor real dos veces por segundo; en un servidor que solo actualiza cuando cambia el proceso, el valor falso se quedaría.
+
+**La regla:** las variables que reflejan el proceso deben ser **de solo lectura** para los clientes; solo se dejan escribir las que son órdenes ([consignas](../glosario/05-operacion-gobierno.md#consigna)), y con usuarios y permisos. Lo evaluarás en el M08-01.
+
+</details>
+
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
@@ -300,6 +541,11 @@ for _ in range(segundos):
 | `FALLO: OPC-UA: …` | El servidor no arrancó | `docker compose logs opcua` |
 | `FALLO: Modbus no conecta` | El esclavo no está en marcha | `docker compose up -d modbus` |
 | La terminal 2 no recibe nada de la pasarela | La suscripción se abrió con otro tema | Copia el tema `linea/est01/pasarela` tal cual |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `Modbus conectado: False` | el contenedor `modbus` está parado | `docker compose up -d modbus` |
+| el paso 4 se queda esperando | no llegan carcasas por MQTT: la estación está parada | `docker compose start sensor` |
 
 ## Conclusiones
 
