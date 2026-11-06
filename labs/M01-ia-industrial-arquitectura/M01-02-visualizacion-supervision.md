@@ -14,6 +14,7 @@ Comprender qué es la **observabilidad de un proceso**: qué señales tiene que 
 
 - M01-01 hecho: mosquitto, sensor y archivador en marcha.
 - RAM adicional del panel: hasta 512 MB. Puerto 8501 libre.
+- Para la sección «IA sobre el dato»: el modelo de `infra/modelos/` y unos 2 GB más para el contenedor `llm`.
 
 ### Qué está pasando
 
@@ -310,6 +311,90 @@ Con el archivador en marcha, el aviso desaparece y aparece una línea gris con l
 
 Si quieres volver al panel original: `git checkout linea/panel.py` y `docker compose restart panel`.
 
+## IA sobre el dato: un resumen para el operario
+
+**Qué ocurre:** en lugar de mirar el panel, el operario le pide al **modelo de lenguaje local** (el que verás a fondo en el M05) que le diga en dos frases cómo va la estación. El comando `lab resumen` toma las últimas 60 lecturas del histórico, calcula unas medias y se las pasa al modelo para que redacte.
+
+Necesita el modelo en marcha. Si tienes Prometheus arrancado, puedes pararlo un momento para dejar memoria:
+
+```bash
+docker compose up -d llm
+# espera a que conteste: {"estado":"ok",...}
+curl -s http://localhost:8088/salud
+```
+
+📋 Ficha del comando [`resumen`](../comandos-lab.md#resumen).
+
+### 1 — Pedir el resumen
+
+```bash
+docker compose --profile lab run --rm --no-deps lab resumen
+```
+
+**Resultado esperado** (cambian los valores y la redacción):
+
+```text
+datos: {"ultima_pieza": "P0636", "hora_ultimo_dato": "2026-11-06T01:18:18+00:00", "lecturas": 60, "temperatura_media_c": 62.08, "temperatura_max_c": 63.21, "vibracion_media_mm_s": 0.25, "corriente_media_a": 4.04, "lecturas_por_encima_de_70c": 0}
+resumen: La estación EST-01 está en funcionamiento y tiene 60 lecturas. La temperatura media es de 62.08°C, la temperatura máxima es de 63.21°C, …
+```
+
+`datos` es lo que calcula el código; `resumen`, lo que redacta el modelo con esos datos.
+
+### 2 — Pedirlo con los datos congelados
+
+**Qué ocurre:** repites lo del reto 2: paras el archivador y, pasado un minuto y medio, vuelves a pedir el resumen.
+
+**Predice:** ¿se dará cuenta el modelo de que los datos son viejos?
+
+```bash
+docker compose stop archivador
+# … espera 90 segundos …
+docker compose --profile lab run --rm --no-deps lab resumen
+```
+
+**Resultado esperado:**
+
+```text
+resumen: La estación EST-01 tiene 60 lecturas, la temperatura media es de 62.07°C, la temperatura máxima es de 63.23°C, …
+```
+
+El modelo cuenta tan tranquilo cómo va la estación con datos de hace minuto y medio. No tiene forma de saberlo: nadie le ha dado la hora.
+
+### 3 — Darle la hora
+
+**Qué ocurre:** `con-hora` añade a los datos la hora actual y los segundos que han pasado desde el último dato.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab resumen con-hora
+```
+
+**Resultado esperado:**
+
+```text
+datos: {…, "hora_actual": "2026-11-06T01:20:07+00:00", "segundos_desde_ultimo_dato": 97}
+resumen: La estación EST-01 está en funcionamiento y tiene una temperatura media de 62.07°C, … y no ha tenido lecturas por encima de 70°C en los últimos 60 minutos.
+```
+
+**Cómo se lee:** con el dato delante (`97` segundos sin datos), el modelo **sigue diciendo que la estación está en funcionamiento**. Y además se inventa «los últimos 60 minutos»: son 60 lecturas, es decir, 60 segundos. Un modelo de lenguaje redacta con fluidez, pero **no razona** sobre si sus datos tienen sentido.
+
+### 4 — Que lo compruebe el código
+
+**Qué ocurre:** `comprobado` hace lo mismo que tu mejora del panel: antes de preguntar al modelo, el **código** mira si el último dato tiene más de 10 segundos. Si es así, no le deja hablar.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab resumen comprobado
+docker compose start archivador
+```
+
+**Resultado esperado:**
+
+```text
+resumen: Sin datos nuevos desde hace 34 s (último: 2026-11-06T01:23:18+00:00). No se puede decir cómo va la estación: revisar el archivador.
+OK resumen: comprobado por código: datos no actuales, no se pregunta al modelo
+```
+
+**Cómo se lee:** la comprobación que importa la hace una regla sencilla y fiable, no el modelo. El modelo solo redacta cuando el dato es bueno. Es la misma idea que verás en el agente del M07-03: **el código mide y decide; el modelo pone las palabras**.
+
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
@@ -318,6 +403,7 @@ Si quieres volver al panel original: `git checkout linea/panel.py` y `docker com
 | El panel dice que no hay histórico | el archivador acaba de crear la base | espera unos segundos y recarga |
 | El cambio de margen no se ve | el panel no se reinició | `docker compose restart panel` |
 | El panel da un error en rojo tras editar `panel.py` | falta un paréntesis o la sangría no cuadra | compara con el bloque del lab, o `git checkout linea/panel.py` |
+| `lab resumen` da error de conexión con `http://llm:8088` | el modelo no está en marcha o sigue cargando | `docker compose up -d llm` y espera a `/salud` |
 
 ## Conclusiones
 
@@ -348,6 +434,7 @@ Es poder entender el estado del proceso a partir de lo que emite. Necesita tres 
 | Escala compartida | La vibración parece plana | Una variación real no se ve |
 | Datos congelados sin aviso | Reto 2: archivador parado y panel en verde | «Todo normal» cuando en realidad no llega nada |
 | Regla fija sobre una sola señal | Solo mira la temperatura | No ve combinaciones raras de varias señales |
+| La IA no ve que el dato es viejo | `lab resumen` con el archivador parado, incluso dándole la hora | Un resumen fluido y falso |
 
 ### Cómo se mejora
 
@@ -358,6 +445,7 @@ Es poder entender el estado del proceso a partir de lo que emite. Necesita tres 
 | Escala compartida | Una gráfica por señal, cada una con su escala |
 | Aviso que solo ve quien mira | Alertas que llegan a alguien y se registran (M03-02 y M07-02) |
 | Regla fija sobre una señal | Detectores y modelos que miran varias señales a la vez (M03) |
+| Un modelo de lenguaje que resume datos viejos sin avisar | Comprobar con código que el dato está al día antes de dejarle hablar (`resumen comprobado`) |
 
 ### En una frase
 

@@ -130,6 +130,81 @@ La pieza no aparece en `limpio.csv`: se excluye, no se sustituye por la media. R
 
 </details>
 
+## IA para datos no estructurados: las notas de turno
+
+**Qué ocurre:** no todo el dato de planta está en tablas. Mucha información útil está en **notas escritas a mano** por el turno: «10:15 cambio de herramienta, la P0412 salió con rebaba». Para usarla hay que convertir cada nota en datos: qué pieza, a qué hora y qué causa.
+
+Vas a pedírselo al **modelo de lenguaje local**, comprobar cuánto acierta y mejorarlo en dos pasos. Las notas, con la respuesta correcta de cada una para poder medir, están en `infra/linea/docs/notas-turno.csv`.
+
+Necesita el modelo en marcha:
+
+```bash
+docker compose up -d llm
+curl -s http://localhost:8088/salud
+```
+
+📋 Ficha del comando [`notas`](../comandos-lab.md#notas).
+
+### 1 — Con un prompt sencillo
+
+**Qué ocurre:** el modelo recibe cada nota con una instrucción directa (`infra/linea/docs/prompt-notas.txt`) y devuelve un JSON. El código valida el formato y lo compara con la respuesta correcta.
+
+```bash
+cat linea/docs/prompt-notas.txt
+docker compose --profile lab run --rm --no-deps lab notas
+```
+
+**Resultado esperado** (la redacción cambia en cada ejecución):
+
+```text
+                                          nota pieza  hora                                       causa formato correcto
+10:15 cambio de herramienta en EST-01, la P04… P0000 10:15                                 herramienta      ok       NO
+A las 11h40 vibraba mucho el husillo. Paro de… P0587 11:40                   una de: vibracion, 5 min.     MAL       NO
+...
+OK notas: 0 de 8 notas extraídas sin error
+```
+
+**Cómo se lee:** **ninguna** nota sale bien. El modelo copia literalmente partes de la instrucción: pone `P0000` (el ejemplo de formato) o escribe «una de: vibracion…». Un modelo pequeño no distingue bien entre la plantilla y el contenido.
+
+### 2 — Con ejemplos
+
+**Qué ocurre:** usas un prompt que le **enseña con ejemplos** cómo es una nota y cómo es su JSON (`infra/linea/docs/prompt-notas-ejemplos.txt`).
+
+```bash
+cat linea/docs/prompt-notas-ejemplos.txt
+docker compose --profile lab run --rm --no-deps lab notas ejemplos
+```
+
+**Resultado esperado:** entre **3 y 4 de 8** notas bien. Mira los errores que quedan:
+
+- Pieza y hora salen casi siempre bien.
+- La **causa** falla: llama «refrigeración» a una rebaba de herramienta.
+- A veces **se inventa una pieza** en una nota que no tiene ninguna, copiada de los ejemplos del prompt.
+
+### 3 — Lo que tiene formato, con código
+
+**Qué ocurre:** la pieza (`P` y cuatro cifras) y la hora (`10:15`, `11h40`) tienen un **formato fijo**: se pueden sacar con un patrón, sin modelo. En modo `hibrido`, el código extrae pieza y hora, y el modelo solo clasifica la causa.
+
+```bash
+docker compose --profile lab run --rm --no-deps lab notas ejemplos hibrido
+```
+
+**Resultado esperado:**
+
+```text
+prompt: linea/docs/prompt-notas-ejemplos.txt   modo híbrido: pieza y hora con código, causa con el modelo
+                                       nota pieza  hora         causa formato correcto
+10:15 cambio de herramienta en EST-01, la … P0412 10:15 refrigeracion      ok       NO
+A las 11h40 vibraba mucho el husillo. Paro… P0587 11:40     vibracion      ok       sí
+12:05 - P0633 rechazada en calidad, marca … P0633 12:05      sujecion      ok       sí
+...
+OK notas: 5 de 8 notas extraídas sin error
+```
+
+**Cómo se lee:** pieza y hora, **siempre bien**. Solo fallan algunas causas, y esas ya no son un problema de formato, sino de comprensión. En una planta, esas son las que revisaría una persona. La progresión 0 → 3–4 → 5 de 8 resume cómo se usa bien la IA para preparar datos: **código para lo que tiene reglas, modelo para lo que hay que interpretar, y siempre una validación**.
+
+Puedes editar `infra/linea/docs/prompt-notas-ejemplos.txt` (por ejemplo, añadir un ejemplo de rebaba con causa `herramienta`) y repetir el paso 3 para ver si mejora.
+
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
@@ -167,6 +242,16 @@ Es convertir el histórico tal como llegó en un **dataset**: una tabla con una 
 - **Corregir solo lo que tiene una causa conocida**, como dividir entre 10 las décimas.
 - **Apartar, no borrar**: los imposibles se guardan aparte para poder revisarlos y avisar a mantenimiento.
 - **Dejar el recuento escrito** para que quien use el dataset sepa qué se quitó y por qué.
+
+### Cuando el dato es texto
+
+| Modo | Notas correctas | Qué enseña |
+|------|-----------------|------------|
+| Prompt sencillo | 0 de 8 | Un modelo pequeño copia la plantilla en lugar de rellenarla |
+| Prompt con ejemplos | 3–4 de 8 | Los ejemplos ayudan, pero el modelo puede copiar datos de ellos |
+| Código para pieza y hora, modelo para la causa | 5 de 8 | Lo que tiene formato fijo se saca con reglas; el modelo, solo para interpretar |
+
+Convertir texto en datos con un modelo es útil, pero **siempre se valida** con código y se mide contra casos conocidos antes de fiarse.
 
 ### En una frase
 

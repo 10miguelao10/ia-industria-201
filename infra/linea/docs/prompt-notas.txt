@@ -1,0 +1,2 @@
+Nota del turno: {nota}
+Extrae tres campos y responde SOLO con un JSON así: {"pieza": "P0000 o vacío", "hora": "HH:MM", "causa": "una de: herramienta, vibracion, sujecion, refrigeracion, camara, ninguna"}

@@ -96,6 +96,82 @@ def cmd_sql(args):
 
 Se usa en [M01-01](M01-ia-industrial-arquitectura/M01-01-arquitectura-datos.md), [M01-02](M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md), [M01-03](M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) y [M02-04](M02-captura-integracion-datos/M02-04-dataset-linea.md).
 
+### resumen
+
+**Qué hace:** pide al modelo de lenguaje local que redacte para el operario, en dos frases, cómo va la estación. El código calcula los datos (última pieza, medias, lecturas fuera de margen) de las últimas 60 lecturas del histórico; el modelo solo redacta.
+
+```bash
+lab resumen               # solo los datos de la estación
+lab resumen con-hora      # además, la hora actual y los segundos desde el último dato
+lab resumen comprobado    # el código comprueba antes que el dato tenga menos de 10 s
+```
+
+| | |
+|--|--|
+| Necesita en marcha | `llm`. Para que haya datos nuevos, `mosquitto`, `sensor` y `archivador` |
+| Lee | `historial.sqlite` (solo lectura) · la respuesta del modelo |
+| Escribe | Nada |
+| `OK` si | El modelo redacta el resumen, o en modo `comprobado` el código detecta datos viejos y no le pregunta |
+| `FALLO` si | No hay histórico (si el modelo no responde, sale un error de conexión) |
+
+<details>
+<summary>Código (<code>infra/linea/cli.py</code>, función <code>cmd_resumen</code>)</summary>
+
+```python
+datos = _ventana_historico(60)        # el CÓDIGO calcula: última pieza, hora, medias, fuera de margen
+retraso = segundos desde datos["hora_ultimo_dato"]
+if "comprobado" in args and retraso > 10:
+    print("resumen: Sin datos nuevos desde hace ... No se puede decir cómo va la estación")
+    return ok(...)                    # el modelo ni se consulta
+if "con-hora" in args:
+    datos["hora_actual"] = ...        # se le da la hora al modelo (y aun así no lo tiene en cuenta)
+    datos["segundos_desde_ultimo_dato"] = retraso
+texto = _chat(f"Datos de la estación EST-01: {datos}. Escribe para el operario, en dos frases, cómo va la estación ahora.",
+              "Usa solo los datos. No inventes cifras.")
+```
+
+</details>
+
+Se usa en [M01-02](M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md).
+
+### notas
+
+**Qué hace:** lee las notas de turno de `linea/docs/notas-turno.csv` y pide al modelo local que extraiga de cada una la pieza, la hora y la causa en JSON. El código valida el formato y lo compara con la respuesta correcta de cada nota.
+
+```bash
+lab notas                     # prompt sencillo (linea/docs/prompt-notas.txt)
+lab notas ejemplos            # prompt con ejemplos (linea/docs/prompt-notas-ejemplos.txt)
+lab notas ejemplos hibrido    # pieza y hora con código; causa con el modelo
+```
+
+| | |
+|--|--|
+| Necesita en marcha | `llm` |
+| Lee | `linea/docs/notas-turno.csv` · el fichero de prompt · la respuesta del modelo |
+| Escribe | `notas_extraidas.csv` |
+| `OK` si | Termina (siempre). El resultado dice cuántas notas salieron bien |
+| `FALLO` si | El modelo no responde (error de conexión) |
+
+<details>
+<summary>Código (<code>infra/linea/cli.py</code>, función <code>cmd_notas</code>)</summary>
+
+```python
+plantilla = Path("/opt/linea/docs/prompt-notas-ejemplos.txt" if "ejemplos" in args else ".../prompt-notas.txt").read_text()
+for n in notas:
+    e = _extraer_nota(n["nota"], plantilla)               # el modelo devuelve un JSON (o algo parecido)
+    pieza, hora, causa = e.get("pieza"), e.get("hora"), e.get("causa")
+    if hibrido:
+        pieza = re.search(r"\bP\d{4}\b", nota)            # lo que tiene formato fijo, con un patrón
+        hora = re.search(r"\b(\d{1,2})[:h](\d{2})\b", nota)
+    # validación con código: formato y valores permitidos
+    formato_ok = (pieza == "" or re.fullmatch(r"P\d{4}", pieza)) and re.fullmatch(r"\d{2}:\d{2}", hora) and causa in CAUSAS
+    correcto = formato_ok and (pieza, hora, causa) == (n.pieza_esperada, n.hora_esperada, n.causa_esperada)
+```
+
+</details>
+
+Se usa en [M02-03](M02-captura-integracion-datos/M02-03-preparacion-datos.md).
+
 ---
 
 ## M01 — Arquitectura y supervisión

@@ -1,10 +1,12 @@
 """Comandos de cada laboratorio. Salida humana y código 0 si el paso cuadra."""
 import asyncio
 import json
+import re
 import sqlite3
 import sys
 import time
 import warnings
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -905,6 +907,108 @@ def cmd_m03_04(_args) -> int:
     return ok("m03-04", f"árbol recall={t_arbol['recall']:.2f} fpr={t_arbol['fpr']:.2f}; red recall={t_red['recall']:.2f} fpr={t_red['fpr']:.2f}")
 
 
+# ---------------------------------------------------------------- pinceladas de IA en M01 y M02
+def _ventana_historico(n: int = 60) -> dict:
+    con = sqlite3.connect(f"file:{DATA / 'historial.sqlite'}?mode=ro", uri=True)
+    df = pd.read_sql_query(f"SELECT pieza_id, ts, temperatura_c, vibracion_mm_s, corriente_a FROM lecturas ORDER BY id DESC LIMIT {n}", con)
+    con.close()
+    return {
+        "ultima_pieza": df.iloc[0]["pieza_id"],
+        "hora_ultimo_dato": df.iloc[0]["ts"],
+        "lecturas": len(df),
+        "temperatura_media_c": round(float(df.temperatura_c.mean()), 2),
+        "temperatura_max_c": float(df.temperatura_c.max()),
+        "vibracion_media_mm_s": round(float(df.vibracion_mm_s.mean()), 3),
+        "corriente_media_a": round(float(df.corriente_a.mean()), 2),
+        "lecturas_por_encima_de_70c": int((df.temperatura_c > UMBRAL_TEMPERATURA).sum()),
+    }
+
+
+def cmd_resumen(args) -> int:
+    """lab resumen [con-hora | comprobado]: el modelo local redacta cómo va la estación a partir del histórico."""
+    if not (DATA / "historial.sqlite").exists():
+        return fallo("todavía no hay histórico")
+    datos = _ventana_historico(60)
+    retraso = round((datetime.now(timezone.utc) - datetime.fromisoformat(datos["hora_ultimo_dato"])).total_seconds())
+    if "comprobado" in args and retraso > 10:
+        # Mejora: el CÓDIGO comprueba que el dato está al día antes de dejar hablar al modelo
+        print(f"datos: {json.dumps(datos, ensure_ascii=False)}")
+        print(f"resumen: Sin datos nuevos desde hace {retraso} s (último: {datos['hora_ultimo_dato']}). "
+              "No se puede decir cómo va la estación: revisar el archivador.")
+        return ok("resumen", "comprobado por código: datos no actuales, no se pregunta al modelo")
+    if "con-hora" in args:
+        # Mejora: darle también la hora actual y cuánto hace del último dato
+        ahora = datetime.now(timezone.utc)
+        datos["hora_actual"] = ahora.isoformat(timespec="seconds")
+        datos["segundos_desde_ultimo_dato"] = round((ahora - datetime.fromisoformat(datos["hora_ultimo_dato"])).total_seconds())
+    texto = _chat(
+        f"Datos de la estación EST-01 (últimas 60 lecturas del histórico): {json.dumps(datos, ensure_ascii=False)}\n"
+        "Escribe para el operario, en dos frases y en español, cómo va la estación ahora.",
+        "Eres el asistente del operario de una línea de mecanizado. Usa solo los datos. No inventes cifras.",
+        max_tokens=100,
+    )
+    print(f"datos: {json.dumps(datos, ensure_ascii=False)}")
+    print(f"resumen: {texto}")
+    return ok("resumen", "resumen redactado por el modelo local")
+
+
+CAUSAS = ["herramienta", "vibracion", "sujecion", "refrigeracion", "camara", "ninguna"]
+
+
+def _extraer_nota(nota: str, plantilla: str) -> dict:
+    texto = _chat(
+        plantilla.replace("{nota}", nota),
+        "Extraes datos de notas de turno. Respondes solo con JSON, sin explicaciones.",
+        max_tokens=60,
+    )
+    m = re.search(r"\{.*?\}", texto, re.S)
+    try:
+        return json.loads(m.group(0)) if m else {"_crudo": texto}
+    except json.JSONDecodeError:
+        return {"_crudo": texto}
+
+
+def _pieza_hora_por_codigo(nota: str) -> tuple[str, str]:
+    # Lo que tiene un formato fijo se extrae con un patrón, sin modelo
+    pieza = re.search(r"\bP\d{4}\b", nota)
+    hora = re.search(r"\b(\d{1,2})[:h](\d{2})\b", nota)
+    return (pieza.group(0) if pieza else "", f"{int(hora.group(1)):02d}:{hora.group(2)}" if hora else "")
+
+
+def cmd_notas(args) -> int:
+    """lab notas [ejemplos] [hibrido]: extrae pieza, hora y causa de las notas de turno y lo compara con lo esperado."""
+    fichero = "prompt-notas-ejemplos.txt" if "ejemplos" in args else "prompt-notas.txt"
+    plantilla = Path(f"/opt/linea/docs/{fichero}").read_text(encoding="utf-8")
+    hibrido = "hibrido" in args
+    notas = pd.read_csv("/opt/linea/docs/notas-turno.csv", keep_default_na=False)
+    print(f"prompt: linea/docs/{fichero}" + ("   modo híbrido: pieza y hora con código, causa con el modelo" if hibrido else ""))
+    filas, aciertos = [], 0
+    for _, n in notas.iterrows():
+        e = _extraer_nota(n["nota"], plantilla)
+        valido = "_crudo" not in e
+        pieza = str(e.get("pieza", "")).strip().upper() if valido else ""
+        hora = str(e.get("hora", "")).strip() if valido else ""
+        causa = str(e.get("causa", "")).strip().lower() if valido else ""
+        if hibrido:
+            pieza, hora = _pieza_hora_por_codigo(n["nota"])
+        # Validación con código: formato y valores permitidos
+        formato_ok = bool(valido and (pieza == "" or re.fullmatch(r"P\d{4}", pieza))
+                          and re.fullmatch(r"\d{2}:\d{2}", hora) and causa in CAUSAS)
+        correcto = formato_ok and pieza == n["pieza_esperada"] and hora == n["hora_esperada"] and causa == n["causa_esperada"]
+        aciertos += correcto
+        filas.append({
+            "nota": n["nota"][:42] + ("…" if len(n["nota"]) > 42 else ""),
+            "pieza": pieza or "-", "hora": hora or "-", "causa": (causa or "-")[:16],
+            "formato": "ok" if formato_ok else "MAL",
+            "correcto": "sí" if correcto else "NO",
+        })
+    salida = pd.DataFrame(filas)
+    salida.to_csv(DATA / "notas_extraidas.csv", index=False)
+    with pd.option_context("display.width", 200, "display.max_colwidth", 50):
+        print(salida.to_string(index=False))
+    return ok("notas", f"{aciertos} de {len(notas)} notas extraídas sin error")
+
+
 def cmd_sql(args) -> int:
     """Consulta de solo lectura al histórico. Sin argumentos, enseña las columnas de la tabla."""
     ruta = DATA / "historial.sqlite"
@@ -958,6 +1062,8 @@ COMANDOS = {
     "m08-01": cmd_m08_01,
     "m08-02": cmd_m08_02,
     "sql": cmd_sql,
+    "resumen": cmd_resumen,
+    "notas": cmd_notas,
 }
 
 

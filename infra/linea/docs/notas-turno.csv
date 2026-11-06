@@ -1,0 +1,9 @@
+nota,pieza_esperada,hora_esperada,causa_esperada
+"10:15 cambio de herramienta en EST-01, la P0412 salió con rebaba",P0412,10:15,herramienta
+"A las 11h40 vibraba mucho el husillo. Paro de 5 min. Pieza afectada P0587",P0587,11:40,vibracion
+"12:05 - P0633 rechazada en calidad, marca en la brida. Revisar sujeción",P0633,12:05,sujecion
+"sin incidencias hasta las 13:00",,13:00,ninguna
+"13:20 refrigerante bajo, temperatura subiendo. Se repone. Piezas P0702 a P0705 a revisar",P0702,13:20,refrigeracion
+"Operario nuevo en el puesto desde las 14:10, todo normal",,14:10,ninguna
+"14:45 P0811 con rayón, parece de la herramienta desgastada",P0811,14:45,herramienta
+"15:30 la cámara de inspección no enciende, piezas sin foto desde la P0860",P0860,15:30,camara
