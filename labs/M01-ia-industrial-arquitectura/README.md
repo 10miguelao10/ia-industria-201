@@ -96,44 +96,125 @@ Lo que hace que un dato se pueda seguir de punta a punta es que cada registro ll
 
 ### Demostración
 
-La demostración sigue **una carcasa** desde que sale de la máquina hasta que queda en el histórico. En el laboratorio comprobarás el camino entero y lo pondrás a prueba.
+**Qué se demuestra:** el recorrido de **una carcasa concreta** desde que sale de la máquina hasta que queda guardada, y una propiedad del broker que tiene consecuencias en todo el curso: reparte lo que pasa en el momento y no guarda nada. En el laboratorio comprobarás el camino entero y lo pondrás a prueba hasta romperlo.
 
-**1. Encender la línea.**
+#### Paso 1 — Encender la línea
+
+**Qué vamos a ver:** se arrancan los tres componentes del camino del dato. Cada uno es un contenedor, un proceso aislado con su propia función. Desde este momento la estación fabrica una carcasa por segundo.
 
 ```bash
+# Arranca en segundo plano (-d) la estación, el broker y el archivador
 docker compose up -d mosquitto sensor archivador
+
+# Lista los contenedores de esos tres servicios con su estado
+docker compose ps mosquitto sensor archivador
 ```
 
-Desde este momento la estación fabrica una carcasa por segundo.
+**Resultado esperado** (cambian los tiempos):
 
-**2. Coger una carcasa al vuelo.** Nos suscribimos al broker y nos quedamos con el siguiente registro que publique la estación:
+```text
+NAME                    IMAGE                 COMMAND                  SERVICE      CREATED         STATUS         PORTS
+ia-linea-archivador-1   ia-linea-archivador   "python -m linea.arc…"   archivador   3 seconds ago   Up 2 seconds
+ia-linea-mosquitto-1    eclipse-mosquitto:2   "/docker-entrypoint.…"   mosquitto    3 seconds ago   Up 3 seconds   0.0.0.0:1883->1883/tcp, [::]:1883->1883/tcp
+ia-linea-sensor-1       ia-linea-sensor       "python -m linea.sen…"   sensor       3 seconds ago   Up 2 seconds
+```
+
+**Cómo se lee:**
+
+| Columna | Qué dice | Qué señalar |
+|---------|----------|-------------|
+| `SERVICE` | El papel en la arquitectura | `sensor` = origen, `mosquitto` = transporte, `archivador` = almacén |
+| `IMAGE` | De qué está hecho | `sensor` y `archivador` salen de la imagen del curso (Python + código de la línea); `mosquitto` es un broker MQTT estándar |
+| `COMMAND` | Qué programa ejecuta | `python -m linea.sensor`: el código está en `infra/linea/sensor.py`, y se puede leer |
+| `STATUS` | Si está en marcha | `Up`: el tramo existe |
+| `PORTS` | Qué publica hacia fuera | Solo el broker abre un puerto (1883); estación y archivador hablan por dentro de la red de Docker |
+
+> **Qué señalar en pantalla:** tres contenedores, tres responsabilidades. Si uno no está en `Up`, su tramo del camino no existe.
+
+#### Paso 2 — Coger una carcasa al vuelo
+
+**Qué vamos a ver:** nos conectamos al broker como un consumidor más, igual que hace el archivador, y nos quedamos con **el siguiente** registro que publique la estación.
 
 ```bash
-# -C 1: sale en cuanto recibe un mensaje
+# mosquitto_sub: cliente MQTT que se suscribe y enseña lo que llega
+#   -t 'linea/est01/ciclo'  tema al que se suscribe: los registros de EST-01
+#   -C 1                    sale en cuanto recibe un mensaje
 docker compose exec mosquitto mosquitto_sub -t 'linea/est01/ciclo' -C 1
 ```
 
+**Resultado esperado** (cambian la pieza, la hora y los valores):
+
 ```text
-{"estacion": "EST-01", "pieza_id": "P33825", "ts": "2026-11-06T01:06:48+00:00", "temperatura_c": 61.48, "vibracion_mm_s": 0.22, "corriente_a": 4.05, "secuencia": 33825}
+{"estacion": "EST-01", "pieza_id": "P1987", "ts": "2026-11-06T01:40:50+00:00", "temperatura_c": 62.96, "vibracion_mm_s": 0.25, "corriente_a": 4.05, "secuencia": 1987}
 ```
 
-Es la ficha de una carcasa concreta: cuál es, cuándo terminó y qué midieron los sensores. Fíjate en que hemos recibido **la siguiente** que se fabricó, no las anteriores: el broker reparte lo que pasa en ese momento.
+**Cómo se lee:** es el **registro** de una carcasa, en formato JSON:
 
-**3. Buscarla en el histórico.** Con el identificador de la carcasa (cambia el `P33825` por el tuyo):
+| Campo | Valor | Qué es |
+|-------|-------|--------|
+| `estacion` | `EST-01` | Qué máquina la fabricó |
+| `pieza_id` | `P1987` | El identificador de la carcasa |
+| `ts` | `2026-11-06T01:40:50+00:00` | Cuándo terminó, en hora UTC (en España, una hora más en invierno) |
+| `temperatura_c` | `62.96` | Temperatura del husillo durante el ciclo, en °C |
+| `vibracion_mm_s` | `0.25` | Vibración de la máquina, en mm/s |
+| `corriente_a` | `4.05` | Corriente del motor, en amperios: cuánto esfuerzo ha hecho |
+| `secuencia` | `1987` | El contador interno de la estación desde que arrancó |
+
+> **Qué señalar en pantalla:** «Esto es lo que viaja: una ficha por carcasa, con quién, cuándo y cómo se fabricó. Es la materia prima de toda la IA del curso».
+
+#### Paso 3 — El broker reparte, no guarda
+
+**Qué vamos a ver:** se repite el mismo comando dos veces, con unos segundos de diferencia. Si el broker guardara los mensajes, la segunda vez podríamos recibir el mismo registro, o uno anterior.
 
 ```bash
-docker compose --profile lab run --rm --no-deps lab sql \
-  "SELECT pieza_id, ts, temperatura_c, vibracion_mm_s, corriente_a FROM lecturas WHERE pieza_id = 'P33825' ORDER BY id DESC LIMIT 1"
+# Primera escucha
+docker compose exec mosquitto mosquitto_sub -t 'linea/est01/ciclo' -C 1
+# … unos segundos después, la segunda
+docker compose exec mosquitto mosquitto_sub -t 'linea/est01/ciclo' -C 1
 ```
+
+**Resultado esperado:**
 
 ```text
-pieza_id                        ts  temperatura_c  vibracion_mm_s  corriente_a
-  P33825 2026-11-06T01:06:48+00:00          61.48            0.22         4.05
+{"estacion": "EST-01", "pieza_id": "P1987", "ts": "2026-11-06T01:40:50+00:00", …}
+{"estacion": "EST-01", "pieza_id": "P1991", "ts": "2026-11-06T01:40:54+00:00", …}
 ```
 
-La misma carcasa, con la misma hora y las mismas medidas, ya está guardada. Ha cruzado los tres tramos: la estación la emitió, el broker la repartió y el archivador la guardó.
+**Cómo se lee:** la segunda escucha recibe la `P1991`, la que se fabricó **cuando nos volvimos a conectar**. Las carcasas `P1988` a `P1990` se publicaron mientras no escuchábamos y no las hemos visto. El broker no las ha perdido para todos: el archivador sí estaba escuchando. Pero a nosotros no nos las va a dar nunca.
 
-**4. La pregunta que abre el laboratorio:** si el archivador no hubiera estado escuchando en ese segundo, ¿dónde estaría ahora esa carcasa?
+> **Qué señalar en pantalla:** «El broker es como una megafonía: lo oye quien está en la sala en ese momento. Si queremos el pasado, alguien tiene que estar siempre escuchando y apuntándolo». Ese alguien es el archivador.
+
+#### Paso 4 — Encontrar la carcasa en el histórico
+
+**Qué vamos a ver:** buscamos en el histórico la carcasa que cogimos al vuelo en el paso 2. `lab sql` lanza una consulta SQL contra la base de datos del archivador, en solo lectura.
+
+```bash
+# Busca la carcasa por su identificador (cambia P1987 por la que te haya salido)
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT id, pieza_id, ts, temperatura_c, vibracion_mm_s, corriente_a
+   FROM lecturas WHERE pieza_id = 'P1987' ORDER BY id DESC LIMIT 1"
+```
+
+**Resultado esperado:**
+
+```text
+   id pieza_id                        ts  temperatura_c  vibracion_mm_s  corriente_a
+48009    P1987 2026-11-06T01:40:50+00:00          62.96            0.25         4.05
+```
+
+**Cómo se lee:**
+
+- La **misma carcasa**, con la **misma hora** y las **mismas medidas** que vimos pasar por el broker. Ha cruzado los tres tramos: la estación la emitió, el broker la repartió y el archivador la guardó.
+- `id` es una columna nueva: el número de fila que pone la base de datos. No viene de la estación, y no coincide con el número de pieza: aquí la fila es la 48 009 y la pieza la 1987, porque el histórico guarda también carcasas de otras tandas. Por qué eso importa lo descubrirás en el laboratorio.
+- `lecturas` es la tabla donde el archivador guarda una fila por registro. Su estructura completa la verás en el laboratorio.
+
+> **Qué señalar en pantalla:** «Lo que hace posible seguir un dato de punta a punta es que lleva estación, pieza y hora. Sin eso, no sabríamos cuál de todas las filas es esta carcasa».
+
+#### Paso 5 — La pregunta que abre el laboratorio
+
+> **Si el archivador no hubiera estado escuchando en el segundo en que se fabricó la P1987, ¿dónde estaría ahora esa carcasa?**
+
+Deja la pregunta abierta. En el laboratorio lo comprobarás.
 
 ### Ahora tú: M01-01
 
@@ -163,38 +244,101 @@ Dos precisiones:
 
 ### Demostración
 
-La demostración compara el mismo dato **en crudo** y **convertido en información**. En el laboratorio calcularás tú los indicadores y descubrirás cuándo el panel engaña.
+**Qué se demuestra:** el mismo dato **en crudo** y **convertido en información**, y de dónde sale cada cosa que enseña un panel. En el laboratorio calcularás tú los indicadores, los pondrás a prueba y descubrirás cuándo el panel engaña.
 
-**1. El dato en crudo.** Las últimas ocho carcasas del histórico, tal como están guardadas:
+#### Paso 1 — El dato en crudo
+
+**Qué vamos a ver:** las últimas ocho carcasas del histórico, tal como están guardadas. Es lo que tendría el operario si no hubiera panel.
 
 ```bash
+# Las 8 filas más recientes de la tabla de lecturas
 docker compose --profile lab run --rm --no-deps lab sql \
-  "SELECT pieza_id, ts, temperatura_c, vibracion_mm_s, corriente_a FROM lecturas ORDER BY id DESC LIMIT 8"
+  "SELECT pieza_id, ts, temperatura_c, vibracion_mm_s, corriente_a
+   FROM lecturas ORDER BY id DESC LIMIT 8"
 ```
+
+**Resultado esperado** (cambian las piezas y los valores):
 
 ```text
 pieza_id                        ts  temperatura_c  vibracion_mm_s  corriente_a
   P33831 2026-11-06T01:06:54+00:00          61.11           0.235         4.08
   P33830 2026-11-06T01:06:53+00:00          63.15           0.220         3.99
   P33829 2026-11-06T01:06:52+00:00          62.77           0.280         4.09
-  ...
+  P33828 2026-11-06T01:06:51+00:00          62.54           0.265         4.00
+  P33827 2026-11-06T01:06:50+00:00          62.19           0.250         4.06
+  P33826 2026-11-06T01:06:49+00:00          61.73           0.235         4.03
+  P33825 2026-11-06T01:06:48+00:00          61.48           0.220         4.05
+  P33824 2026-11-06T01:06:47+00:00          61.00           0.280         3.97
 ```
 
-**Pregunta a la clase:** ¿va bien la estación? Con una tabla así, cuesta responder. Y son solo ocho segundos de producción.
+**Cómo se lee:** son ocho segundos de producción. Cada fila es una carcasa con sus tres medidas. Todo es correcto, pero **no responde a ninguna pregunta** por sí solo.
 
-**2. El mismo dato, en el panel.** Se arranca y se abre <http://localhost:8501>:
+> **Pregunta a la clase:** «¿Va bien la estación?». Deja que contesten. Con una tabla así hay que mirar número a número, compararlos con lo que uno sabe del proceso y, aun así, solo se ven ocho segundos.
+
+#### Paso 2 — El mismo dato, en el panel
+
+**Qué vamos a ver:** se arranca el panel del puesto de supervisión y se abre en el navegador.
 
 ```bash
+# Arranca el panel (Streamlit) en el puerto 8501
 docker compose up -d panel
 ```
 
+Abre <http://localhost:8501>.
+
 ![Panel de EST-01 con pieza, temperatura, vibración, margen y serie](../img/M01-02-panel.png)
 
-Ahora la respuesta está en dos segundos: qué carcasa sale, cómo está el husillo, si estamos dentro del margen del procedimiento y cómo ha ido el último par de minutos. Es el paso de **dato** a **información operativa**.
+**Cómo se lee:**
 
-**3. De dónde sale cada cosa.** El panel no habla con la máquina: lee el mismo histórico que acabamos de consultar. Su código está en `infra/linea/panel.py` y su margen, en `infra/linea/config.py`.
+| Zona del panel | Qué responde | De dónde sale |
+|----------------|--------------|---------------|
+| Pieza, Temperatura, Vibración | ¿Qué está saliendo ahora? | La última fila del histórico |
+| Recuadro verde | ¿Estamos dentro del margen? | La última temperatura comparada con 70 °C |
+| Contador «fuera en esta ventana» | ¿Ha habido sustos recientes? | Lecturas por encima de 70 °C en las últimas 120 |
+| Gráfica | ¿Cómo ha ido el último par de minutos? | Las últimas 120 lecturas |
 
-**4. La pregunta que abre el laboratorio:** el recuadro está en verde. ¿Significa que todo va bien?
+Ahora la pregunta «¿va bien la estación?» se responde en dos segundos. Es el paso de **dato** a **información operativa**.
+
+> **Qué señalar en pantalla:** el dato es el mismo que en la tabla del paso 1. Lo que ha cambiado es que alguien ha decidido qué mostrar, cómo resumirlo y con qué criterio avisar.
+
+#### Paso 3 — De dónde sale cada indicador
+
+**Qué vamos a ver:** el código del panel, para comprobar que no hay magia: lee el histórico y aplica una regla. Se abre `infra/linea/panel.py` en VS Code y se señalan estas líneas:
+
+```python
+# Lee las 120 lecturas más recientes del histórico (no habla con la máquina)
+df = pd.read_sql_query(
+    "SELECT ts, pieza_id, temperatura_c, vibracion_mm_s, corriente_a FROM lecturas ORDER BY id DESC LIMIT 120",
+    con,
+)
+
+# Cuenta las que pasan del margen, y mira si la ÚLTIMA lo pasa
+fuera = df[df["temperatura_c"] > UMBRAL_TEMPERATURA]
+if ultimo["temperatura_c"] > UMBRAL_TEMPERATURA:
+    st.error(f"Por encima del margen ({UMBRAL_TEMPERATURA:.0f} °C).")
+else:
+    st.success(f"Dentro del margen ({UMBRAL_TEMPERATURA:.0f} °C). Lecturas fuera en esta ventana: {len(fuera)}.")
+```
+
+Y en `infra/linea/config.py`, el margen:
+
+```python
+UMBRAL_TEMPERATURA = 70.0
+```
+
+**Cómo se lee:**
+
+- El panel **lee el histórico**, igual que nuestra consulta del paso 1. Si el histórico no se actualiza, el panel tampoco.
+- El **margen es una línea de código** que escribió una persona a partir del procedimiento. No es un modelo: no aprende ni mira combinaciones de señales.
+- El recuadro decide con **la última** lectura; el contador mira **las últimas 120**. Son dos criterios distintos en la misma pantalla.
+
+> **Qué señalar en pantalla:** «Todo lo que enseña un panel se puede reproducir con una consulta. Si no se puede reproducir, no es observabilidad: es un dibujo».
+
+#### Paso 4 — La pregunta que abre el laboratorio
+
+> **El recuadro está en verde. ¿Significa que todo va bien?**
+
+Deja la pregunta abierta. En el laboratorio encontrarás al menos dos casos en los que no.
 
 ### Ahora tú: M01-02
 
@@ -227,45 +371,127 @@ Una **alerta** pasa por tres estados: **inactive** (no se cumple), **pending** (
 
 ### Demostración
 
-La demostración enseña la pregunta más sencilla que hace Prometheus, «¿estás vivo?», y una alerta en el caso más simple: la estación parada. En el laboratorio verás las métricas por dentro, escribirás tus consultas y descubrirás un fallo que esa pregunta no detecta.
+**Qué se demuestra:** cómo vigila Prometheus a los componentes de la arquitectura con su pregunta más básica, «¿estás vivo?», y cómo una alerta pasa de inactiva a activa en el caso más sencillo: la estación parada. En el laboratorio verás las métricas por dentro, escribirás tus consultas y descubrirás un fallo que esa pregunta no detecta.
 
-**1. Encender Prometheus.**
+#### Paso 1 — Encender Prometheus
+
+**Qué vamos a ver:** se arranca Prometheus. Al empezar lee su configuración, que le dice a quién preguntar y cada cuánto. La estación y el archivador se reinician para que empiecen a publicar sus métricas.
 
 ```bash
+# Arranca Prometheus (interfaz en http://localhost:9090)
 docker compose up -d prometheus
-docker compose restart sensor archivador    # para que publiquen sus métricas
+
+# La estación y el archivador publican sus métricas al arrancar
+docker compose restart sensor archivador
 ```
 
-**2. La pregunta «¿estás vivo?».** En <http://localhost:9090/graph> se escribe `up` y se pulsa **Execute**:
+La configuración está en `infra/prometheus/prometheus.yml`:
+
+```yaml
+global:
+  scrape_interval: 5s        # cada 5 segundos pregunta a cada componente
+  evaluation_interval: 5s    # cada 5 segundos revisa las reglas de alerta
+
+scrape_configs:
+  - job_name: sensor          # la estación, en su puerto 9102
+    static_configs:
+      - targets: ["sensor:9102"]
+  - job_name: archivador      # el archivador, en su puerto 9101
+    static_configs:
+      - targets: ["archivador:9101"]
+```
+
+**Cómo se lee:** Prometheus **va a preguntar** (modelo *pull*): son los componentes los que esperan a que les pregunten, no los que envían. Cada 5 segundos llama a dos direcciones.
+
+> **Qué señalar en pantalla:** Prometheus es un vigilante que hace la ronda cada 5 segundos por los puestos que tiene apuntados.
+
+#### Paso 2 — La pregunta «¿estás vivo?»
+
+**Qué vamos a ver:** la métrica más básica de cualquier sistema vigilado. Se abre <http://localhost:9090/graph>, se escribe `up` en el cuadro de consulta y se pulsa **Execute**, pestaña **Table**.
 
 ```promql
+# 1 si Prometheus consiguió preguntar al componente en la última ronda; 0 si no
 up
 ```
 
+**Resultado esperado:**
+
 ```text
-up{instance="archivador:9101", job="archivador"}   1
 up{instance="sensor:9102", job="sensor"}           1
+up{instance="archivador:9101", job="archivador"}   1
 ```
 
-Cada 5 segundos, Prometheus llama a la puerta de cada componente. Si contesta, `up` vale 1; si no, 0. Es la métrica más básica de cualquier sistema vigilado.
+**Cómo se lee:**
 
-**3. Las reglas de alerta.** En <http://localhost:9090/alerts> están las cinco reglas de la línea, en verde. Cada una es una pregunta que Prometheus se hace cada 5 segundos.
+| Parte | Qué es |
+|-------|--------|
+| `up` | El nombre de la métrica. La crea el propio Prometheus para cada componente que vigila |
+| `{instance=…, job=…}` | Las **etiquetas**: a qué componente se refiere cada valor |
+| `1` | En la última ronda, el componente contestó |
 
-**4. Parar la estación.** Se para la estación y, a los 20 segundos, se recarga la página de alertas:
+> **Qué señalar en pantalla:** «Esta es la pregunta más sencilla que se le puede hacer a un sistema. Recordadla: en el laboratorio veréis que no basta».
+
+#### Paso 3 — Una regla de alerta, línea a línea
+
+**Qué vamos a ver:** cómo se escribe una alerta. Se abre `infra/prometheus/alertas.yml` en VS Code y se lee la primera regla:
+
+```yaml
+      # La estación no responde a Prometheus: está parada o caída
+      - alert: EstacionCaida              # nombre de la alerta
+        expr: up{job="sensor"} == 0       # condición: la estación no contestó en la última ronda
+        for: 10s                          # tiene que cumplirse 10 segundos seguidos para activarse
+        labels: {severidad: aviso}        # cuánto importa
+        annotations:
+          resumen: "La estación EST-01 no responde"   # qué se le dice a quien la reciba
+```
+
+Se abre <http://localhost:9090/alerts>: las cinco reglas de la línea, en verde (**inactive**).
+
+**Cómo se lee:** una alerta es **una consulta con una condición y un tiempo mínimo**. Cada 5 segundos, Prometheus evalúa la condición. Si se cumple, la alerta pasa a **pending**; si se sigue cumpliendo durante el tiempo de `for`, pasa a **firing**.
+
+```
+ inactive ──(se cumple la condición)──▶ pending ──(10 s seguidos)──▶ firing ──(deja de cumplirse)──▶ inactive
+```
+
+#### Paso 4 — Parar la estación
+
+**Qué vamos a ver:** se para la estación y se mira qué hace Prometheus.
 
 ```bash
+# Para la estación: deja de fabricar y de contestar a Prometheus
 docker compose stop sensor
 ```
 
+Se repite la consulta `up` en <http://localhost:9090/graph>:
+
+![up con la estación parada: sensor 0, archivador 1](../img/M01-up-estacion-parada.png)
+
+La estación ya no contesta (`0`); el archivador sí (`1`). A los 20 segundos se recarga <http://localhost:9090/alerts>:
+
 ![EstacionCaida e HistoricoSinDatos activas](../img/M01-alertas-estacion-parada.png)
 
-Saltan dos alertas: **`EstacionCaida`**, porque la estación no contesta, y **`HistoricoSinDatos`**, porque el histórico ha dejado de recibir. Es lógico: sin producción no hay registros. La alerta existe aunque nadie tenga el panel abierto. Se vuelve a arrancar:
+**Cómo se lee:**
+
+| Alerta | Por qué salta | ¿Es correcto? |
+|--------|---------------|---------------|
+| `EstacionCaida` | `up` de la estación lleva más de 10 s en 0 | Sí: es justo lo que vigila |
+| `HistoricoSinDatos` | El archivador lleva más de 15 s sin guardar nada | Sí: sin producción no llegan registros. Es una **consecuencia** del primer fallo |
+
+> **Qué señalar en pantalla:** «Nadie está mirando el panel y la alerta ya existe. Eso es lo que la diferencia de un aviso en pantalla». Y que una causa puede disparar varias alertas: saber cuál es la causa y cuál la consecuencia es parte del trabajo.
+
+#### Paso 5 — Volver a la normalidad
 
 ```bash
 docker compose start sensor
 ```
 
-**5. La pregunta que abre el laboratorio:** ¿y si un componente contesta «estoy vivo» pero ha dejado de hacer su trabajo?
+**Resultado esperado:** en unos segundos `up` vuelve a 1 y las dos alertas vuelven a **inactive**, sin que nadie haga nada más. Las alertas se apagan solas cuando deja de cumplirse su condición.
+
+#### Paso 6 — La pregunta que abre el laboratorio
+
+> **¿Y si un componente contesta «estoy vivo» pero ha dejado de hacer su trabajo?**
+
+Deja la pregunta abierta. En el laboratorio provocarás exactamente eso.
 
 ### Ahora tú: M01-03
 
