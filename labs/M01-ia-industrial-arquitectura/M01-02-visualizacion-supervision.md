@@ -71,7 +71,7 @@ El panel no se actualiza solo: recarga la página para ver la carcasa más recie
 
 ### 2 — Comprobar el dato detrás del dibujo
 
-**Qué ocurre:** confirmas que el panel responde y cuentas, directamente en el histórico, cuántas lecturas pasan de 70 °C.
+**Qué ocurre:** ya has visto el panel con tus ojos. Ahora usas un comando de ayuda que comprueba que el panel responde y cuenta, directamente en el histórico, cuántas lecturas pasan de 70 °C.
 
 ```bash
 # Pide la página del panel y cuenta lecturas por encima del margen en el histórico
@@ -110,7 +110,7 @@ Si la carcasa anterior pasó de 70 °C pero la última no, ¿de qué color está
 
 ## Investiga: calcula tú los indicadores
 
-Un indicador no es magia: es una consulta sobre el histórico. Vas a calcular con `lab sql` lo mismo que enseña el panel.
+Un indicador no es magia: es una consulta sobre el histórico. Vas a calcular con `lab sql` (el comando de ayuda para consultar el histórico que usaste en el M01-01) lo mismo que enseña el panel.
 
 📋 Ficha del comando [`sql`](../comandos-lab.md#sql).
 

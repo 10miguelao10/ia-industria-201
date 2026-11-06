@@ -381,8 +381,8 @@ Una **alerta** pasa por tres estados: **inactive** (no se cumple), **pending** (
 # Arranca Prometheus (interfaz en http://localhost:9090)
 docker compose up -d prometheus
 
-# La estación y el archivador publican sus métricas al arrancar
-docker compose restart sensor archivador
+# La estación y el archivador publican sus métricas al arrancar: se recrean
+docker compose up -d --force-recreate sensor archivador
 ```
 
 La configuración está en `infra/prometheus/prometheus.yml`:

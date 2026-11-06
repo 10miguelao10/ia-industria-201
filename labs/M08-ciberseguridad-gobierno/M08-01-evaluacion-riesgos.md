@@ -36,11 +36,11 @@ docker compose ps --format 'table {{.Service}}\t{{.Ports}}'
 ```text
 SERVICE      PORTS
 api          0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
-archivador
+archivador   0.0.0.0:9101->9101/tcp, [::]:9101->9101/tcp
 modbus       0.0.0.0:1502->1502/tcp, [::]:1502->1502/tcp
 mosquitto    0.0.0.0:1883->1883/tcp, [::]:1883->1883/tcp
 opcua        0.0.0.0:4840->4840/tcp, [::]:4840->4840/tcp
-sensor
+sensor       0.0.0.0:9102->9102/tcp, [::]:9102->9102/tcp
 ```
 
 `0.0.0.0` (y `[::]` en IPv6) significa que el puerto escucha en todas las interfaces del equipo, no solo en `localhost`. En una red de planta, cualquiera que llegue a ese equipo llegaría a esos servicios.
@@ -60,8 +60,8 @@ docker compose --profile lab run --rm --no-deps lab m08-01
 ```text
 superficies:
   mosquitto puerto=1883 — transporte MQTT de los ciclos
-  sensor puerto=- — origen: publica el estado de EST-01
-  archivador puerto=- — almacén SQLite de ciclos
+  sensor puerto=9102 — origen: publica el estado de EST-01 (y sus métricas)
+  archivador puerto=9101 — almacén SQLite de ciclos (y sus métricas)
   calidad puerto=- — inspección de calidad, con su propia base de datos
   opcua puerto=4840 — la misma señal, como servidor OPC-UA
   modbus puerto=1502 — la misma señal, como esclavo Modbus TCP

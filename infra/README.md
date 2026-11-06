@@ -14,8 +14,8 @@ docker compose --profile lab run --rm --no-deps lab m01-01
 | Servicio | Proceso | Puerto en tu máquina | Qué emula |
 |----------|---------|----------------------|-----------|
 | `mosquitto` | Broker MQTT | 1883 | El transporte de eventos de la estación |
-| `sensor` | Publica un ciclo por segundo y escribe `/data/estado.json` | — | El origen: husillo, vibración y corriente |
-| `archivador` | Se suscribe a `linea/est01/ciclo` y guarda SQLite | — | El histórico del turno |
+| `sensor` | Publica un ciclo por segundo y escribe `/data/estado.json`. Métricas en <http://localhost:9102/metrics> | 9102 | El origen: husillo, vibración y corriente |
+| `archivador` | Se suscribe a `linea/est01/ciclo` y guarda SQLite. Métricas en <http://localhost:9101/metrics> | 9101 | El histórico del turno |
 | `calidad` | Se suscribe a `linea/est01/ciclo`, inspecciona cada carcasa con un criterio oculto y guarda el resultado en `calidad.sqlite` | — | El sistema de calidad de la planta |
 | `opcua` | Servidor OPC-UA que lee el mismo estado | 4840 | Un equipo que ya habla OPC-UA |
 | `modbus` | Esclavo Modbus TCP. La temperatura va en décimas en el registro 0. El registro 10 es el paro de seguridad y **nadie lo escribe** | 1502 (en planta el puerto habitual es 502) | Un automatismo sencillo |

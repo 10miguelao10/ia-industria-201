@@ -25,8 +25,8 @@ REGISTRO_PARO = 10
 
 SERVICIOS = [
     {"nombre": "mosquitto", "puerto": 1883, "para": "transporte MQTT de los ciclos"},
-    {"nombre": "sensor", "puerto": None, "para": "origen: publica el estado de EST-01"},
-    {"nombre": "archivador", "puerto": None, "para": "almacén SQLite de ciclos"},
+    {"nombre": "sensor", "puerto": 9102, "para": "origen: publica el estado de EST-01 (y sus métricas)"},
+    {"nombre": "archivador", "puerto": 9101, "para": "almacén SQLite de ciclos (y sus métricas)"},
     {"nombre": "calidad", "puerto": None, "para": "inspección de calidad, con su propia base de datos"},
     {"nombre": "opcua", "puerto": 4840, "para": "la misma señal, como servidor OPC-UA"},
     {"nombre": "modbus", "puerto": 1502, "para": "la misma señal, como esclavo Modbus TCP"},

@@ -13,7 +13,7 @@ Comprender qué es la **monitorización por métricas y el alerting**: en qué s
 ### Prerrequisitos
 
 - M01-01 y M01-02 hechos: mosquitto, sensor y archivador en marcha.
-- Puerto 9090 libre. RAM del contenedor de Prometheus: hasta 256 MB.
+- Puertos 9090 (Prometheus), 9101 y 9102 (métricas del archivador y de la estación) libres. RAM del contenedor de Prometheus: hasta 256 MB.
 
 ### Qué está pasando
 
@@ -26,9 +26,9 @@ Para eso se usan **métricas** y **alertas**:
 - Unas **reglas de alerta** escritas por una persona revisan esas series y avisan cuando algo va mal, mire quien mire la pantalla.
 
 ```
- sensor :9102/metrics ─────┐
-                           ├──◀ Prometheus pregunta cada 5 s ──▶ reglas de alerta ──▶ alertas activas
- archivador :9101/metrics ─┘
+ sensor     http://localhost:9102/metrics ─┐
+                                           ├──◀ Prometheus pregunta cada 5 s ──▶ reglas de alerta ──▶ alertas activas
+ archivador http://localhost:9101/metrics ─┘
 ```
 
 **Métrica no es lo mismo que registro:**
@@ -56,8 +56,8 @@ Las dos cosas se complementan: el histórico guarda **qué pasó con cada pieza*
 # Arranca Prometheus (http://localhost:9090)
 docker compose up -d prometheus
 
-# Las métricas son nuevas en la estación y el archivador: reinícialos para que las publiquen
-docker compose restart sensor archivador
+# Las métricas son nuevas en la estación y el archivador: recréalos para que las publiquen
+docker compose up -d --force-recreate sensor archivador
 ```
 
 La parte de la configuración que importa:
@@ -82,34 +82,52 @@ Abre <http://localhost:9090/targets> en Chrome.
 
 ![Objetivos de Prometheus: archivador y sensor en UP](../img/M01-03-targets.png)
 
-### 2 — Ver una métrica por dentro
+### 2 — Ver las métricas por dentro
 
-**Qué ocurre:** miras lo que la estación entrega a Prometheus cuando le pregunta. Es texto: un número por línea, con su nombre y una explicación.
+**Qué ocurre:** antes de usar Prometheus, miras lo que cada componente le ofrece. Cada uno tiene una **dirección de métricas**: una página web de texto que Prometheus visita cada 5 segundos.
 
-```bash
-# Lo que publica la estación en su dirección de métricas
-docker compose exec sensor python -c \
-  "import urllib.request; print(urllib.request.urlopen('http://localhost:9102/metrics').read().decode())"
-```
+Abre en Chrome la dirección de métricas de la estación: <http://localhost:9102/metrics>
 
-**Resultado esperado** (cambian los valores):
+**Resultado esperado** (cambian los valores; recarga y verás cómo cambian):
 
-```text
-# HELP estacion_piezas_fabricadas_total Carcasas fabricadas desde que arrancó la estación
-# TYPE estacion_piezas_fabricadas_total counter
-estacion_piezas_fabricadas_total 26.0
-# HELP estacion_temperatura_husillo_celsius Temperatura del husillo en la última carcasa
-# TYPE estacion_temperatura_husillo_celsius gauge
-estacion_temperatura_husillo_celsius 62.61
-...
-```
+![Página de métricas de la estación: cuatro métricas con su ayuda y su tipo](../img/M01-03-metricas-estacion.png)
 
-**Cómo se lee:**
+**Qué es esto:** es el **formato de exposición de Prometheus**, un estándar que entiende cualquier sistema de monitorización. Cada métrica ocupa tres líneas:
+
+| Línea | Ejemplo | Qué dice |
+|-------|---------|----------|
+| `# HELP` | `# HELP estacion_piezas_fabricadas_total Carcasas fabricadas desde que arrancó la estación` | Qué mide, en palabras |
+| `# TYPE` | `# TYPE estacion_piezas_fabricadas_total counter` | De qué tipo es |
+| El valor | `estacion_piezas_fabricadas_total 25.0` | Nombre y valor en este instante |
+
+**Qué ves:** cuatro métricas de la estación. La primera es un contador de carcasas; las otras tres, las medidas de la última carcasa. Hay dos tipos:
 
 | Tipo | Qué es | Ejemplo |
 |------|--------|---------|
-| `counter` (contador) | Solo sube; se vuelve a 0 si el proceso se reinicia | Carcasas fabricadas, registros guardados |
-| `gauge` (indicador) | Sube y baja; es el valor de ahora | Temperatura, hora del último registro |
+| `counter` (contador) | Solo sube; vuelve a 0 si el proceso se reinicia | Carcasas fabricadas |
+| `gauge` (indicador) | Sube y baja; es el valor de ahora | Temperatura, vibración, corriente |
+
+Abre ahora la del archivador: <http://localhost:9101/metrics>
+
+![Página de métricas del archivador](../img/M01-03-metricas-archivador.png)
+
+El archivador publica cuántos registros ha guardado y **cuándo guardó el último**, en segundos desde el 1 de enero de 1970 (la forma estándar de guardar una hora como número). Esta última métrica será clave en el reto 2.
+
+**Fíjate:** esta página solo enseña **el valor de ahora**. No guarda el pasado. Guardar la serie en el tiempo es el trabajo de Prometheus.
+
+Para ver solo los valores desde la terminal, sin las líneas de ayuda, puedes usar este comando, que baja la página y quita las líneas que empiezan por `#`:
+
+```bash
+# curl baja la página; grep -v '^#' quita las líneas de ayuda y tipo
+curl -s http://localhost:9102/metrics | grep -v '^#'
+```
+
+```text
+estacion_piezas_fabricadas_total 25.0
+estacion_temperatura_husillo_celsius 62.31
+estacion_vibracion_mm_s 0.22
+estacion_corriente_amperios 3.98
+```
 
 <details>
 <summary>Qué hace por dentro (<code>infra/linea/sensor.py</code> y <code>infra/linea/metricas.py</code>)</summary>
@@ -126,7 +144,7 @@ metricas.sumar("estacion_piezas_fabricadas_total")
 metricas.poner("estacion_temperatura_husillo_celsius", estado["temperatura_c"])
 ```
 
-El archivador hace lo mismo en el puerto 9101 con `archivador_registros_guardados_total` y `archivador_ultimo_registro_timestamp_seconds`.
+El archivador hace lo mismo en el puerto 9101.
 
 </details>
 
@@ -343,7 +361,7 @@ Tras el reinicio del broker, el archivador se vuelve a suscribir y sigue guardan
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
 | <http://localhost:9090> no abre | Prometheus no está en marcha o el puerto está ocupado | `docker compose ps` y `docker compose logs prometheus` |
-| Los objetivos salen en rojo (`DOWN`) con «connection refused» | La estación o el archivador no se reiniciaron tras añadir las métricas | `docker compose restart sensor archivador` |
+| Los objetivos salen en rojo (`DOWN`) con «connection refused», o <http://localhost:9102/metrics> no abre | La estación o el archivador no se recrearon tras añadir las métricas | `docker compose up -d --force-recreate sensor archivador` |
 | La regla cambiada no aparece | Prometheus no se reinició | `docker compose restart prometheus` |
 | Prometheus no arranca tras editar `alertas.yml` | Error de sangría o de sintaxis en el YAML | `docker compose logs prometheus` dice la línea; compara con el bloque del lab |
 | El archivador no arranca tras editar `archivador.py` | Error de sangría | `docker compose logs archivador`, o `git checkout linea/archivador.py` |

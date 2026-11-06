@@ -92,9 +92,53 @@ sensor       Up 3 seconds
 
 Si alguno no aparece, ese tramo no existe y los registros no llegan al histórico.
 
-### 2 — Ver el dato cruzar
+### 2 — Mirar las tres fuentes por separado
 
-**Qué ocurre:** haces lo que haría un técnico para comprobar que la línea de datos funciona. Primero cuenta cuántos registros hay ya en el histórico. Después se pone a escuchar en el broker hasta que la estación emite la siguiente registro. Por último, la compara con lo que la estación dice haber fabricado, para confirmar que es de EST-01 y de la pieza que toca.
+**Qué ocurre:** antes de usar ninguna comprobación automática, miras con tus ojos lo que guarda cada tramo. Son tres sitios distintos.
+
+**El origen: lo último que fabricó la estación.** Abre en VS Code el fichero `infra/data/estado.json`.
+
+**Resultado esperado** (cambia cada segundo; si lo tienes abierto, VS Code lo recarga solo):
+
+```json
+{"estacion": "EST-01", "pieza_id": "P0048", "ts": "2026-11-06T01:51:10+00:00", "temperatura_c": 63.03, "vibracion_mm_s": 0.265, "corriente_a": 4.0, "secuencia": 48}
+```
+
+**Qué es:** la estación reescribe este fichero con cada carcasa que termina. Solo guarda **la última**: es su «pantalla», no su memoria.
+
+**El transporte: lo que pasa por el broker.** El broker no guarda nada en disco, así que no hay fichero que abrir: para verlo hay que escuchar. `mosquitto_sub` es el cliente de Mosquitto que se suscribe a un tema y enseña lo que llega:
+
+```bash
+# Escucha el tema de la estación; -C 3 sale tras 3 mensajes
+docker compose exec mosquitto mosquitto_sub -t 'linea/est01/ciclo' -C 3
+```
+
+**Resultado esperado:** tres registros, uno por segundo, con el mismo formato que `estado.json`.
+
+**El almacén: el histórico.** Abre en VS Code el fichero `infra/data/historial.sqlite`.
+
+**Qué ves:** caracteres extraños, o un aviso de que es un fichero binario. Empieza por `SQLite format 3`. No es texto: es una **base de datos SQLite** guardada en un fichero, y para leerla hace falta un programa que entienda SQL.
+
+Para eso el curso trae un comando de ayuda: **`lab sql`** lanza una consulta SQL contra el histórico, en solo lectura, y enseña el resultado como tabla. Cuenta cuántos registros hay:
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql "SELECT COUNT(*) AS registros FROM lecturas"
+```
+
+**Resultado esperado** (cambia el número):
+
+```text
+ registros
+        27
+```
+
+> La primera vez que lanzas `lab`, Docker prepara su imagen y verás líneas `#1 … DONE` antes de la salida. Es normal y no se repite.
+
+📋 Ficha del comando [`sql`](../comandos-lab.md#sql). La usarás mucho en el curso.
+
+### 3 — Comprobarlo todo de una vez
+
+**Qué ocurre:** ahora que has visto las tres fuentes, usas un comando de ayuda que hace la comprobación completa de una vez, como haría un técnico: cuenta los registros del histórico, escucha el siguiente registro en el broker y lo compara con el estado de la estación, para confirmar que es de EST-01 y de la pieza que toca.
 
 Esta comprobación solo lee: no fabrica piezas ni cambia nada. Puedes repetirla tantas veces como quieras.
 
@@ -104,8 +148,6 @@ docker compose --profile lab run --rm --no-deps lab m01-01
 ```
 
 📋 Ficha del comando [`m01-01`](../comandos-lab.md#m01-01): qué hace, qué lee, qué escribe y cuándo da `OK`.
-
-> La primera vez que lanzas `lab`, Docker prepara su imagen y verás líneas `#1 … DONE` antes de la salida. Es normal y no se repite.
 
 **Resultado esperado** (cambian la pieza y el total):
 
@@ -137,9 +179,9 @@ return ok("m01-01", f"ciclo {ciclo['pieza_id']} archivado; total={n}")
 
 </details>
 
-### 3 — Ver la conversación entre la estación y el archivador
+### 4 — Ver la conversación entre la estación y el archivador
 
-**Qué ocurre:** el `OK` del paso 2 es un resumen que da un script del curso. Ahora lo ves contado por los propios protagonistas. Cada contenedor escribe una línea, su **log**, cada vez que hace algo; es su diario de trabajo. Vas a ver los diarios de la estación y del archivador a la vez, en directo.
+**Qué ocurre:** el `OK` del paso 3 es un resumen que da un script del curso. Ahora lo ves contado por los propios protagonistas. Cada contenedor escribe una línea, su **log**, cada vez que hace algo; es su diario de trabajo. Vas a ver los diarios de la estación y del archivador a la vez, en directo.
 
 ```bash
 # Diario en directo de la estación y del archivador (Ctrl+C para salir)
@@ -166,7 +208,7 @@ archivador-1  | archivador: P2820
 
 Se lee como una conversación: la estación anuncia cada carcasa y el archivador confirma que la ha guardado. Si cada anuncio tiene su confirmación, entre medias no se pierde nada. Alguna vez dos líneas salen en orden cruzado porque los dos diarios llegan a la pantalla por separado; no significa nada.
 
-Déjalo abierto: en el reto 2 lo usarás para ver cómo se pierden registros.
+Déjalo abierto en una terminal aparte: en el reto 2 lo usarás para ver cómo se pierden registros.
 
 ## Comprueba tu entendimiento
 
@@ -178,7 +220,7 @@ Si el archivador dejara de confirmar las carcasas, ¿dónde se habrían perdido 
 
 ## Investiga el histórico
 
-Ahora haces tú las preguntas. `lab sql` lanza una consulta SQL contra el histórico en **solo lectura**: puedes probar lo que quieras sin estropear nada.
+Ahora haces tú las preguntas, con `lab sql` (paso 2). Funciona en **solo lectura**: puedes probar lo que quieras sin estropear nada.
 
 📋 Ficha del comando [`sql`](../comandos-lab.md#sql).
 
@@ -293,7 +335,7 @@ docker compose start sensor
 
 ### 2 — Para el archivador con la estación fabricando
 
-Ahora la estación sigue fabricando, pero nadie guarda. Si tienes abierto el diario del paso 3, verás que la estación sigue anunciando carcasas y nadie las confirma. Para el archivador 10 segundos, vuelve a arrancarlo y busca huecos en la numeración del histórico.
+Ahora la estación sigue fabricando, pero nadie guarda. Si tienes abierto el diario del paso 4, verás que la estación sigue anunciando carcasas y nadie las confirma. Para el archivador 10 segundos, vuelve a arrancarlo y busca huecos en la numeración del histórico.
 
 ```bash
 # La estación sigue: una carcasa por segundo
@@ -302,27 +344,26 @@ sleep 10
 docker compose start archivador
 sleep 3
 
-# Recorre el histórico en orden y avisa cuando falten números de pieza
-docker compose --profile lab run --rm --no-deps --entrypoint python lab -c "
-import sqlite3
-con = sqlite3.connect('/data/historial.sqlite')
-anterior = None
-for (pieza,) in con.execute('SELECT pieza_id FROM lecturas ORDER BY id'):
-    n = int(pieza[1:])
-    if anterior is not None and n > anterior + 1:
-        print(f'hueco: después de P{anterior:04d} viene {pieza}; faltan {n - anterior - 1} carcasas')
-    anterior = n
-"
+# Recorre el histórico en orden y enseña dónde salta la numeración:
+#   LAG(...) OVER (ORDER BY id) toma el valor de la fila anterior
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT anterior AS ultima_antes, pieza_id AS siguiente, numero - anterior_n - 1 AS faltan
+   FROM (SELECT id, pieza_id, CAST(substr(pieza_id, 2) AS INTEGER) AS numero,
+                LAG(pieza_id) OVER (ORDER BY id) AS anterior,
+                LAG(CAST(substr(pieza_id, 2) AS INTEGER)) OVER (ORDER BY id) AS anterior_n
+         FROM lecturas)
+   WHERE numero > anterior_n + 1 ORDER BY id DESC LIMIT 3"
 ```
 
 <details>
 <summary>Ver solución</summary>
 
 ```text
-hueco: después de P0022 viene P0033; faltan 10 carcasas
+ultima_antes siguiente  faltan
+       P0037     P0049      11
 ```
 
-Esas 10 carcasas **se fabricaron**, y la estación publicó su registro, pero el broker no las guarda y el archivador no estaba escuchando. No están en el histórico y nada dio error. En planta pasa igual cuando se cae el servidor del histórico o se corta la red: hay piezas reales sin registro.
+Esas carcasas **se fabricaron**, y la estación publicó su registro, pero el broker no las guarda y el archivador no estaba escuchando. No están en el histórico y nada dio error. En planta pasa igual cuando se cae el servidor del histórico o se corta la red: hay piezas reales sin registro.
 
 Repite la consulta de carcasas por minuto (Investiga, punto 3): el minuto en que paraste el archivador tiene menos de 60.
 
@@ -344,13 +385,10 @@ docker compose start sensor
 sleep 5
 
 # Piezas que aparecen más de una vez en el histórico
-docker compose --profile lab run --rm --no-deps --entrypoint python lab -c "
-import sqlite3
-con = sqlite3.connect('/data/historial.sqlite')
-for pieza, veces in con.execute(
-        'SELECT pieza_id, COUNT(*) FROM lecturas GROUP BY pieza_id HAVING COUNT(*) > 1 ORDER BY pieza_id LIMIT 5'):
-    print(pieza, veces)
-"
+#   GROUP BY junta las filas con el mismo identificador; HAVING se queda con las que salen más de una vez
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT pieza_id, COUNT(*) AS veces FROM lecturas
+   GROUP BY pieza_id HAVING COUNT(*) > 1 ORDER BY pieza_id LIMIT 5"
 ```
 
 Si calidad dice que la `P0003` salió mala, ¿cuál de ellas es?
@@ -359,28 +397,28 @@ Si calidad dice que la `P0003` salió mala, ¿cuál de ellas es?
 <summary>Ver solución</summary>
 
 ```text
-P0002 2
-P0003 2
-P0004 2
-P0005 2
-P0006 2
+pieza_id  veces
+   P0001      2
+   P0002      2
+   P0003      2
+   P0004      2
+   P0005      2
 ```
 
 Al reiniciar, la estación simulada vuelve a numerar desde `P0001`. En el histórico hay ahora **dos carcasas distintas** con el mismo identificador. Solo la hora las distingue:
 
 ```bash
-docker compose --profile lab run --rm --no-deps --entrypoint python lab -c "
-import sqlite3
-con = sqlite3.connect('/data/historial.sqlite')
-for fila in con.execute(\"SELECT pieza_id, ts, temperatura_c FROM lecturas WHERE pieza_id = 'P0003'\"):
-    print(*fila)
-"
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT id, pieza_id, ts, temperatura_c FROM lecturas WHERE pieza_id = 'P0003' ORDER BY id"
 ```
 
 ```text
-P0003 2026-11-05T09:51:57+00:00 62.05
-P0003 2026-11-05T09:52:44+00:00 62.05
+ id pieza_id                        ts  temperatura_c
+  3    P0003 2026-11-06T01:53:45+00:00          62.05
+ 56    P0003 2026-11-06T01:54:49+00:00          62.05
 ```
+
+Dos filas distintas (`id` 3 y 56), un minuto aparte.
 
 (La temperatura coincide porque la simulación repite la misma secuencia de valores en cada arranque; en una máquina real no pasaría.)
 
@@ -477,7 +515,7 @@ Un modelo aprende del histórico y decide sobre piezas reales. Por eso la arquit
 
 | Debilidad | Cómo la has detectado | Qué provoca |
 |-----------|-----------------------|-------------|
-| El broker no guarda: lo que se publica cuando nadie escucha se pierde | Reto 2: paras el archivador y aparece un hueco de 10 carcasas | Producción real sin registro, **sin ningún error** |
+| El broker no guarda: lo que se publica cuando nadie escucha se pierde | Reto 2: paras el archivador y aparece un hueco de unas 10 carcasas | Producción real sin registro, **sin ningún error** |
 | Un único archivador, sin respaldo | Reto 2 | Si se cae, no hay histórico de ese tramo |
 | El identificador lo pone un contador de la máquina, que se reinicia | Reto 3: tras reiniciar, cada `pieza_id` aparece varias veces | Varias carcasas distintas con el mismo nombre |
 | La tabla no tiene una clave de pieza única | Reto 3: el histórico acepta los repetidos | No se sabe a cuál pertenece un resultado de calidad |

@@ -22,7 +22,7 @@ LLM_MAX_S=45
 LAB_MAX_S=120
 MODELO="modelos/qwen2.5-0.5b-instruct-q4_k_m.gguf"
 URL_MODELO="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
-PUERTOS=(1883 4840 1502 8501 8000 8088 9090)
+PUERTOS=(1883 4840 1502 8501 8000 8088 9090 9101 9102)
 
 ok() { printf 'OK  %s\n' "$1"; }
 fallo() {
