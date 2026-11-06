@@ -154,27 +154,208 @@ acierto en entrenamiento=1.00  en examen=0.50  (regresión logística en examen=
 
 Prueba también con el 50 % (`lab m04-red 64 1000 0.5`): el examen sube a 0,79. Más ejemplos, mejor generaliza.
 
+## Constrúyelo tú: tu propia red, vuelta a vuelta
+
+**Qué está pasando:** `lab m04-red` entrena la red de una vez y enseña la pérdida al final. Ahora la entrenas tú **vuelta a vuelta**: después de cada pasada por las fotos miras cuánto se equivoca y cuánto acierta, con las de entrenamiento y con las de examen. Así ves aprender a la red y ves el momento exacto en que empieza a memorizar.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** asegurarte de que la red va a ver las mismas fotos que el modelo del M04-01.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m04_04_mi_red.py`](../../infra/construye/m04_04_mi_red.py). Arriba están las **decisiones** (`NEURONAS`, `VUELTAS`, `PARTE`); debajo, el paso 1 ya escrito: las 80 fotos convertidas en números como en el M04-01, y el mismo corte de 56 para aprender y 24 de examen. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m04_04_mi_red.py
+```
+
+**Resultado esperado:**
+
+```text
+fotos para aprender=56  fotos de examen=24  números por foto=256
+```
+
+**Cómo se lee:** las mismas fotos y el mismo examen que la regresión logística del M04-01, que acertaba el 88 %: así la comparación es justa. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**.
+
+### 2 — Crear la red y darle una sola vuelta
+
+**Para qué:** ver cómo es la red antes de aprender, y qué cambia con una sola pasada.
+
+**Qué ocurre:** creas una red con `NEURONAS` en su capa oculta y le das **una sola** pasada por las fotos de entrenamiento con `partial_fit`. Enseñas cuántos pesos tiene, su pérdida y su acierto.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+red = MLPClassifier(hidden_layer_sizes=(NEURONAS,), random_state=0)
+red.partial_fit(X[ent], y[ent], classes=[0, 1])                   # una sola pasada por las fotos
+
+def acierto(filas):
+    return (red.predict(X[filas]) == y[filas]).mean()
+
+pesos = sum(c.size for c in red.coefs_) + sum(b.size for b in red.intercepts_)
+print(f"pesos de la red: {pesos}")
+print(f"tras 1 vuelta: pérdida={red.loss_:.3f}  acierto entrenamiento={acierto(ent):.2f}  examen={acierto(exa):.2f}")
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+pesos de la red: 16513
+tras 1 vuelta: pérdida=0.701  acierto entrenamiento=0.50  examen=0.50
+```
+
+**Cómo se lee:** **16 513 pesos**, frente a los 257 de la regresión logística: 256 entradas × 64 neuronas, más 64 conexiones a la salida, más un término por neurona. Empiezan con valores al azar, y tras una vuelta la red acierta como una moneda: 0,50. La **pérdida** mide cuánto se equivoca: es lo que el entrenamiento intenta bajar.
+
+### 3 — Entrenar vuelta a vuelta
+
+**Para qué:** ver aprender a la red: cómo baja la pérdida y sube el acierto en cada pasada.
+
+**Qué ocurre:** repites `partial_fit` hasta `VUELTAS`, y diez veces a lo largo del entrenamiento enseñas la pérdida y el acierto en entrenamiento y en examen.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+print("vuelta  pérdida  acierto_entrenamiento  acierto_examen")
+for vuelta in range(2, VUELTAS + 1):
+    red.partial_fit(X[ent], y[ent])                                # una pasada más
+    if vuelta % (VUELTAS // 10) == 0:                              # diez filas, sean cuantas sean las vueltas
+        print(f"{vuelta:6d}  {red.loss_:7.3f}  {acierto(ent):21.2f}  {acierto(exa):14.2f}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+vuelta  pérdida  acierto_entrenamiento  acierto_examen
+    30    0.680                   0.75            0.58
+    60    0.654                   0.86            0.88
+    90    0.615                   0.86            0.88
+   120    0.557                   0.91            0.96
+   150    0.480                   0.93            0.96
+   180    0.403                   0.93            1.00
+   210    0.336                   1.00            1.00
+   240    0.279                   1.00            1.00
+   270    0.233                   1.00            1.00
+   300    0.194                   1.00            1.00
+```
+
+**Cómo se lee:** la pérdida baja vuelta a vuelta y **los dos aciertos suben juntos**: la red aprende algo que también vale para fotos que no ha visto. Hacia la vuelta 60 iguala a la regresión logística (0,88) y hacia la 180 acierta las 24 fotos de examen. Las primeras decenas de vueltas parece que no aprende nada: es normal, los pesos tienen que alejarse de su valor al azar.
+
+### 4 — Decide tú: pocas fotos
+
+**Para qué:** ver el momento en que la red deja de aprender y empieza a memorizar.
+
+**Qué ocurre:** cambias `PARTE = 1.0` por `PARTE = 0.1`: la red aprende con solo 3 fotos de cada clase. Ejecuta.
+
+**Resultado esperado** (líneas del paso 3):
+
+```text
+vuelta  pérdida  acierto_entrenamiento  acierto_examen
+    30    0.638                   1.00            0.50
+    60    0.564                   1.00            0.50
+    ...
+   270    0.055                   1.00            0.50
+   300    0.037                   1.00            0.50
+```
+
+**Cómo se lee:** el acierto en entrenamiento llega a 1,00 en 30 vueltas y **el de examen no se mueve de 0,50**. La pérdida baja mucho más que con todas las fotos (0,037 frente a 0,194): la red tiene 16 513 pesos para 6 fotos y le basta con memorizarlas. Las dos columnas separadas son el sobreajuste: una pérdida muy baja no es buena señal si el examen no acompaña. Vuelve a dejar `PARTE = 1.0`.
+
+### 5 — Decide tú: el tamaño de la red
+
+**Para qué:** saber si una red más grande es mejor.
+
+**Qué ocurre:** con todas las fotos, pruebas `NEURONAS = 4` y después `NEURONAS = 256`.
+
+**Resultado esperado** (la línea de pesos y la última vuelta):
+
+```text
+# NEURONAS = 4
+pesos de la red: 1033
+   300    0.692                   0.48            0.54
+# NEURONAS = 256
+pesos de la red: 66049
+   300    0.137                   1.00            1.00
+```
+
+**Cómo se lee:** con **4 neuronas** la red no aprende en 300 vueltas: la pérdida apenas se mueve de 0,69, el valor de quien no sabe nada. Con tan pocas neuronas, el entrenamiento se queda atascado. Con **256**, aprende lo mismo que con 64, con cuatro veces más pesos. Una red tiene que tener capacidad suficiente, pero más allá de eso solo añade memoria y cálculo: en un equipo edge, cada peso de más cuenta (M06-01). Vuelve a dejar `NEURONAS = 64`.
 ## Reto
+
+Los dos retos se hacen con tu red de «Constrúyelo tú», añadiendo un bloque al final.
 
 ### 1 — ¿Te fías del 100 %?
 
-La red acierta las 24 fotos de examen. ¿La pondrías mañana en el puesto de inspección?
+**La situación:** tu red acierta las 24 fotos de examen. Alguien propone ponerla mañana en el puesto. Pero las fotos de la línea no serán idénticas a las del laboratorio: la luz cambia y la carcasa no siempre cae en el mismo sitio de la bandeja.
+
+**Qué haces:** examinas la red con las mismas fotos de examen cambiadas de dos formas: con un poco más de luz (+0,15) y con la carcasa movida 2 puntos a la derecha.
+
+**Pistas:** `np.clip(X + 0.15, 0, 1)` aclara todas las fotos; `np.roll(foto.reshape(16, 16), 2, axis=1)` desplaza una foto 2 puntos en horizontal; después, `.reshape(-1)` la vuelve a poner en una fila.
+
+**Lo que buscas:** cuánto acierta la red en cada caso.
 
 <details>
 <summary>Ver solución</summary>
 
-Todavía no. 24 fotos son muy pocas: cada una vale un 4 %, y un 100 % con 24 ejemplos dice poco de cómo se comportará con miles. Además, las fotos son sintéticas y todas parecidas: en la línea habrá polvo, reflejos, piezas giradas y defectos que no son rayones. Antes de llevarla a planta haría falta examinarla con muchas más fotos reales del puesto.
+```python
+# Reto 1: las mismas fotos de examen, con otras condiciones
+def acierto_con(X_cambiadas):
+    return (red.predict(X_cambiadas[exa]) == y[exa]).mean()
+
+print(f"examen normal:            {acierto_con(X):.2f}")
+print(f"con +0,15 de luz:         {acierto_con(np.clip(X + 0.15, 0, 1)):.2f}")
+desplazadas = np.stack([np.roll(f.reshape(16, 16), 2, axis=1).reshape(-1) for f in X])   # carcasa 2 puntos a la derecha
+print(f"carcasa movida 2 puntos:  {acierto_con(desplazadas):.2f}")
+```
+
+```text
+examen normal:            1.00
+con +0,15 de luz:         0.83
+carcasa movida 2 puntos:  1.00
+```
+
+Con la carcasa movida sigue acertando, porque el rayón es una línea horizontal y moverla de lado no la cambia. Pero **con algo más de luz baja al 83 %**: la red nunca vio fotos con esa luz. El 100 % del examen solo vale para fotos como las del examen. **La regla:** antes de llevar un modelo de visión a la línea, se examina con fotos de la línea, en todas las condiciones que se van a dar (luz, posición, polvo, reflejos), y se fija la iluminación del puesto para que no cambie.
 
 </details>
 
-### 2 — Red o regresión logística
+### 2 — Lo que cuesta la red
 
-La red gana aquí. ¿Gana siempre?
+**La situación:** la red acierta más que la regresión logística del M04-01 (1,00 frente a 0,88). Antes de elegirla, el equipo de [OT](../glosario/01-datos-arquitectura.md#ot) pregunta cuánto ocupa y cuánto tarda en decidir cada carcasa, porque va a correr en un equipo edge junto a la estación.
+
+**Qué haces:** entrenas al final de tu script una regresión logística con las mismas fotos y comparas los dos modelos: acierto, número de pesos y milisegundos por foto.
+
+**Pistas:** `LogisticRegression(max_iter=400).fit(X[ent], y[ent])`; sus pesos son `logreg.coef_.size + 1`; para medir el tiempo, `time.perf_counter()` antes y después de repetir 100 veces `modelo.predict(X[exa])`.
+
+**Lo que buscas:** si la ventaja de la red tiene un coste que importe en el edge.
 
 <details>
 <summary>Ver solución</summary>
 
-No. Con pocos datos, la red se sobreajusta y pierde su ventaja (el experimento del 10 % la deja igual que la regresión logística). En el M03-03 verás que con datos de proceso (cuatro señales numéricas) un [árbol de decisión](../glosario/03-aprendizaje-automatico.md#arbol) sencillo la iguala, y además se puede explicar.
+```python
+# Reto 2: lo que cuesta cada modelo
+import time
+from sklearn.linear_model import LogisticRegression
+logreg = LogisticRegression(max_iter=400).fit(X[ent], y[ent])
+for nombre, m in (("regresión logística", logreg), ("red", red)):
+    t = time.perf_counter()
+    for _ in range(100):
+        m.predict(X[exa])
+    ms = (time.perf_counter() - t) / (100 * len(exa)) * 1000
+    pesos_m = logreg.coef_.size + 1 if m is logreg else pesos
+    print(f"{nombre:20s} acierto={(m.predict(X[exa]) == y[exa]).mean():.2f}  pesos={pesos_m:6d}  ms_por_foto={ms:.3f}")
+```
+
+```text
+regresión logística  acierto=0.88  pesos=   257  ms_por_foto=0.003
+red                  acierto=1.00  pesos= 16513  ms_por_foto=0.004
+```
+
+La red tiene **64 veces más pesos**, pero decide en prácticamente el mismo tiempo: milésimas de milisegundo por foto, muy por debajo de 1 s de ciclo. Con fotos de 16 × 16, el coste de la red no importa y su ventaja sí. **La regla:** el coste se mide, no se supone. Con una cámara real de millones de puntos y una red de visión de verdad, la cuenta cambia y hace falta otro tipo de equipo; lo verás en el M06-01.
 
 </details>
 
@@ -185,6 +366,10 @@ No. Con pocos datos, la red se sobreajusta y pierde su ventaja (el experimento d
 | `aviso: la red ha agotado las iteraciones…` | Pocas iteraciones para lo que necesita | Sube el segundo número, por ejemplo a 1000 |
 | El examen da 0,50 | No ha aprendido (pocas iteraciones) o ha memorizado (pocas fotos) | Mira la pérdida y el acierto en entrenamiento para saber cuál de las dos |
 | Faltan las imágenes | No se hizo M04-01 | El comando las genera; si falla, `lab m04-01` |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| el acierto se queda en 0,50 todas las vueltas | pocas vueltas para que la red salga de sus pesos al azar | sube `VUELTAS`; con 300 debería aprender |
 
 ## Conclusiones
 

@@ -112,7 +112,7 @@ Relacionado: [tema](#tema) · [QoS](#qos) · [mensaje retenido](#retenido)
 
 **Por qué importa:** en OT manda la **disponibilidad y la seguridad física**; un modelo de IA que escribe en OT puede parar o dañar una máquina. Por eso, en el curso, el modelo propone y la máquina pone los límites.
 
-**Lo usas en:** <!--usos:ot-->[M01](../M01-ia-industrial-arquitectura/README.md) · [M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M06](../M06-edge-integracion-ot/README.md) · [M06-02](../M06-edge-integracion-ot/M06-02-integracion-ot.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md)<!--/usos-->
+**Lo usas en:** <!--usos:ot-->[M01](../M01-ia-industrial-arquitectura/README.md) · [M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md) · [M06](../M06-edge-integracion-ot/README.md) · [M06-02](../M06-edge-integracion-ot/M06-02-integracion-ot.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md)<!--/usos-->
 
 <a id="scada"></a>
 ### SCADA
@@ -183,7 +183,7 @@ Relacionado: [mapa de registros](#mapa-registros) · [pasarela](#pasarela)
 
 **Por qué importa:** es la base del **rendimiento** del [OEE](02-observabilidad.md#kpi): cuánto se fabrica frente a lo que se podría.
 
-**Lo usas en:** <!--usos:tiempo-ciclo-->[M01](../M01-ia-industrial-arquitectura/README.md) · [M01-01](../M01-ia-industrial-arquitectura/M01-01-arquitectura-datos.md) · [M01-02](../M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md) · [M01-03](../M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) · [M02](../M02-captura-integracion-datos/README.md) · [M02-01](../M02-captura-integracion-datos/M02-01-telemetria.md) · [M06](../M06-edge-integracion-ot/README.md) · [M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md)<!--/usos-->
+**Lo usas en:** <!--usos:tiempo-ciclo-->[M01](../M01-ia-industrial-arquitectura/README.md) · [M01-01](../M01-ia-industrial-arquitectura/M01-01-arquitectura-datos.md) · [M01-02](../M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md) · [M01-03](../M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) · [M02](../M02-captura-integracion-datos/README.md) · [M02-01](../M02-captura-integracion-datos/M02-01-telemetria.md) · [M04-01](../M04-vision-control-calidad/M04-01-clasificacion-componentes.md) · [M06](../M06-edge-integracion-ot/README.md) · [M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md)<!--/usos-->
 
 <a id="limpieza"></a>
 ### Limpieza de datos

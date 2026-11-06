@@ -108,7 +108,7 @@ La función `1 / (1 + e^(−x))` es la **curva en S** (sigmoide): convierte cual
 
 **Dónde se rompe:** solo traza **una frontera recta**. Si el defecto depende de un «y» con cortes, se queda corto.
 
-**Lo usas en:** <!--usos:regresion-logistica-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-01](../M03-ml-prediccion-anomalias/M03-01-prediccion-defectos.md) · [M03-03](../M03-ml-prediccion-anomalias/M03-03-comparacion-modelos.md) · [M04](../M04-vision-control-calidad/README.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md) · [M06-01](../M06-edge-integracion-ot/M06-01-inferencia-edge.md)<!--/usos-->
+**Lo usas en:** <!--usos:regresion-logistica-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-01](../M03-ml-prediccion-anomalias/M03-01-prediccion-defectos.md) · [M03-03](../M03-ml-prediccion-anomalias/M03-03-comparacion-modelos.md) · [M04](../M04-vision-control-calidad/README.md) · [M04-01](../M04-vision-control-calidad/M04-01-clasificacion-componentes.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md) · [M06-01](../M06-edge-integracion-ot/M06-01-inferencia-edge.md)<!--/usos-->
 
 Relacionado: [umbral](#umbral) · [comparación de clasificadores](#comparacion-clasificadores)
 
@@ -131,7 +131,7 @@ Relacionado: [umbral](#umbral) · [comparación de clasificadores](#comparacion-
 
 **Dónde se rompe:** un árbol muy profundo **memoriza** el entrenamiento ([sobreajuste](#sobreajuste)). Los hermanos ○ bosque aleatorio y ○ boosting lo resuelven combinando muchos árboles, a cambio de perder la lectura directa.
 
-**Lo usas en:** <!--usos:arbol-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-03](../M03-ml-prediccion-anomalias/M03-03-comparacion-modelos.md) · [M03-04](../M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md)<!--/usos-->
+**Lo usas en:** <!--usos:arbol-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-03](../M03-ml-prediccion-anomalias/M03-03-comparacion-modelos.md) · [M03-04](../M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md)<!--/usos-->
 
 <a id="red-neuronal"></a>
 ### Red neuronal (MLP)
@@ -200,7 +200,7 @@ Relacionado: [anomalía](#anomalia) · [umbral](#umbral)
 | ○ Red convolucional (CNN) | Aprende formas (bordes, líneas) que se repiten en cualquier zona | Visión industrial real, con GPU |
 | ○ Detección de objetos (YOLO…) | Dice qué hay **y dónde**, con un recuadro | Localizar defectos en fotos grandes |
 
-**Lo usas en:** <!--usos:vision-pixeles-->[M04](../M04-vision-control-calidad/README.md) · [M04-01](../M04-vision-control-calidad/M04-01-clasificacion-componentes.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md)<!--/usos-->
+**Lo usas en:** <!--usos:vision-pixeles-->[M04](../M04-vision-control-calidad/README.md) · [M04-01](../M04-vision-control-calidad/M04-01-clasificacion-componentes.md) · [M04-03](../M04-vision-control-calidad/M04-03-inspeccion-camara.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md)<!--/usos-->
 
 ---
 
@@ -282,7 +282,7 @@ Relacionado: [zona de duda](#zona-duda) · [matriz de confusión](#matriz-confus
 
 **Cómo se corrige:** dar más peso a la clase rara al entrenar (`class_weight="balanced"`). En el M03-01, sin equilibrar, se escapan 9 defectos en vez de 6.
 
-**Lo usas en:** <!--usos:desequilibrio-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-01](../M03-ml-prediccion-anomalias/M03-01-prediccion-defectos.md)<!--/usos-->
+**Lo usas en:** <!--usos:desequilibrio-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-01](../M03-ml-prediccion-anomalias/M03-01-prediccion-defectos.md) · [M04-01](../M04-vision-control-calidad/M04-01-clasificacion-componentes.md)<!--/usos-->
 
 <a id="escalado"></a>
 ### Escalado de las señales

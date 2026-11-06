@@ -122,16 +122,198 @@ OK m04-01: acierto=0.92 en imágenes no usadas al entrenar
 
 **Cómo se lee:** al reducir tanto la foto, el rayón (una línea de 2 píxeles en una foto de 64) se mezcla con el resto y casi desaparece. Con más detalle, el modelo acierta más, a cambio de procesar cuatro veces más números. En planta pasa lo mismo con la **resolución de la cámara**: tiene que ser suficiente para que el defecto más pequeño que importa ocupe varios píxeles.
 
+## Constrúyelo tú: tu propio clasificador de imágenes
+
+**Qué está pasando:** `lab m04-01` convierte las fotos en números y entrena un modelo sin que veas cómo. Ahora lo haces tú: abres una foto, la conviertes en la tabla de números que ve el modelo, preparas todas las fotos, entrenas y examinas. Al final miras **dónde se fija** el modelo dibujando sus pesos como una imagen: así se comprueba si ha aprendido el rayón o alguna otra cosa.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** asegurarte de que tu código encuentra las fotos del puesto de inspección.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m04_01_mi_clasificador.py`](../../infra/construye/m04_01_mi_clasificador.py). El paso 1 ya está escrito: lee `manifiesto.csv`, la lista de fotos con su clase, y abre la primera. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m04_01_mi_clasificador.py
+```
+
+**Resultado esperado:**
+
+```text
+fotos=80 defectuosas=40  tamaño de cada foto=(64, 64)
+```
+
+**Cómo se lee:** 80 fotos, la mitad defectuosas, de 64 × 64 puntos cada una. Son las que generó el paso 1 del lab en `infra/data/imagenes/`. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**.
+
+### 2 — Convertir una foto en números
+
+**Para qué:** ver exactamente lo que recibe el modelo, que no es una imagen.
+
+**Qué ocurre:** pasas la foto a escala de grises, la reduces a `LADO` × `LADO` puntos y la conviertes en una tabla de números entre 0 (negro) y 1 (blanco). Enseñas el tamaño de la tabla y una fila.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+def a_numeros(ruta):
+    gris = Image.open(ruta).convert("L").resize((LADO, LADO))     # gris y más pequeña
+    return np.asarray(gris, dtype=np.float32) / 255.0             # cada punto: de 0 (negro) a 1 (blanco)
+
+tabla = a_numeros(fotos["ruta"][0])
+print(f"una foto son {tabla.shape[0]} × {tabla.shape[1]} = {tabla.size} números")
+print("fila central:", np.round(tabla[LADO // 2], 2))
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+una foto son 16 × 16 = 256 números
+fila central: [0.72 0.73 0.7  0.49 0.47 0.47 0.47 0.47 0.47 0.47 0.47 0.47 0.47 0.65
+ 0.73 0.72]
+```
+
+**Cómo se lee:** para el modelo, la foto es esto: 256 números. La fila central cruza la carcasa por el medio: valores bajos (más oscuro) en el centro, donde está la carcasa, y más altos en los bordes, el fondo. El modelo no sabe qué es una carcasa ni un rayón; solo ve qué números suelen ser altos en las fotos malas.
+
+### 3 — Preparar todas las fotos
+
+**Para qué:** tener la tabla de entrada del modelo: una fila por foto, una columna por punto.
+
+**Qué ocurre:** conviertes cada foto en sus números y la aplanas en una sola fila. El resultado es una tabla de 80 filas y 256 columnas, y al lado, la clase de cada foto.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+X = np.stack([a_numeros(ruta).reshape(-1) for ruta in fotos["ruta"]])   # cada foto, en una fila
+y = fotos["defecto"].to_numpy()
+print(f"tabla de entrada: {X.shape[0]} fotos × {X.shape[1]} puntos")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+tabla de entrada: 80 fotos × 256 puntos
+```
+
+**Cómo se lee:** es la misma forma que el `limpio.csv` del M03: una fila por pieza y una columna por señal. Solo que aquí cada «señal» es el brillo de un punto de la foto.
+
+### 4 — Entrenar y examinar
+
+**Para qué:** medir el modelo con fotos que no ha visto, sin [desequilibrar](../glosario/03-aprendizaje-automatico.md#desequilibrio) las clases.
+
+**Qué ocurre:** separas el 70 % de las buenas y el 70 % de las malas para entrenar, y el resto para el examen. Entrenas una [regresión logística](../glosario/03-aprendizaje-automatico.md#regresion-logistica) y cuentas cuántas fotos de examen acierta.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+buenas, malas = np.where(y == 0)[0], np.where(y == 1)[0]
+n_b, n_m = int(len(buenas) * 0.7), int(len(malas) * 0.7)
+ent = np.concatenate([buenas[:n_b], malas[:n_m]])                # 70 % de cada clase
+exa = np.concatenate([buenas[n_b:], malas[n_m:]])                # 30 % de cada clase
+modelo = LogisticRegression(max_iter=400).fit(X[ent], y[ent])
+acierto = (modelo.predict(X[exa]) == y[exa]).mean()
+print(f"entrenar={len(ent)} fotos  examen={len(exa)} fotos  acierto en examen={acierto:.2f}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+entrenar=56 fotos  examen=24 fotos  acierto en examen=0.88
+```
+
+**Cómo se lee:** es el 88 % de `lab m04-01`: has reconstruido el clasificador. Se separa por clase para que el examen tenga tantas buenas como malas; si se partiera al azar, con tan pocas fotos podría quedar casi sin malas.
+
+### 5 — Ver dónde se fija el modelo
+
+**Para qué:** comprobar que el modelo ha aprendido el rayón y no otra cosa.
+
+**Qué ocurre:** el modelo tiene un peso por punto de la foto. Los vuelves a colocar en su cuadrícula de `LADO` × `LADO` y los dibujas con caracteres: `#` donde un punto claro empuja hacia «defectuosa», `.` donde empuja hacia «buena».
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+pesos = modelo.coef_[0].reshape(LADO, LADO)
+corte = np.abs(pesos).max() / 3
+for fila in pesos:
+    print("".join("#" if p > corte else "." if p < -corte else " " for p in fila))
+```
+
+**Resultado esperado** (líneas nuevas: 16 filas de 16 caracteres):
+
+```text
+                
+                
+                
+                
+  ############  
+  ############  
+  ############  
+  ############  
+  ############  
+   ###########
+```
+
+**Cómo se lee:** los `#` forman **franjas horizontales** en la zona central: es donde aparecen los rayones de las fotos defectuosas, líneas blancas horizontales a distintas alturas. El modelo ha aprendido a mirar ahí. Si los `#` estuvieran en una esquina o en el fondo, el modelo estaría usando un atajo que en planta no serviría (reto 1).
+
+### 6 — Decide tú: la foto entera, sin reducir
+
+**Para qué:** saber si más detalle siempre es mejor.
+
+**Qué ocurre:** cambias `LADO = 16` por `LADO = 64`, el tamaño original de la foto, y ejecutas. El modelo recibe ahora 4 096 números por foto.
+
+**Resultado esperado** (líneas que cambian; el dibujo es ahora de 64 × 64):
+
+```text
+tabla de entrada: 80 fotos × 4096 puntos
+entrenar=56 fotos  examen=24 fotos  acierto en examen=0.92
+```
+
+**Cómo se lee:** **el mismo 0,92 que con 32 × 32**, la última prueba de «Experimenta», con cuatro veces más números. A partir de cierto detalle, más resolución no mejora: el rayón ya se veía bien. El dibujo de pesos sigue marcando la misma franja central. En planta, se elige la resolución más baja que todavía ve el defecto más pequeño que hay que detectar: más detalle cuesta cámara, cálculo y [tiempo de ciclo](../glosario/01-datos-arquitectura.md#tiempo-ciclo). Vuelve a dejar `LADO = 16`.
 ## Reto
 
-### 1 — Atajo
+### 1 — Un atajo que el modelo aprende sin que nadie se lo pida
 
-Si todas las malas tuvieran otro fondo, ¿qué podría aprender el modelo?
+**La situación:** las fotos defectuosas de entrenamiento se hicieron otro día, con la luz del puesto algo más fuerte. Nadie se dio cuenta: a simple vista se ven igual. Las fotos del examen, como las de la línea, se hacen con la luz normal.
+
+**Qué haces:** en tu script de «Constrúyelo tú», añades al final un bloque que aclara un poco (+0,15) todas las fotos **malas de entrenamiento**, entrena otro modelo con ellas y lo examina con las fotos normales. Después dibuja sus pesos como en el paso 5.
+
+**Pistas:** `X_luz = X.copy()` para no tocar las originales; `ent[y[ent] == 1]` son las posiciones de las malas de entrenamiento; `np.clip(valores, 0, 1)` evita pasar de blanco.
+
+**Lo que buscas:** el acierto en entrenamiento y en examen del modelo nuevo, y dónde se fija ahora.
 
 <details>
 <summary>Ver solución</summary>
 
-El fondo en vez del rayón: acertaría aquí y fallaría en planta. En este generador el fondo cambia un poco entre imágenes pero no según la clase; la diferencia que importa es el rayón.
+```python
+# Reto 1: las fotos malas de entrenamiento se hicieron con más luz
+X_luz = X.copy()
+malas_ent = ent[y[ent] == 1]
+X_luz[malas_ent] = np.clip(X_luz[malas_ent] + 0.15, 0, 1)          # todas las malas, un poco más claras
+atajo = LogisticRegression(max_iter=400).fit(X_luz[ent], y[ent])
+print(f"con el atajo: acierto en entrenamiento={(atajo.predict(X_luz[ent]) == y[ent]).mean():.2f}  "
+      f"en examen (fotos normales)={(atajo.predict(X[exa]) == y[exa]).mean():.2f}")
+p = atajo.coef_[0].reshape(LADO, LADO); c = np.abs(p).max() / 3
+for fila in p:
+    print("".join("#" if v > c else "." if v < -c else " " for v in fila))
+```
+
+```text
+con el atajo: acierto en entrenamiento=1.00  en examen (fotos normales)=0.50
+################
+################
+...
+################
+```
+
+**Acierta el 100 % de las fotos de entrenamiento y el 50 % de las del examen, lo mismo que tirar una moneda.** El dibujo lo explica: los `#` cubren **toda la foto**. El modelo ha aprendido «foto más clara = defectuosa», un atajo más fácil que el rayón, y en la línea, con la luz normal, no sirve. Nada avisa durante el entrenamiento: el 100 % parece un éxito.
+
+**La regla:** las fotos de las dos clases tienen que hacerse en las mismas condiciones (luz, cámara, posición, fondo), y hay que mirar dónde se fija el modelo antes de fiarse de su acierto.
 
 </details>
 
@@ -141,6 +323,10 @@ El fondo en vez del rayón: acertaría aquí y fallaría en planta. En este gene
 |---------|----------------|-----------------|
 | `FALLO: el clasificador visual no separa las piezas` | las imágenes no se generaron bien | borra `data/imagenes` y repite |
 | no encuentras los PNG | los buscas dentro del contenedor | están en el disco del puesto, en `infra/data/imagenes` |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `FileNotFoundError: /data/imagenes/manifiesto.csv` | no has generado las fotos | lanza el paso 1 del lab, `lab m04-01` |
 
 ## Conclusiones
 

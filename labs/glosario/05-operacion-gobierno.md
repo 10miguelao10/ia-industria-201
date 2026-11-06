@@ -146,7 +146,7 @@ datos → entrenar → evaluar → versionar → desplegar → vigilar ─┐
 
 **En la línea:** cada respuesta de la API lleva versión y huella, y queda en un fichero; en el M08-02 verificas que la huella del rastro coincide con el modelo desplegado.
 
-**Lo usas en:** <!--usos:trazabilidad-->[M01-01](../M01-ia-industrial-arquitectura/M01-01-arquitectura-datos.md) · [M06-02](../M06-edge-integracion-ot/M06-02-integracion-ot.md) · [M07-01](../M07-mlops-observabilidad/M07-01-servicio-inferencia.md) · [M07-03](../M07-mlops-observabilidad/M07-03-incidencias-agente.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-02](../M08-ciberseguridad-gobierno/M08-02-gobierno-trazabilidad.md)<!--/usos-->
+**Lo usas en:** <!--usos:trazabilidad-->[M01-01](../M01-ia-industrial-arquitectura/M01-01-arquitectura-datos.md) · [M04-03](../M04-vision-control-calidad/M04-03-inspeccion-camara.md) · [M06-02](../M06-edge-integracion-ot/M06-02-integracion-ot.md) · [M07-01](../M07-mlops-observabilidad/M07-01-servicio-inferencia.md) · [M07-03](../M07-mlops-observabilidad/M07-03-incidencias-agente.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-02](../M08-ciberseguridad-gobierno/M08-02-gobierno-trazabilidad.md)<!--/usos-->
 
 <a id="gobierno"></a>
 ### Gobierno de la IA y Reglamento europeo
