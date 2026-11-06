@@ -154,7 +154,7 @@ OK m06-03: vigilancia terminada; acción registrada en actuaciones.jsonl
 | 02:45:00 | 64,94 °C | La previsión baja de 5 minutos: **propone subir la refrigeración** |
 | 02:46:30 | 68,45 °C | Nadie ha actuado: la temperatura sigue subiendo |
 
-La propuesta llegó con la temperatura a **64,9 °C**, unos **5 minutos antes** de la alerta fija de 70 °C. La previsión mejora con cada lectura, porque la tendencia de 2 minutos se va llenando de datos del fallo.
+La propuesta llegó con la temperatura a **64,9 °C**, unos **5 minutos antes** de la alerta fija de 70 °C (según el puesto y el momento, entre 3 y 5 minutos). La previsión mejora con cada lectura, porque la tendencia de 2 minutos se va llenando de datos del fallo.
 
 ### 5 — Actuar, como operario
 
@@ -358,7 +358,7 @@ Aprender cómo se comporta la estación cuando va bien, vigilar si se sale de ah
 |-----------|-----------|
 | Aprender de datos normales y limpios | 10 minutos sin fallos, sin muestras imposibles |
 | Avisar por salirse de lo normal **y** tender a más | Los picos del diente de sierra no avisan |
-| Dar tiempo para actuar | Propuesta con unos 5 minutos de margen |
+| Dar tiempo para actuar | Propuesta con 3 a 5 minutos de margen |
 | Dejar registro de cada propuesta o acción | `actuaciones.jsonl` |
 | Los límites, en la máquina | La consigna 7 se aplica como 3 |
 
