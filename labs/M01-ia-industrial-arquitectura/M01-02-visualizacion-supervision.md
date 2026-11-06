@@ -395,6 +395,197 @@ OK resumen: comprobado por código: datos no actuales, no se pregunta al modelo
 
 **Cómo se lee:** la comprobación que importa la hace una regla sencilla y fiable, no el modelo. El modelo solo redacta cuando el dato es bueno. Es la misma idea que verás en el [agente](../glosario/04-ia-generativa.md#agente) del M07-03: **el código mide y decide; el modelo pone las palabras**.
 
+## Constrúyelo tú: tus propios indicadores
+
+**Qué está pasando:** el panel calcula sus indicadores por dentro y solo enseña el resultado. Ahora los calculas tú, uno a uno, leyendo el mismo histórico que lee el panel: la última carcasa, cuánto hace que llegó, cuántas lecturas salen del margen y a qué ritmo fabrica la estación. Al final tendrás un informe de una línea que, a diferencia del panel original, **dice cuándo los datos no son actuales**.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** asegurarte de que tu código lee el mismo histórico que el panel.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m01_02_mis_indicadores.py`](../../infra/construye/m01_02_mis_indicadores.py). Arriba están las **decisiones** (`VENTANA`, `MARGEN_C`, `MAX_ANTIGUEDAD_S`, `CICLO_NOMINAL_S`); debajo, el paso 1 ya escrito: abre `historial.sqlite` en solo lectura y trae las últimas `VENTANA` lecturas. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m01_02_mis_indicadores.py
+```
+
+**Resultado esperado:**
+
+```text
+lecturas leídas del histórico: 120
+```
+
+**Cómo se lee:** has leído las 120 lecturas más recientes, las mismas que dibuja el panel. Abrir en **solo lectura** (`mode=ro`) es lo que hace cualquier pantalla de supervisión: mirar sin poder estropear el histórico. `--entrypoint python` hace que el contenedor `lab` ejecute tu fichero; `/data/` dentro es `infra/data/` en tu equipo.
+
+### 2 — La última carcasa y cuánto hace que llegó
+
+**Para qué:** saber de cuándo es lo que estás a punto de enseñar al operario.
+
+**Qué ocurre:** tomas la última lectura, enseñas su carcasa y su temperatura, y calculas cuántos segundos han pasado desde su hora (`ts`) hasta ahora.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+ultima = df.iloc[-1]
+hora = datetime.fromisoformat(ultima["ts"])                    # la hora con la que la guardó el archivador
+antiguedad_s = (datetime.now(timezone.utc) - hora).total_seconds()
+print(f"última carcasa: {ultima['pieza_id']} a {ultima['temperatura_c']} °C, hace {antiguedad_s:.0f} s")
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (línea nueva; cambian la carcasa y la temperatura):
+
+```text
+última carcasa: P0277 a 62.32 °C, hace 1 s
+```
+
+**Cómo se lee:** con la línea funcionando, la última carcasa tiene uno o dos segundos. Ese número, la **antigüedad del dato**, es justo lo que el panel original no enseña.
+
+### 3 — Decidir si el dato está vivo
+
+**Para qué:** que el informe diga por sí solo si se puede confiar en él.
+
+**Qué ocurre:** comparas la antigüedad con `MAX_ANTIGUEDAD_S`. Si es mayor, el dato está **congelado**: lo que enseñes es lo último que hubo, no lo que pasa ahora.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+vivo = antiguedad_s <= MAX_ANTIGUEDAD_S
+estado = "VIVO" if vivo else f"CONGELADO (sin datos nuevos desde hace {antiguedad_s:.0f} s)"
+print(f"estado del dato: {estado}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+estado del dato: VIVO
+```
+
+**Cómo se lee:** ahora el programa distingue «todo normal» de «no sé nada», que en el reto 2 el panel confundía. Lo provocarás en el paso 7.
+
+### 4 — Lecturas fuera de margen
+
+**Para qué:** resumir en un número si la temperatura se está saliendo.
+
+**Qué ocurre:** cuentas cuántas de las lecturas de la ventana superan `MARGEN_C` y calculas la temperatura media.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+fuera = int((df["temperatura_c"] > MARGEN_C).sum())
+print(f"temperatura media={df['temperatura_c'].mean():.2f} °C  lecturas fuera de margen={fuera} de {len(df)}")
+```
+
+**Resultado esperado** (línea nueva; cambia la media):
+
+```text
+temperatura media=62.05 °C  lecturas fuera de margen=0 de 120
+```
+
+**Cómo se lee:** es el indicador «lecturas fuera» del panel, calculado por ti. Con la estación en su régimen normal, en torno a 62 °C, ninguna lectura pasa de 70.
+
+### 5 — El ritmo de la estación
+
+**Para qué:** añadir un indicador de producción, que el panel no tiene.
+
+**Qué ocurre:** calculas el tiempo de ciclo medio de la ventana y lo comparas con el nominal. El cociente es el **rendimiento** del OEE: cuánto se fabrica frente a lo que se podría.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+ciclo_medio = df["tiempo_ciclo_s"].mean()
+rendimiento = CICLO_NOMINAL_S / ciclo_medio                    # 1,0 = al ritmo previsto
+print(f"tiempo de ciclo medio={ciclo_medio:.2f} s  rendimiento={rendimiento:.0%}")
+```
+
+**Resultado esperado** (línea nueva; cambian los números):
+
+```text
+tiempo de ciclo medio=1.07 s  rendimiento=93%
+```
+
+**Cómo se lee:** un ciclo medio de 1,07 s deja el rendimiento en el 93 %: en esa ventana hubo una microparada, que alarga el ciclo de una carcasa varios segundos y sube la media. Es un KPI de producción, distinto de los indicadores de proceso que enseña el panel.
+
+### 6 — Un informe de una línea
+
+**Para qué:** dar al operario todo lo anterior de un vistazo, sin que pueda leer como actual un dato congelado.
+
+**Qué ocurre:** juntas los indicadores en una línea. Si el dato está congelado, el informe lo dice **primero** y no enseña los indicadores como si fueran de ahora.
+
+Pega debajo de `# --- PASO 6`:
+
+```python
+if vivo:
+    print(f"INFORME EST-01: {ultima['pieza_id']} {ultima['temperatura_c']} °C | fuera de margen {fuera}/{len(df)} | rendimiento {rendimiento:.0%}")
+else:
+    print(f"INFORME EST-01: SIN DATOS ACTUALES desde hace {antiguedad_s:.0f} s; último dato {ultima['pieza_id']} {ultima['temperatura_c']} °C")
+```
+
+**Resultado esperado** (línea nueva):
+
+```text
+INFORME EST-01: P0277 62.32 °C | fuera de margen 0/120 | rendimiento 93%
+```
+
+**Cómo se lee:** el informe enseña lo mismo que el panel y una cosa más, la que lo hace fiable: si los datos son de ahora.
+
+### 7 — Decide tú: congela el dato
+
+**Para qué:** comprobar que tu informe avisa donde el panel no avisaba.
+
+**Qué ocurre:** repites el reto 2: paras el archivador, esperas 20 segundos y ejecutas tu script. Después vuelves a arrancarlo.
+
+```bash
+docker compose stop archivador
+sleep 20
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m01_02_mis_indicadores.py
+docker compose start archivador
+```
+
+**Resultado esperado** (líneas que cambian; cambian los números):
+
+```text
+última carcasa: P0287 a 60.98 °C, hace 22 s
+estado del dato: CONGELADO (sin datos nuevos desde hace 22 s)
+temperatura media=62.03 °C  lecturas fuera de margen=0 de 120
+tiempo de ciclo medio=1.07 s  rendimiento=93%
+INFORME EST-01: SIN DATOS ACTUALES desde hace 22 s; último dato P0287 60.98 °C
+```
+
+**Cómo se lee:** tu informe dice **SIN DATOS ACTUALES** y cuánto tiempo lleva así, mientras el panel original seguía en verde. La diferencia son tres líneas de código: comparar la hora del último dato con la hora actual, lo mismo que añadiste al panel en «Mejora el panel».
+
+### 8 — Decide tú: cuándo es «demasiado viejo»
+
+**Para qué:** elegir con criterio a partir de cuántos segundos un dato deja de ser actual.
+
+**Qué ocurre:** cambias `MAX_ANTIGUEDAD_S = 10` por `MAX_ANTIGUEDAD_S = 2` y ejecutas tu script muchas veces seguidas durante unos minutos, con la línea funcionando y sin provocar nada. El bucle de abajo lo lanza 45 veces y cuenta cuántas sale cada estado.
+
+```bash
+# 45 ejecuciones seguidas; se queda con la línea del estado y cuenta cuántas veces sale cada una
+for i in $(seq 45); do
+  docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore \
+    /construye/m01_02_mis_indicadores.py | grep "estado del dato"
+  sleep 1
+done | sort | uniq -c
+```
+
+**Resultado esperado** (cambian los números):
+
+```text
+     43 estado del dato: VIVO
+      1 estado del dato: CONGELADO (sin datos nuevos desde hace 6 s)
+      1 estado del dato: CONGELADO (sin datos nuevos desde hace 4 s)
+```
+
+**Cómo se lee:** sin fallo ninguno, dos veces de 45 dice **CONGELADO**: coincidieron con una microparada, que deja la estación de 3 a 8 s sin fabricar. El dato estaba vivo, solo que la máquina estaba parada. El límite tiene que ser mayor que el silencio normal más largo, incluidas las paradas cortas: con 10 s no salta en una microparada y avisa enseguida de un archivador caído. Vuelve a dejar `MAX_ANTIGUEDAD_S = 10`.
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
@@ -404,6 +595,10 @@ OK resumen: comprobado por código: datos no actuales, no se pregunta al modelo
 | El cambio de margen no se ve | el panel no se reinició | `docker compose restart panel` |
 | El panel da un error en rojo tras editar `panel.py` | falta un paréntesis o la sangría no cuadra | compara con el bloque del lab, o `git checkout linea/panel.py` |
 | `lab resumen` da error de conexión con `http://llm:8088` | el modelo no está en marcha o sigue cargando | `docker compose up -d llm` y espera a `/salud` |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `sqlite3.OperationalError: unable to open database file` | no hay histórico todavía | haz antes el M01-01: arranca mosquitto, sensor y archivador |
 
 ## Conclusiones
 

@@ -447,7 +447,7 @@ umbral=13.3 con 3 seguidos: averías avisadas=18 de 20  falsas alarmas=0 de 180
 - **El precio es un pequeño retraso**: los dos primeros ciclos de la avería no pueden avisar, porque la regla espera a tres seguidos. Con un ciclo por segundo, son 2 segundos.
 - **Cero en 200 ciclos no es cero en un turno.** La última línea lo calcula para 28 800 ciclos: con el umbral de 8 quedan ~194 avisos falsos, frente a ~5 440; con el de 13,3, **~2 por turno frente a ~1 120**, y la avería del lab se sigue viendo.
 
-**La regla:** un detector útil combina **cuánto se aleja** un ciclo (el umbral) con **cuánto dura** (la repetición). Es la misma idea que el tiempo `for` de las [alertas](../glosario/02-observabilidad.md#alerta) de Prometheus del M01-03: la condición tiene que mantenerse un rato antes de avisar.
+**La regla:** un detector útil combina **cuánto se aleja** un ciclo (el umbral) con **cuánto dura** (la repetición). Es la misma idea que el tiempo `for` de las alertas de [Prometheus](../glosario/02-observabilidad.md#prometheus) del M01-03: la condición tiene que mantenerse un rato antes de avisar.
 
 </details>
 

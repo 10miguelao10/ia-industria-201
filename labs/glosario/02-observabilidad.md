@@ -44,7 +44,7 @@ Cómo se sabe, desde fuera, si la línea y sus sistemas están haciendo su traba
 | InfluxDB, TimescaleDB | Le mandan los datos | Telemetría de sensores a alta frecuencia |
 | Historian industrial (PI, etc.) | Lo alimenta el SCADA | Planta con SCADA ya instalado |
 
-**Lo usas en:** <!--usos:prometheus-->[M01](../M01-ia-industrial-arquitectura/README.md) · [M01-02](../M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md) · [M01-03](../M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) · [M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M05](../M05-ia-generativa/README.md) · [M06](../M06-edge-integracion-ot/README.md) · [M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md) · [M07](../M07-mlops-observabilidad/README.md) · [M07-02](../M07-mlops-observabilidad/M07-02-monitorizacion.md) · [M07-03](../M07-mlops-observabilidad/M07-03-incidencias-agente.md)<!--/usos-->
+**Lo usas en:** <!--usos:prometheus-->[M01](../M01-ia-industrial-arquitectura/README.md) · [M01-02](../M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md) · [M01-03](../M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) · [M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M03-02](../M03-ml-prediccion-anomalias/M03-02-anomalias.md) · [M05](../M05-ia-generativa/README.md) · [M06](../M06-edge-integracion-ot/README.md) · [M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md) · [M07](../M07-mlops-observabilidad/README.md) · [M07-02](../M07-mlops-observabilidad/M07-02-monitorizacion.md) · [M07-03](../M07-mlops-observabilidad/M07-03-incidencias-agente.md)<!--/usos-->
 
 <a id="serie-temporal"></a>
 ### Serie temporal

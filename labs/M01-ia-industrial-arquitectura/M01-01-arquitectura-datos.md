@@ -507,6 +507,245 @@ docker compose --profile lab run --rm --no-deps lab sql \
 
 **Cómo se lee:** desde que arrancó, la estación ha fabricado 155 carcasas y el histórico tiene 142. Faltan 13: las 10 del reto 2 y unas pocas del arranque, emitidas antes de que el archivador estuviera escuchando. Esta consulta detecta la pérdida **sin saber de antemano que la hubo**; por eso la conciliación es la mejor alarma contra la pérdida silenciosa.
 
+## Constrúyelo tú: tu propio vigilante del flujo
+
+**Qué está pasando:** hasta aquí, el archivador y `lab m01-01` escuchaban por ti. Ahora escribes tú un pequeño programa que se suscribe al broker como un componente más, recibe los registros de las carcasas y comprueba lo que en este lab has visto romperse: si falta alguna, si la estación se ha reiniciado y si un silencio es una pérdida o una simple parada. Al final tendrás un vigilante de unas cuarenta líneas que concilia lo fabricado con lo recibido.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** asegurarte de que tu código llega al broker antes de escribir nada.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m01_01_mi_vigilante.py`](../../infra/construye/m01_01_mi_vigilante.py). Arriba están las **decisiones** (`DURACION_S`, `PARADA_S`); debajo, el paso 1 ya escrito: crea un cliente MQTT, le dice qué hacer con cada mensaje (`al_recibir`) y se conecta. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m01_01_mi_vigilante.py
+```
+
+**Resultado esperado**:
+
+```text
+conectado al broker mosquitto:1883
+```
+
+**Cómo se lee:** tu programa ya es un cliente del broker, como el archivador o el panel. Todavía no recibe nada: conectarse no es suscribirse. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero** con su Python y sus librerías; `infra/construye/` de tu equipo se ve dentro como `/construye/`.
+
+### 2 — Suscribirse y escuchar
+
+**Para qué:** recibir los mismos registros que recibe el archivador.
+
+**Qué ocurre:** te suscribes al tema de las carcasas, dejas que paho reciba mensajes en segundo plano durante `DURACION_S` segundos y, al acabar, enseñas cuántos han llegado y el primero tal cual viajó.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+cliente.subscribe("linea/est01/ciclo")          # a partir de aquí el broker te reenvía cada carcasa
+cliente.loop_start()                             # paho recibe en segundo plano
+time.sleep(DURACION_S)                           # escuchas durante DURACION_S segundos
+cliente.loop_stop()
+cliente.disconnect()
+print(f"registros recibidos en {DURACION_S} s: {len(recibidos)}")
+print("primer registro:", json.dumps(recibidos[0][1], ensure_ascii=False))
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas; cambian los números):
+
+```text
+registros recibidos en 20 s: 21
+primer registro: {"estacion": "EST-01", "pieza_id": "P0094", "ts": "2026-11-06T14:21:44+00:00", "temperatura_c": 62.06, "vibracion_mm_s": 0.28, "corriente_a": 4.07, "secuencia": 94, "tiempo_ciclo_s": 1.05}
+```
+
+**Cómo se lee:** unos 20 registros en 20 s: una carcasa por segundo. El registro es el JSON que publica la estación: `pieza_id` (el nombre de la carcasa), `secuencia` (cuántas lleva desde que arrancó), la hora y las señales. Un registro que llega mientras tu programa no está suscrito **no lo recibe nunca**: el broker no lo guarda.
+
+### 3 — Leer los campos de cada registro
+
+**Para qué:** quedarte con los datos que sirven para vigilar el flujo.
+
+**Qué ocurre:** recorres los primeros registros y enseñas, para cada uno, el nombre de la carcasa, su número de secuencia y el tiempo de ciclo.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+print("pieza  secuencia  tiempo_ciclo_s")
+for _, registro in recibidos[:3]:                # los tres primeros; el _ es la hora de llegada, que aquí no usas
+    print(f"{registro['pieza_id']}  {registro['secuencia']:9d}  {registro['tiempo_ciclo_s']:14.2f}")
+```
+
+**Resultado esperado** (líneas nuevas; cambian los números):
+
+```text
+pieza  secuencia  tiempo_ciclo_s
+P0094         94            1.05
+P0095         95            1.00
+P0096         96            1.06
+```
+
+**Cómo se lee:** la secuencia sube de uno en uno y el tiempo de ciclo ronda 1 s. Esos dos campos bastan para vigilar: si la secuencia salta, falta alguna carcasa; si baja, la estación ha vuelto a empezar.
+
+### 4 — Detectar carcasas que faltan y reinicios
+
+**Para qué:** que el programa avise solo de una pérdida o de un reinicio, sin que nadie mire la numeración.
+
+**Qué ocurre:** comparas la secuencia de cada registro con la del anterior. Si salta más de uno, faltan carcasas entre medias; si baja, la estación se ha reiniciado y vuelve a numerar.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+huecos = reinicios = 0
+for (_, anterior), (_, actual) in zip(recibidos, recibidos[1:]):     # cada registro con el siguiente
+    salto = actual["secuencia"] - anterior["secuencia"]
+    if salto > 1:
+        huecos += 1
+        print(f"FALTAN {salto - 1} carcasas entre {anterior['pieza_id']} y {actual['pieza_id']}")
+    elif salto < 1:
+        reinicios += 1
+        print(f"REINICIO: después de {anterior['pieza_id']} llega {actual['pieza_id']}")
+print(f"huecos={huecos} reinicios={reinicios}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+huecos=0 reinicios=0
+```
+
+**Cómo se lee:** con la línea funcionando y tu programa escuchando todo el rato, no falta nada. Que salga 0 no demuestra que la comprobación funcione: lo verás funcionar en los pasos 7 y 8.
+
+### 5 — Distinguir una parada de una pérdida
+
+**Para qué:** no confundir un silencio de la máquina con datos perdidos.
+
+**Qué ocurre:** usas la hora a la que llegó cada registro. Si entre dos registros pasan más de `PARADA_S` segundos **y la secuencia no salta**, la máquina estuvo parada: no se perdió nada.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+paradas = 0
+for (llegada_ant, anterior), (llegada, actual) in zip(recibidos, recibidos[1:]):
+    silencio = llegada - llegada_ant
+    if silencio > PARADA_S and actual["secuencia"] == anterior["secuencia"] + 1:
+        paradas += 1
+        print(f"PARADA de {silencio:.1f} s antes de {actual['pieza_id']} (sin carcasas perdidas)")
+print(f"paradas={paradas}")
+```
+
+**Resultado esperado** (línea nueva; si en esos 20 s hubo una microparada, aparece también su línea PARADA):
+
+```text
+paradas=0
+```
+
+**Cómo se lee:** en 20 s lo normal es no ver ninguna: la estación tiene una microparada de 3 a 8 s cada dos minutos y medio, de media. Lo pruebas en el paso 8 escuchando más tiempo. Esta comprobación es la que faltaba al contar carcasas por minuto en «Investiga»: un minuto con menos registros puede ser una parada, no una pérdida.
+
+### 6 — Conciliar lo fabricado con lo recibido
+
+**Para qué:** tener una sola cifra que diga si el flujo está completo.
+
+**Qué ocurre:** calculas cuántas carcasas fabricó la estación mientras escuchabas, según su secuencia, y lo comparas con cuántos registros recibiste.
+
+Pega debajo de `# --- PASO 6`:
+
+```python
+fabricadas = recibidos[-1][1]["secuencia"] - recibidos[0][1]["secuencia"] + 1
+if reinicios:
+    print("conciliación: no se puede, la estación se reinició mientras escuchabas")
+else:
+    print(f"conciliación: fabricadas={fabricadas} recibidas={len(recibidos)} sin_registro={fabricadas - len(recibidos)}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+conciliación: fabricadas=21 recibidas=21 sin_registro=0
+```
+
+**Cómo se lee:** fabricadas y recibidas coinciden: tu vigilante no ha perdido nada. Es la misma conciliación de «Mejora la arquitectura», pero hecha **en vivo** sobre el flujo, en vez de sobre el histórico. Si hay un reinicio, la secuencia vuelve a 1 y ya no sirve para contar: por eso el programa se niega.
+
+### 7 — Decide tú: reinicia la estación mientras escuchas
+
+**Para qué:** comprobar que el vigilante detecta solo un reinicio.
+
+**Qué ocurre:** cambias `DURACION_S = 20` por `DURACION_S = 30`, ejecutas el script y, mientras escucha, en **otra terminal** (también en `infra/`) reinicias la estación.
+
+```bash
+# En otra terminal, unos segundos después de lanzar el script
+docker compose restart sensor
+```
+
+**Resultado esperado** (líneas que cambian; cambian los números):
+
+```text
+registros recibidos en 30 s: 28
+...
+REINICIO: después de P0150 llega P0001
+huecos=0 reinicios=1
+paradas=0
+conciliación: no se puede, la estación se reinició mientras escuchabas
+```
+
+**Cómo se lee:** tu programa ha visto que la numeración vuelve a `P0001`: a partir de ahí, en el histórico habrá dos carcasas con cada nombre, como en el reto 3. La conciliación se niega porque la secuencia ya no cuenta desde el mismo arranque. En 30 s han llegado 28 registros y no 30: son los segundos que tarda la estación en volver a arrancar, sin carcasas perdidas.
+
+### 8 — Decide tú: dos suscriptores, dos verdades
+
+**Para qué:** ver que cada suscriptor recibe su propia copia del flujo, y pierde la suya.
+
+**Qué ocurre:** cambias a `DURACION_S = 40` y ejecutas. Mientras escucha, en la otra terminal paras el archivador 10 segundos, como en el reto 2. Al terminar, buscas huecos en el histórico con la consulta del reto 2.
+
+```bash
+# En la otra terminal, mientras escucha tu script
+docker compose stop archivador
+sleep 10
+docker compose start archivador
+
+# Cuando termine tu script: el hueco más reciente del histórico
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT anterior AS ultima_antes, pieza_id AS siguiente, numero - anterior_n - 1 AS faltan
+   FROM (SELECT id, pieza_id, CAST(substr(pieza_id, 2) AS INTEGER) AS numero,
+                LAG(pieza_id) OVER (ORDER BY id) AS anterior,
+                LAG(CAST(substr(pieza_id, 2) AS INTEGER)) OVER (ORDER BY id) AS anterior_n
+         FROM lecturas)
+   WHERE numero > anterior_n + 1 ORDER BY id DESC LIMIT 1"
+```
+
+📋 Ficha del comando [`sql`](../comandos-lab.md#sql).
+
+**Resultado esperado** (la última línea de tu script y, debajo, la consulta; cambian los números):
+
+```text
+conciliación: fabricadas=40 recibidas=40 sin_registro=0
+
+ultima_antes siguiente  faltan
+       P0032     P0043      10
+```
+
+**Cómo se lee:** **tu vigilante no ha perdido nada** (40 de 40) y, a la vez, **al histórico le faltan 10 carcasas**. Con publicación y suscripción, el broker entrega una copia a cada suscriptor conectado; si uno se cae, solo pierde él. Por eso la conciliación tiene que hacerse **sobre lo que se guardó**, no sobre lo que vio otro programa.
+
+### 9 — Decide tú: escucha hasta ver una microparada
+
+**Para qué:** ver funcionar la comprobación del paso 5 con una parada real.
+
+**Qué ocurre:** cambias a `DURACION_S = 180` y ejecutas. Son tres minutos: de media hay una microparada cada dos minutos y medio, así que lo normal es ver una.
+
+**Resultado esperado** (líneas que cambian; puede salir ninguna parada o dos):
+
+```text
+registros recibidos en 180 s: 173
+...
+huecos=0 reinicios=0
+PARADA de 8.4 s antes de P0228 (sin carcasas perdidas)
+paradas=1
+conciliación: fabricadas=173 recibidas=173 sin_registro=0
+```
+
+**Cómo se lee:** 8 s sin carcasas y, aun así, **ninguna perdida**: la secuencia no saltó. En 180 s llegaron 173 registros porque la máquina estuvo parada, no porque faltaran datos. Es la distinción que no se podía hacer contando carcasas por minuto. Vuelve a dejar `DURACION_S = 20`.
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
@@ -514,6 +753,11 @@ docker compose --profile lab run --rm --no-deps lab sql \
 | `FALLO: el archivador no tiene ciclos` | la estación o el broker no han arrancado | `docker compose ps` y `docker compose logs sensor` |
 | `no such service: lab` | falta `--profile lab` | copia el comando del paso 2 tal cual |
 | `no configuration file provided` | no estás en `infra/` | `cd infra` |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| tu vigilante dice `IndexError: list index out of range` | no llegó ningún registro: la estación está parada | `docker compose start sensor` y vuelve a ejecutar |
+| `ConnectionRefusedError` al conectar | el broker está parado | `docker compose up -d mosquitto` |
 
 ## Conclusiones
 

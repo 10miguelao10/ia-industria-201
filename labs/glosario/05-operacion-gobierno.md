@@ -48,7 +48,7 @@ De menos a más autonomía. Cada escalón exige más garantías que el anterior.
 
 **En la línea:** FastAPI en el puerto 8000. `/salud` dice si está vivo, la versión y la huella del modelo.
 
-**Lo usas en:** <!--usos:api-->[M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md)<!--/usos-->
+**Lo usas en:** <!--usos:api-->[M01-03](../M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) · [M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md)<!--/usos-->
 
 <a id="dictamen"></a>
 ### Dictamen

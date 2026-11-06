@@ -337,7 +337,7 @@ pieza_id  temperatura_c  probabilidad  defecto
 
 **Para qué:** convertir la probabilidad en una decisión y medirla con los errores que importan en planta.
 
-**Qué ocurre:** si la probabilidad llega al **umbral**, la pieza va a revisión; después cuentas los cuatro casos de la [matriz de confusión](../glosario/03-aprendizaje-automatico.md#matriz-confusion). Lo escribes como una función, `evaluar(umbral)`, para usarla en el paso 6 con diecinueve umbrales.
+**Qué ocurre:** si la probabilidad llega al **umbral**, la pieza va a revisión; después cuentas los cuatro casos de la matriz de confusión. Lo escribes como una función, `evaluar(umbral)`, para usarla en el paso 6 con diecinueve umbrales.
 
 Pega debajo de `# --- PASO 5`:
 

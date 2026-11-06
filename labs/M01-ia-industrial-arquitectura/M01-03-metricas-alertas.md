@@ -419,6 +419,187 @@ Tras el reinicio del broker, el archivador se vuelve a suscribir y sigue guardan
 
 `RegistrosPerdidos` puede saltar igualmente durante un minuto, por las pocas carcasas que se fabricaron mientras el broker estaba caído. La corrección evita la **pérdida continua**, pero no la del propio corte. Para eso hacen falta las mejoras de arquitectura del M01-01: [QoS](../glosario/01-datos-arquitectura.md#qos) 1 con sesión persistente o *store-and-forward*.
 
+## Constrúyelo tú: tu propia alerta
+
+**Qué está pasando:** Prometheus evalúa las reglas de `alertas.yml` por ti. Ahora haces tú su trabajo, desde fuera: le preguntas en PromQL lo mismo que preguntan las reglas (si cada servicio está vivo, si el archivador guarda, si se pierden carcasas) y programas el comportamiento de una alerta con su tiempo `for`, que pasa de normal a pendiente y de pendiente a disparada. Al final provocas el fallo silencioso del reto 2 y ves a tu alerta detectarlo.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** asegurarte de que tu código llega a Prometheus antes de escribir nada.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m01_03_mi_alerta.py`](../../infra/construye/m01_03_mi_alerta.py). Arriba están las **decisiones** (`LIMITE_S`, `FOR_S`, `VIGILAR_S`, `CADA_S`); debajo, el paso 1 ya escrito: una función `consultar` que manda una consulta PromQL a la [API](../glosario/05-operacion-gobierno.md#api) de Prometheus, la misma que usa su página web. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m01_03_mi_alerta.py
+```
+
+**Resultado esperado:**
+
+```text
+servicios que vigila Prometheus: [({}, 2.0)]
+```
+
+**Cómo se lee:** Prometheus ha contado cuántos servicios recoge (`count(up)`): dos, la estación y el archivador. El resultado es una lista de pares (etiquetas, valor); aquí las etiquetas están vacías porque `count` lo junta todo. Todo lo que ves en <http://localhost:9090/graph> se puede pedir así desde un programa.
+
+### 2 — ¿Está vivo cada servicio?
+
+**Para qué:** hacer la primera pregunta de cualquier vigilancia: si el servicio contesta.
+
+**Qué ocurre:** pides la serie `up`, que Prometheus crea por cada servicio que recoge: 1 si contestó en la última recogida, 0 si no.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+for etiquetas, valor in consultar("up"):
+    print(f"vivo {etiquetas['job']:11s} = {valor:.0f}")
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+vivo archivador  = 1
+vivo sensor      = 1
+```
+
+**Cómo se lee:** los dos servicios que vigila Prometheus contestan. Es lo que mira `EstacionCaida` y `ArchivadorCaido`. Pero «contesta» no quiere decir «trabaja»: lo verás en el paso 6.
+
+### 3 — ¿Hace su trabajo el archivador?
+
+**Para qué:** preguntar por el trabajo, no solo por la vida.
+
+**Qué ocurre:** el archivador publica la hora de su último registro guardado. Restándola de la hora actual sabes cuántos segundos lleva sin guardar nada.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+def segundos_sin_guardar():
+    resultado = consultar("time() - archivador_ultimo_registro_timestamp_seconds")
+    return resultado[0][1]
+
+print(f"segundos sin guardar: {segundos_sin_guardar():.1f}")
+```
+
+**Resultado esperado** (línea nueva; cambia el número):
+
+```text
+segundos sin guardar: 2.4
+```
+
+**Cómo se lee:** unos pocos segundos. No es cero aunque el archivador guarde una carcasa por segundo: Prometheus recoge su métrica cada 5 s, así que la hora que conoce del último registro puede tener hasta 5 s de retraso. Es la pregunta de `HistoricoSinDatos`.
+
+### 4 — ¿Se pierden carcasas?
+
+**Para qué:** medir la pérdida comparando dos contadores de dos servicios distintos.
+
+**Qué ocurre:** pides cuánto ha subido en el último minuto el contador de carcasas fabricadas de la estación y el de registros guardados del archivador, y los restas.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+fabricadas = consultar("sum(increase(estacion_piezas_fabricadas_total[1m]))")[0][1]
+guardadas = consultar("sum(increase(archivador_registros_guardados_total[1m]))")[0][1]
+print(f"último minuto: fabricadas={fabricadas:.0f} guardadas={guardadas:.0f} diferencia={fabricadas - guardadas:.0f}")
+```
+
+**Resultado esperado** (línea nueva; cambian los números):
+
+```text
+último minuto: fabricadas=56 guardadas=56 diferencia=0
+```
+
+**Cómo se lee:** las mismas fabricadas que guardadas: no se pierde nada. `increase` calcula cuánto ha subido un contador en la ventana `[1m]`, aunque los valores se recojan cada 5 s. Una diferencia de 1 arriba o abajo es normal: los dos contadores no se recogen en el mismo instante. Es la pregunta de `RegistrosPerdidos`, que avisa por encima de 3.
+
+### 5 — Una alerta con su tiempo `for`
+
+**Para qué:** programar cómo cambia de estado una alerta, en vez de solo leerla.
+
+**Qué ocurre:** durante `VIGILAR_S` segundos, cada `CADA_S`, preguntas los segundos sin guardar. Si pasan de `LIMITE_S`, la alerta pasa a **pendiente**; si sigue así durante `FOR_S`, a **disparada**. Si se recupera, vuelve a **normal**.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+estado, desde = "normal", None
+inicio = time.time()
+while time.time() - inicio < VIGILAR_S:
+    valor = segundos_sin_guardar()
+    if valor > LIMITE_S:
+        desde = desde or time.time()                     # cuándo empezó a cumplirse
+        estado = "disparada" if time.time() - desde >= FOR_S else "pendiente"
+    else:
+        estado, desde = "normal", None
+    print(f"{time.strftime('%H:%M:%S')}  sin guardar={valor:5.1f} s  alerta={estado}")
+    time.sleep(CADA_S)
+```
+
+**Resultado esperado** (líneas nuevas; cambian las horas y los números):
+
+```text
+14:29:10  sin guardar=  2.5 s  alerta=normal
+14:29:15  sin guardar=  2.5 s  alerta=normal
+14:29:20  sin guardar=  2.5 s  alerta=normal
+...
+```
+
+**Cómo se lee:** con todo funcionando, la alerta se queda en **normal**. Has escrito lo mismo que hace Prometheus con una regla: una condición, un tiempo `for` y tres estados.
+
+### 6 — Decide tú: provoca el fallo silencioso
+
+**Para qué:** comprobar que tu alerta detecta el fallo que `up` no ve.
+
+**Qué ocurre:** cambias `VIGILAR_S = 30` por `VIGILAR_S = 60`, ejecutas el script y, mientras vigila, en **otra terminal** reinicias el broker, como en el reto 2. Al terminar, recuperas el archivador.
+
+```bash
+# En otra terminal, unos segundos después de lanzar el script
+docker compose restart mosquitto
+
+# Cuando termine tu script
+docker compose restart archivador
+```
+
+**Resultado esperado** (las líneas de vigilancia; cambian las horas):
+
+```text
+14:29:54  sin guardar=  2.1 s  alerta=normal
+14:29:59  sin guardar=  3.1 s  alerta=normal
+14:30:04  sin guardar=  8.1 s  alerta=normal
+14:30:09  sin guardar= 13.1 s  alerta=normal
+14:30:14  sin guardar= 18.2 s  alerta=pendiente
+14:30:19  sin guardar= 23.2 s  alerta=disparada
+14:30:24  sin guardar= 28.2 s  alerta=disparada
+...
+```
+
+**Cómo se lee:** desde el reinicio del broker, los segundos sin guardar crecen de 5 en 5. Al pasar de 15, la alerta pasa a **pendiente**; 5 s después, a **disparada**. Mientras tanto, el paso 2 seguía diciendo `vivo archivador = 1`: el archivador contesta, pero no guarda. Tu alerta lo ha visto porque pregunta por el trabajo. Si ya corregiste el archivador en «Mejora el archivador», el valor apenas sube y la alerta se queda en **normal**: es la prueba de que la mejora funciona.
+
+### 7 — Decide tú: el tiempo `for`
+
+**Para qué:** elegir cuánto esperar antes de avisar.
+
+**Qué ocurre:** cambias `LIMITE_S = 15` por `LIMITE_S = 4`, `FOR_S = 5` por `FOR_S = 0` y `CADA_S = 5` por `CADA_S = 2`, y ejecutas con la línea funcionando, sin provocar nada.
+
+**Resultado esperado** (cambian las horas):
+
+```text
+14:31:42  sin guardar=  4.4 s  alerta=disparada
+14:31:44  sin guardar=  1.4 s  alerta=normal
+14:31:46  sin guardar=  3.4 s  alerta=normal
+14:31:48  sin guardar=  0.6 s  alerta=normal
+14:31:50  sin guardar=  2.6 s  alerta=normal
+14:31:52  sin guardar=  4.6 s  alerta=disparada
+14:31:54  sin guardar=  1.6 s  alerta=normal
+...
+```
+
+**Cómo se lee:** sin fallo ninguno, la alerta **se enciende y se apaga cada 10 s**. Preguntando cada 2 s se ve cómo oscila el valor: sube de 0 a casi 5 y cae de golpe cada vez que Prometheus recoge la métrica. Un límite por debajo de esa oscilación, sin tiempo `for`, convierte el ruido normal en avisos, y una alerta que parpadea acaba ignorada. Las reglas del curso usan 15 s y un `for` de 5 s por eso. Vuelve a dejar `LIMITE_S = 15`, `FOR_S = 5` y `CADA_S = 5`.
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
@@ -428,6 +609,11 @@ Tras el reinicio del broker, el archivador se vuelve a suscribir y sigue guardan
 | La regla cambiada no aparece | Prometheus no se reinició | `docker compose restart prometheus` |
 | Prometheus no arranca tras editar `alertas.yml` | Error de sangría o de sintaxis en el YAML | `docker compose logs prometheus` dice la línea; compara con el bloque del lab |
 | El archivador no arranca tras editar `archivador.py` | Error de sangría | `docker compose logs archivador`, o `git checkout linea/archivador.py` |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `httpx.ConnectError` | Prometheus está parado | `docker compose up -d prometheus` |
+| `IndexError` en `segundos_sin_guardar` | Prometheus aún no tiene la métrica del archivador | espera 10 s tras arrancar Prometheus y vuelve a ejecutar |
 
 ## Conclusiones
 
