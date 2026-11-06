@@ -352,7 +352,20 @@ umbral 0.5 -> encontrados=15 escapados=6 falsas_alarmas=38 correctas=172
 
 ### 6 — Elegir el umbral por lo que cuesta
 
-**Qué ocurre:** en «Mejora» comparaste tres umbrales a mano. Ahora el código recorre diecinueve, calcula lo que cuestan los errores de cada uno y se queda con el más barato. Además, lo compara con la alternativa de no tener modelo: **revisar a mano todas las piezas**, que no deja escapar ningún defecto y cuesta `COSTE_REVISION` por cada pieza buena.
+**Qué ocurre:** en «Mejora» comparaste tres umbrales a mano. Ahora el código recorre diecinueve, calcula lo que cuestan los errores de cada uno y se queda con el más barato.
+
+**De dónde salen los euros:** pasar los errores a dinero permite sumar dos fallos que no pesan igual y elegir con un criterio que calidad entiende. Los precios son los dos que fijaste arriba del fichero, los mismos que en «Mejora»:
+
+| Variable | Valor | Qué representa |
+|----------|-------|----------------|
+| `COSTE_ESCAPADO` | 500 € | Un defecto que llega al cliente: reclamación, devolución |
+| `COSTE_REVISION` | 5 € | Revisar a mano una pieza buena: unos minutos de un operario |
+
+```text
+coste de un umbral = 500 € × defectos escapados + 5 € × falsas alarmas    (sobre las 231 piezas de examen)
+```
+
+Son **un supuesto del lab**, no datos de una planta real. En planta, estos dos precios los aporta calidad, y son los que deciden el resultado: en el paso 8 verás qué pasa si cambian. Además, lo compara con la alternativa de no tener modelo: **revisar a mano todas las piezas**, que no deja escapar ningún defecto y cuesta `COSTE_REVISION` por cada pieza buena.
 
 Pega debajo de `# --- PASO 6`:
 
@@ -424,11 +437,13 @@ mejor umbral=0.35 coste=1045 € | revisar todo=1050 €
 
 **Cómo se lee:**
 
-| Señales | Escapados a 0,5 | Mejor coste | Ahorro frente a revisar todo |
+| Señales | Escapados a 0,5 | Coste de los errores en el examen, con su mejor umbral | Ahorro frente a revisar todo |
 |---------|-----------------|-------------|------------------------------|
 | las cuatro | 6 | 940 € | 110 € |
 | solo temperatura | 6 | **790 €** | **260 €** |
 | todo menos temperatura | 13 | 1 045 € | 5 € |
+
+El coste es el del paso 6: `500 € × escapados + 5 € × falsas alarmas` en las 231 piezas de examen, con el umbral más barato que encuentra el script para esas señales. Revisar todo a mano cuesta siempre 1 050 € (210 piezas buenas × 5 €).
 
 Casi todo lo que el modelo sabe está en la **temperatura**. Sin ella, el modelo no vale nada. Con solo ella, funciona **mejor** que con las cuatro: las otras tres añaden ruido. **Más señales no es mejor modelo**, y que una señal se pueda medir no quiere decir que haya que meterla. Vuelve a dejar las cuatro.
 
