@@ -12,7 +12,17 @@ Comprender qué es un **modelo de predicción de defectos**: cómo aprende de la
 
 ### Prerrequisitos
 
-- `infra/data/limpio.csv` (sale de M02-03). Si falta, este comando lo regenera.
+- `infra/data/limpio.csv`, el dataset limpio que preparaste en M02-03. Si no lo tienes, el comando del paso 1 (`lab m03-01`) lo genera solo antes de entrenar. También puedes regenerarlo aparte:
+
+  ```bash
+  # Comprueba si existe el dataset limpio
+  ls -l data/limpio.csv
+
+  # Si no existe: lo regenera (crudo.csv → limpio.csv), como en M02-03
+  docker compose --profile lab run --rm --no-deps lab m02-03
+  ```
+
+- «Constrúyelo tú» lee el mismo `limpio.csv` y **no** lo genera: haz antes el paso 1 o el comando de arriba.
 - RAM del entrenamiento: ~0,5 GB. CPU, sin GPU.
 
 ### Qué está pasando
