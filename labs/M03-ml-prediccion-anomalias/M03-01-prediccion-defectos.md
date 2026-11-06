@@ -192,7 +192,7 @@ Un compañero propone: «Añade `defecto` a esa lista de entradas, junto a las c
 
 **En la línea, no sirve.** El modelo tiene que decidir cuando la carcasa sale de la estación, y en ese momento calidad todavía no la ha inspeccionado: la columna `defecto` **aún no existe**. Al modelo le faltaría una de sus entradas justo cuando hace falta. Y, si ya tuvieras ese dato, no necesitarías el modelo.
 
-**La regla:** como entrada del modelo solo vale lo que **ya se conoce en el momento de decidir**. Meter un dato que llega después se llama [fuga de información](../glosario/03-aprendizaje-automatico.md#fuga).
+**La regla:** como entrada del modelo solo vale lo que **ya se conoce en el momento de decidir**. Meter un dato que llega después se llama fuga de información.
 
 **Cómo se detecta:** un resultado demasiado bueno, como un 100 % en un problema real, es sospechoso. Ante cada columna de entrada, pregúntate **quién la escribe y cuándo**.
 
@@ -292,7 +292,7 @@ peso presion_bar     -1.420
 término independiente  -32.681
 ```
 
-**Cómo se lee:** esos cinco números **son el modelo**; es lo que se guarda en el `.joblib` de 1 KB del paso 2 del lab. El **signo** dice hacia dónde empuja cada señal: más temperatura, más vibración y más corriente acercan al defecto; más presión lo aleja. El tamaño de cada peso no se puede comparar a simple vista, porque cada señal tiene sus unidades. En la ficha de la [regresión logística](../glosario/03-aprendizaje-automatico.md#regresion-logistica) del glosario tienes la cuenta a mano con estos mismos pesos.
+**Cómo se lee:** esos cinco números **son el modelo**; es lo que se guarda en el `.joblib` de 1 KB del paso 2 del lab. El **signo** dice hacia dónde empuja cada señal: más temperatura, más vibración y más corriente acercan al defecto; más presión lo aleja. El tamaño de cada peso no se puede comparar a simple vista, porque cada señal tiene sus unidades. En la ficha de la regresión logística del glosario tienes la cuenta a mano con estos mismos pesos.
 
 ### 4 — Ver qué probabilidad da a cada pieza
 
@@ -327,7 +327,7 @@ pieza_id  temperatura_c  probabilidad  defecto
 
 ### 5 — Decidir con un umbral y contar aciertos y errores
 
-**Qué ocurre:** conviertes la probabilidad en una decisión con un **umbral**: si la probabilidad llega al umbral, la pieza va a revisión. Después cuentas los cuatro casos de la [matriz de confusión](../glosario/03-aprendizaje-automatico.md#matriz-confusion). Lo escribes como una función, `evaluar(umbral)`, porque en el paso siguiente la usarás con diecinueve umbrales.
+**Qué ocurre:** conviertes la probabilidad en una decisión con un **umbral**: si la probabilidad llega al umbral, la pieza va a revisión. Después cuentas los cuatro casos de la matriz de confusión. Lo escribes como una función, `evaluar(umbral)`, porque en el paso siguiente la usarás con diecinueve umbrales.
 
 Pega debajo de `# --- PASO 5`:
 

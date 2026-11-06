@@ -239,7 +239,7 @@ Relacionado: [anomalía](#anomalia) · [umbral](#umbral)
 
 **Dónde se rompe:** si se parte al azar, el modelo aprende con piezas posteriores a las que examina, y el examen sale mejor de lo que será la realidad.
 
-**Lo usas en:** <!--usos:particion-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-01](../M03-ml-prediccion-anomalias/M03-01-prediccion-defectos.md) · [M04](../M04-vision-control-calidad/README.md) · [M04-01](../M04-vision-control-calidad/M04-01-clasificacion-componentes.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md)<!--/usos-->
+**Lo usas en:** <!--usos:particion-->[M03](../M03-ml-prediccion-anomalias/README.md) · [M03-01](../M03-ml-prediccion-anomalias/M03-01-prediccion-defectos.md) · [M03-02](../M03-ml-prediccion-anomalias/M03-02-anomalias.md) · [M04](../M04-vision-control-calidad/README.md) · [M04-01](../M04-vision-control-calidad/M04-01-clasificacion-componentes.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md)<!--/usos-->
 
 <a id="fuga"></a>
 ### Fuga de información

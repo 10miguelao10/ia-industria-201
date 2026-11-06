@@ -117,16 +117,253 @@ umbral=25.0 inyectados=20 detectados=20 avisos_sobre_normales=0 de 180
 
 ## Reto
 
-### 1 — Umbral más duro
+### 1 — Subir el umbral para que no moleste
 
-¿Qué pasa si subes o bajas el umbral de 13,3?
+**La situación:** el detector del paso 1 avisa con una distancia de 13,3 o más. Con ese umbral da 7 falsas alarmas en 180 ciclos normales, y el jefe de turno se queja de que la pantalla «no para de pitar». Propone subir el umbral a 25, porque con 25 los 20 ciclos alterados del lab se siguen avisando y las falsas alarmas bajan a 0 (lo has visto en «Experimenta»).
+
+**La pregunta:** ¿qué ganas y qué pierdes con el umbral de 25? Piensa en una avería que **empieza**, con la vibración solo algo por encima de lo normal, en vez de la de este lab, que está a una distancia de más de 200.
 
 <details>
 <summary>Ver solución</summary>
 
-Subirlo esconde ciclos raros. Bajarlo llena el turno de avisos sobre ciclos normales, y un detector que avisa la mitad del día deja de ser una alerta.
+**Ganas** silencio: 0 falsas alarmas.
+
+**Pierdes** las averías tempranas, que son las que interesa ver. En el paso 8 de «Constrúyelo tú», con una vibración de 0,55 mm/s, el umbral de 25 avisa **2 de 20** ciclos alterados; el de 13,3, los 20.
+
+**La regla:** el umbral se elige con las averías que se quieren ver **a tiempo**, no con las más evidentes. Si el problema son demasiados avisos, la solución no es subir el umbral, sino avisar cuando se repite en varios ciclos seguidos o cuando la señal tiende a salirse.
 
 </details>
+
+## Constrúyelo tú: tu propio detector
+
+**Qué está pasando:** `lab m03-02` usa un detector ya hecho de una librería. Ahora lo construyes tú, **pieza a pieza**, con cuentas que puedes seguir: primero aprendes cómo es un ciclo normal, luego pruebas una regla sencilla señal a señal, después calculas tú la distancia con todas las señales a la vez y, al final, traduces las falsas alarmas a lo que importa en planta: **cuántos avisos recibiría el turno**. Como el código es tuyo, podrás probar lo que el comando no deja: una avería que empieza poco a poco.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees qué va a hacer el bloque y para qué.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m03_02_mi_detector.py`](../../infra/construye/m03_02_mi_detector.py). Arriba están las **decisiones** que cambiarás al final (`UMBRAL`, `VIBRACION_ALTERADA`, `CICLOS_POR_TURNO`). El paso 1 ya está escrito: genera **los mismos ciclos que usa `lab m03-02`**, los normales para aprender y los 200 que hay que vigilar, 20 de ellos con la vibración alterada. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m03_02_mi_detector.py
+```
+
+**Resultado esperado:**
+
+```text
+ciclos normales para aprender=358 ciclos a vigilar=200 alterados=20
+```
+
+**Cómo se lee:** de 400 ciclos de [histórico](../glosario/01-datos-arquitectura.md#historico), 358 eran sanos: son los que enseñan cómo es lo normal. Los otros 42 se descartan, porque un detector que aprende con ciclos defectuosos dentro aprende que lo defectuoso es normal. La columna `inyectada` dice cuáles de los 200 están alterados, y solo se usa al final para contar.
+
+### 2 — Aprender cómo es lo normal
+
+**Qué ocurre:** calculas, con los ciclos sanos, el **valor habitual** de cada señal (la media) y **cuánto varía** normalmente (la desviación). Con solo estos dos números por señal ya se puede decir si un valor es raro.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+media = normal[SENALES].mean()                        # el valor habitual de cada señal
+desviacion = normal[SENALES].std(ddof=0)              # cuánto varía cada señal normalmente
+print("señal            media  desviación")
+for senal in SENALES:
+    print(f"{senal:15s} {media[senal]:6.3f}  {desviacion[senal]:6.3f}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+señal            media  desviación
+temperatura_c   61.649   2.045
+vibracion_mm_s   0.254   0.072
+corriente_a      4.113   0.151
+presion_bar      6.000   0.120
+```
+
+**Cómo se lee:** un ciclo normal tiene la vibración en torno a 0,254 mm/s, y lo habitual es que se separe unos 0,072 arriba o abajo. Esto **es todo lo que sabe el detector**: [no ha visto](../glosario/03-aprendizaje-automatico.md#particion) ni una sola avería.
+
+### 3 — Un detector sencillo, señal a señal
+
+**Qué ocurre:** antes de usar nada sofisticado, pruebas la regla que pondría cualquiera: para cada ciclo, mides a cuántas desviaciones está cada señal de su media (eso se llama **z**), y avisas si **alguna** está a más de 3. Es la base con la que comparar.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+# z = a cuántas desviaciones está cada señal de su media (0 = justo en la media)
+z_vig = (vig[SENALES] - media) / desviacion
+
+# Regla sencilla: avisa si ALGUNA señal está a más de 3 desviaciones de su media
+aviso_simple = (z_vig.abs() > 3).any(axis=1)
+print(f"señal a señal: alterados avisados={int((aviso_simple & alterado).sum())} de {int(alterado.sum())}"
+      f"  falsas alarmas={int((aviso_simple & ~alterado).sum())} de {int((~alterado).sum())}")
+```
+
+**Resultado esperado** (línea nueva):
+
+```text
+señal a señal: alterados avisados=20 de 20  falsas alarmas=8 de 180
+```
+
+**Cómo se lee:** con una avería tan clara, la regla sencilla ya la ve entera: la vibración alterada (1,1 a 1,5 mm/s) está a más de 11 desviaciones de su media. Da 8 falsas alarmas sobre 180 ciclos normales. Si funcionara igual de bien siempre, no haría falta nada más. El paso 6 enseña dónde se queda corta.
+
+### 4 — La distancia, con todas las señales a la vez
+
+**Qué ocurre:** calculas tú la **distancia de [Mahalanobis](../glosario/03-aprendizaje-automatico.md#mahalanobis)**: un solo número por ciclo que dice cuánto se aleja de lo normal teniendo en cuenta las cuatro señales juntas y cómo varían juntas. Es lo que hace por dentro `lab m03-02`. Después miras la distancia de tres ciclos normales y tres alterados.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+# Pasa los ciclos normales a la misma escala (z) y mide cómo varían juntas las señales
+z_normal = (normal[SENALES] - media) / desviacion
+covarianza = np.cov(z_normal.T, bias=True)            # tabla 4×4: cuánto se mueve cada señal con las otras
+inversa = np.linalg.inv(covarianza)
+
+# Distancia de Mahalanobis (al cuadrado) de cada ciclo a «lo normal»
+z = z_vig.to_numpy()
+vig["distancia"] = ((z @ inversa) * z).sum(axis=1)
+
+columnas = ["pieza_id", "vibracion_mm_s", "distancia", "inyectada"]
+print(vig[columnas].head(3).round(3).to_string(index=False))    # tres normales
+print(vig[columnas].tail(3).round(3).to_string(index=False))    # tres alterados
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+pieza_id  vibracion_mm_s  distancia  inyectada
+   H0001           0.276      2.968          0
+   H0002           0.227      2.525          0
+   H0003           0.283      4.254          0
+pieza_id  vibracion_mm_s  distancia  inyectada
+   H0198           1.274    224.945          1
+   H0199           1.462    294.711          1
+   H0200           1.339    234.178          1
+```
+
+**Cómo se lee:** los ciclos normales están a una distancia de 2 a 4; los alterados, a más de 200. La cuenta es, en esencia, **sumar los z al cuadrado de las cuatro señales**, corrigiendo con la tabla de covarianza las señales que suben y bajan juntas para no contar dos veces lo mismo. En esta línea las cuatro señales varían por separado, así que la corrección es pequeña. Por eso la distancia **crece con el cuadrado**: una vibración a 12 desviaciones aporta 12² = 144.
+
+### 5 — Avisar con un umbral y contar
+
+**Qué ocurre:** avisas cuando la distancia llega al `UMBRAL` (13,3, arriba del fichero) y cuentas aciertos y falsas alarmas con la marca `inyectada`.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+aviso = vig["distancia"] >= UMBRAL
+avisados = int((aviso & alterado).sum())
+falsas = int((aviso & ~alterado).sum())
+print(f"umbral={UMBRAL}: alterados avisados={avisados} de {int(alterado.sum())}  falsas alarmas={falsas} de {int((~alterado).sum())}")
+```
+
+**Resultado esperado** (línea nueva):
+
+```text
+umbral=13.3: alterados avisados=20 de 20  falsas alarmas=7 de 180
+```
+
+**Cómo se lee:** es **exactamente** lo que daba `lab m03-02`: 20 de 20 y 7 falsas alarmas. Has reconstruido el detector de la librería con una media, una desviación y una tabla de 4 × 4. El 13,3 no es un número a ojo: con cuatro señales, un ciclo normal solo lo supera 1 vez de cada 100.
+
+### 6 — Un ciclo raro en conjunto
+
+**Qué ocurre:** inventas un ciclo en el que **cada señal está algo alta, pero ninguna exagerada**: 2,5 desviaciones por encima de su media. Lo pasas por los dos detectores.
+
+Pega debajo de `# --- PASO 6`:
+
+```python
+# Un ciclo inventado: cada señal 2,5 desviaciones por encima de su media.
+# Ninguna pasa de 3 por sí sola, pero las cuatro están altas a la vez.
+raro = media + 2.5 * desviacion
+z_raro = ((raro - media) / desviacion).to_numpy()
+print(f"ciclo raro: {raro.round(3).to_dict()}")
+print(f"  señal a señal avisa: {bool((np.abs(z_raro) > 3).any())}")
+print(f"  distancia={float(z_raro @ inversa @ z_raro):.1f} -> avisa: {float(z_raro @ inversa @ z_raro) >= UMBRAL}")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+ciclo raro: {'temperatura_c': 66.762, 'vibracion_mm_s': 0.433, 'corriente_a': 4.489, 'presion_bar': 6.299}
+  señal a señal avisa: False
+  distancia=24.7 -> avisa: True
+```
+
+**Cómo se lee:** la regla señal a señal **no avisa**, porque ninguna señal pasa de 3 desviaciones. La distancia sí, con 24,7: que **las cuatro** estén altas a la vez es muy raro en un ciclo normal, aunque cada una por separado parezca aceptable. Esta es la ventaja de mirar todas las señales juntas.
+
+### 7 — Cuántos avisos daría en un turno
+
+**Qué ocurre:** un porcentaje de falsas alarmas no dice nada al jefe de turno. Lo conviertes en **avisos por turno**, con un ciclo por segundo durante 8 horas (`CICLOS_POR_TURNO`).
+
+Pega debajo de `# --- PASO 7`:
+
+```python
+tasa_falsas = falsas / int((~alterado).sum())          # fracción de ciclos normales que dan aviso
+print(f"falsas alarmas: {tasa_falsas:.1%} de los ciclos normales -> ~{tasa_falsas * CICLOS_POR_TURNO:.0f} avisos falsos por turno")
+```
+
+**Resultado esperado** (línea nueva):
+
+```text
+falsas alarmas: 3.9% de los ciclos normales -> ~1120 avisos falsos por turno
+```
+
+**Cómo se lee:** un 3,9 % parece poco, pero son **más de mil avisos falsos por turno**, casi uno cada 25 segundos. Nadie los mira. Por eso, en planta, un detector así no avisa por cada ciclo suelto: avisa cuando **se repite en varios ciclos seguidos** o cuando la señal **tiende** a salirse, como harás en el M06-03.
+
+### 8 — Decide tú: el umbral «perfecto»
+
+**Qué ocurre:** con 13,3 hay demasiadas falsas alarmas. Cambias `UMBRAL = 13.3` por `UMBRAL = 25`, arriba del fichero, y ejecutas.
+
+**Resultado esperado** (líneas que cambian):
+
+```text
+umbral=25: alterados avisados=20 de 20  falsas alarmas=0 de 180
+falsas alarmas: 0.0% de los ciclos normales -> ~0 avisos falsos por turno
+```
+
+**Cómo se lee:** parece perfecto: todas las averías y ni un aviso falso. Pero esta avería está a más de 200. Ahora pruébalo con una avería que **empieza**: deja `UMBRAL = 25` y cambia `VIBRACION_ALTERADA = None` por `VIBRACION_ALTERADA = 0.55`, una vibración solo algo más alta de lo normal en los 20 ciclos alterados.
+
+**Predice:** ¿cuántas de las 20 avisará con el umbral de 25? ¿Y con 13,3?
+
+**Resultado esperado** (con 25 y después con 13,3):
+
+```text
+umbral=25: alterados avisados=2 de 20  falsas alarmas=0 de 180
+```
+
+```text
+umbral=13.3: alterados avisados=20 de 20  falsas alarmas=7 de 180
+```
+
+| Avería | Umbral | Averías avisadas | Avisos falsos por turno |
+|--------|--------|------------------|-------------------------|
+| Clara (vibración ~1,3) | 13,3 | 20 de 20 | ~1 120 |
+| Clara (vibración ~1,3) | 25 | 20 de 20 | 0 |
+| Empieza (vibración 0,55) | 13,3 | 20 de 20 | ~1 120 |
+| Empieza (vibración 0,55) | 25 | **2 de 20** | 0 |
+
+**Cómo se lee:** el umbral de 25 solo era «perfecto» con una avería que ya es evidente. Cuando la avería empieza, que es cuando interesa enterarse, **se le escapan 18 de 20**. El umbral se elige con las averías que quieres ver a tiempo, no con las más fáciles.
+
+### 9 — Decide tú: una avería aún más temprana
+
+**Qué ocurre:** cambias a `VIBRACION_ALTERADA = 0.45`, muy cerca del borde de lo normal, y pruebas con `UMBRAL = 13.3` y con `UMBRAL = 8`.
+
+**Resultado esperado** (con 13,3 y después con 8):
+
+```text
+umbral=13.3: alterados avisados=4 de 20  falsas alarmas=7 de 180
+falsas alarmas: 3.9% de los ciclos normales -> ~1120 avisos falsos por turno
+```
+
+```text
+umbral=8: alterados avisados=18 de 20  falsas alarmas=34 de 180
+falsas alarmas: 18.9% de los ciclos normales -> ~5440 avisos falsos por turno
+```
+
+**Cómo se lee:** con una avería metida en el ruido normal, **ningún umbral la resuelve**: o se escapa (4 de 20) o el turno recibe más de cinco mil avisos falsos. Mirar un solo ciclo no da para más. Lo que funciona es mirar **la tendencia de muchos ciclos**: una vibración que sube poco a poco durante una hora es una señal clara, aunque cada ciclo suelto parezca normal. Vuelve a dejar `UMBRAL = 13.3` y `VIBRACION_ALTERADA = None`.
 
 ## Errores frecuentes
 
@@ -134,6 +371,10 @@ Subirlo esconde ciclos raros. Bajarlo llena el turno de avisos sobre ciclos norm
 |---------|----------------|-----------------|
 | `FALLO: el detector no ve los ciclos inyectados` | se ajustó con ciclos raros dentro | el comando separa normales e inyectados; relánzalo |
 | `FALLO` sin número | la imagen está a medias | `docker compose build` otra vez |
+| `NameError: name 'media' is not defined` (o `z_vig`, `inversa`, `falsas`) | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro del `for` |
+| `ModuleNotFoundError: No module named 'linea'` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| tu paso 5 no da 20 / 7 | cambiaste `UMBRAL` o `VIBRACION_ALTERADA` arriba del fichero | vuelve a `UMBRAL = 13.3` y `VIBRACION_ALTERADA = None` |
 
 ## Conclusiones
 
@@ -146,7 +387,7 @@ Es avisar cuando un ciclo **no se parece a lo normal**, aunque nunca se haya vis
 | Requisito | Cómo se cumple en el lab |
 |-----------|--------------------------|
 | Aprender solo de lo normal | Se ajusta con piezas sin defecto. Si se ajustara con anomalías dentro, aprendería que son normales (lo verás en el M06-03) |
-| Mirar las señales juntas | La distancia de [Mahalanobis](../glosario/03-aprendizaje-automatico.md#mahalanobis) tiene en cuenta cómo varían juntas |
+| Mirar las señales juntas | La distancia de Mahalanobis tiene en cuenta cómo varían juntas |
 | Un umbral con sentido | 13,3: un ciclo normal solo lo supera 1 de cada 100 veces |
 | Evaluarlo sin hacer trampa | La marca de ciclo alterado solo se usa al final, para contar aciertos |
 
@@ -159,12 +400,16 @@ Resultado: avisó los **20 ciclos** con la vibración alterada, con 7 falsas ala
 | Avisa de lo raro, no de lo defectuoso | Un cambio legítimo (otra referencia, otra herramienta) también dispara avisos |
 | El umbral es un compromiso | Más bajo: avisos sobre ciclos normales. Más alto: anomalías sin avisar |
 | Depende de que «lo normal» sea representativo | Si se ajusta con ciclos que ya eran raros, deja de verlos |
+| Un porcentaje pequeño son muchos avisos | Un 3,9 % de falsas alarmas, con un ciclo por segundo, son ~1 120 avisos falsos por turno |
+| Las averías tempranas se esconden en el ruido | Con una vibración de 0,45 mm/s, el umbral de 13,3 solo avisa 4 de 20 |
 
 ### Cómo se mejora
 
 - **Revisar cada aviso** y, cuando se confirme la causa, convertirlo en un ejemplo etiquetado para un modelo como el de M03-01.
 - **Reajustar lo normal** cuando cambie legítimamente el proceso.
 - **Medir los avisos por turno**, para que el umbral no llene el día de alarmas que nadie mira.
+- **Avisar por repetición o por tendencia**, no por un ciclo suelto: es lo que separa una avería que empieza del ruido normal.
+- **Elegir el umbral con averías realistas**: el de 25 parecía perfecto con la avería del lab y dejaba escapar 18 de 20 cuando la avería empezaba.
 
 ### En una frase
 
