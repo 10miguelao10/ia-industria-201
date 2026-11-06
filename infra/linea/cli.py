@@ -1388,26 +1388,7 @@ def cmd_sql(args) -> int:
 
 
 
-def cmd_construye(args) -> int:
-    """lab construye <fichero>: ejecuta un script tuyo de la carpeta infra/construye/."""
-    import runpy
-    import warnings
-
-    if not args:
-        return fallo("indica el fichero: lab construye m03_01_mi_modelo.py")
-    ruta = Path("/construye") / args[0]
-    if not ruta.exists():
-        return fallo(f"no encuentro {ruta.name} en infra/construye/")
-    warnings.filterwarnings("ignore")
-    try:
-        runpy.run_path(str(ruta), run_name="__main__")
-    except NotImplementedError as pendiente:   # el esqueleto avisa del hueco que falta
-        return fallo(f"te falta completar: {pendiente}")
-    return 0
-
-
 COMANDOS = {
-    "construye": cmd_construye,
     "m01-01": cmd_m01_01,
     "m01-02": cmd_m01_02,
     "m02-01": cmd_m02_01,

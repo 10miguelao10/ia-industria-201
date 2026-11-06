@@ -188,7 +188,7 @@ Un compañero propone: «Añade `defecto` a esa lista de entradas, junto a las c
 <details>
 <summary>Ver solución</summary>
 
-**En el examen, sí, acierta el 100 %.** Lo comprobarás en el paso 8 de «Constrúyelo tú»: 21 defectos encontrados de 21 y 0 falsas alarmas. Pero no ha aprendido nada del proceso: ha aprendido «si la columna `defecto` vale 1, es defecto». Copia la respuesta.
+**En el examen, sí, acierta el 100 %.** Lo comprobarás en el paso 9 de «Constrúyelo tú»: 21 defectos encontrados de 21 y 0 falsas alarmas. Pero no ha aprendido nada del proceso: ha aprendido «si la columna `defecto` vale 1, es defecto». Copia la respuesta.
 
 **En la línea, no sirve.** El modelo tiene que decidir cuando la carcasa sale de la estación, y en ese momento calidad todavía no la ha inspeccionado: la columna `defecto` **aún no existe**. Al modelo le faltaría una de sus entradas justo cuando hace falta. Y, si ya tuvieras ese dato, no necesitarías el modelo.
 
@@ -214,106 +214,165 @@ Con los números de «Experimenta», calcula el coste de cada umbral: `coste = 5
 
 ## Constrúyelo tú: tu propio modelo
 
-**Qué está pasando:** hasta aquí, `lab m03-01` lo ha hecho todo por ti. Ahora lo escribes tú: unas quince líneas de Python que parten los datos, entrenan, evalúan y eligen el umbral con los costes de la planta. Con tu propio código vas a poder decidir cosas que el comando no te deja tocar: con qué señales aprende el modelo y qué precio tiene cada error.
+**Qué está pasando:** hasta aquí, `lab m03-01` lo ha hecho todo por ti. Ahora construyes tú el mismo modelo, **pieza a pieza**: en cada paso añades un bloque de código a un fichero, lo ejecutas y ves qué ha hecho. Al final tendrás unas treinta líneas de Python que parten los datos, entrenan, enseñan lo aprendido, evalúan y eligen el umbral con los costes de la planta. Y, como el código es tuyo, podrás decidir lo que el comando no te deja tocar: con qué señales aprende el modelo y qué precio tiene cada error.
 
-Trabajas sobre un **esqueleto**: el fichero [`infra/construye/m03_01_mi_modelo.py`](../../infra/construye/m03_01_mi_modelo.py). Ya tiene la carga de los datos y las impresiones; los huecos que tienes que rellenar están marcados con **TU PARTE**. Cada hueco tiene una línea `raise NotImplementedError(...)`: bórrala y escribe tu código en su lugar.
+**Cómo se trabaja en cada paso:**
 
-📋 Ficha del comando [`construye`](../comandos-lab.md#construye): ejecuta tu script dentro del contenedor `lab`.
+1. Lees qué va a hacer el bloque y para qué.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
 
-### 1 — Ejecutar el esqueleto sin tocarlo
+### 1 — Abrir el fichero y ejecutarlo tal cual
 
-**Qué ocurre:** abres el fichero en VS Code, lo lees de arriba abajo y lo ejecutas tal cual. Así ves qué hace ya y dónde se para.
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m03_01_mi_modelo.py`](../../infra/construye/m03_01_mi_modelo.py). Arriba están las **decisiones** que cambiarás al final (`SENALES`, `COSTE_ESCAPADO`, `COSTE_REVISION`); debajo, el paso 1 ya escrito, que carga `limpio.csv`, y los huecos vacíos de los pasos 2 a 6. Lo ejecutas sin tocar nada.
 
 ```bash
-# Ejecuta tu script de infra/construye/ en el contenedor lab
-docker compose --profile lab run --rm --no-deps lab construye m03_01_mi_modelo.py
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m03_01_mi_modelo.py
 ```
 
 **Resultado esperado:**
 
 ```text
 piezas=768 defectuosas=68 señales=['temperatura_c', 'vibracion_mm_s', 'corriente_a', 'presion_bar']
-FALLO: te falta completar: paso 2: crea las tablas «entrenar» y «examen»
 ```
 
-**Cómo se lee:** los datos cargan bien (768 piezas, 68 defectuosas) y el script se para en el primer hueco. Ese mensaje te guía en cada paso: cuando completes uno, el siguiente `FALLO` te dirá cuál viene después.
+**Cómo se lee:** el script carga las 768 piezas, de las que 68 son defectuosas, y se para porque el resto está vacío. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero** con su Python y sus librerías, en vez de un comando del curso; `infra/construye/` de tu equipo se ve dentro como `/construye/`.
 
 ### 2 — Partir en pasado y futuro
 
-**Qué ocurre:** separas las piezas antiguas, con las que aprende el modelo, de las recientes, con las que lo examinas. Es lo que hacía `_partir` dentro de `m03-01`.
+**Qué ocurre:** separas las piezas antiguas, con las que aprenderá el modelo, de las recientes, con las que lo examinarás. Se corta **por orden de fabricación**, no al azar, porque en la línea el modelo siempre decidirá sobre piezas posteriores a las que vio al aprender.
 
-**Pista:** `df.sort_values("pieza_id")` ordena por orden de fabricación; `int(len(df) * 0.7)` te da la fila del corte; `df.iloc[:corte]` y `df.iloc[corte:]` toman cada parte.
+Pega debajo de `# --- PASO 2`:
 
-**Cómo sabes que está bien:** al ejecutar, aparece esta línea antes del siguiente `FALLO`.
+```python
+df = df.sort_values("pieza_id")           # ordena las piezas en el orden en que se fabricaron
+corte = int(len(df) * 0.7)                # la fila donde acaba el 70 % más antiguo
+entrenar = df.iloc[:corte]                # el pasado: con esto aprende el modelo
+examen = df.iloc[corte:]                  # el futuro: piezas que el modelo no verá al aprender
+print(f"entrenar={len(entrenar)} examen={len(examen)} defectos_en_examen={int(examen['defecto'].sum())}")
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (línea nueva):
 
 ```text
 entrenar=537 examen=231 defectos_en_examen=21
 ```
 
-<details>
-<summary>Ver solución</summary>
+**Cómo se lee:** 537 piezas para aprender (el 70 %) y 231 para el examen, de las que 21 son defectuosas. Esos 21 son los defectos que el modelo tendrá que encontrar sin haberlos visto. `iloc[:corte]` toma las filas desde la primera hasta el corte; `iloc[corte:]`, desde el corte hasta el final.
+
+### 3 — Entrenar y ver qué ha aprendido
+
+**Qué ocurre:** creas el modelo y lo entrenas con las señales del pasado. `fit` es la línea que «aprende». Después imprimes lo que ha aprendido, que en una regresión logística son **un peso por señal** y un término independiente: nada más.
+
+Pega debajo de `# --- PASO 3`:
 
 ```python
-df = df.sort_values("pieza_id")           # orden de fabricación
-corte = int(len(df) * 0.7)                # dónde acaba el 70 %
-entrenar = df.iloc[:corte]                # pasado: con esto aprende
-examen = df.iloc[corte:]                  # futuro: piezas que nunca ha visto
-```
-
-Si partes al azar (`df.sample(frac=0.7)`), el modelo aprende con piezas posteriores a las que examina: en la línea nunca tendrás el futuro para entrenar.
-
-</details>
-
-### 3 — Entrenar
-
-**Qué ocurre:** creas el modelo y lo entrenas con las señales del pasado. Esta línea es la que «aprende».
-
-**Pista:** `LogisticRegression(class_weight="balanced", max_iter=400)` crea el modelo; `.fit(X, y)` lo entrena, donde `X` son las columnas `SENALES` de `entrenar` e `y` es su columna `defecto`. Llama `modelo` a lo que crees.
-
-<details>
-<summary>Ver solución</summary>
-
-```python
+# Crea el modelo: "balanced" da más peso a la clase rara (defecto)
 modelo = LogisticRegression(class_weight="balanced", max_iter=400)
-modelo.fit(entrenar[SENALES], entrenar["defecto"])   # aprende: señales -> defecto
+
+# Entrena: busca un peso por señal que relacione las señales con la columna defecto
+modelo.fit(entrenar[SENALES], entrenar["defecto"])
+
+# Enseña lo que ha aprendido: un peso por señal y un término independiente
+for senal, peso in zip(SENALES, modelo.coef_[0]):
+    print(f"peso {senal:15s} {peso:+.3f}")
+print(f"término independiente  {modelo.intercept_[0]:+.3f}")
 ```
 
-</details>
+**Resultado esperado** (líneas nuevas):
 
-### 4 — Evaluar con un umbral
+```text
+peso temperatura_c   +0.619
+peso vibracion_mm_s  +2.280
+peso corriente_a     +0.281
+peso presion_bar     -1.420
+término independiente  -32.681
+```
 
-**Qué ocurre:** escribes la función que, para un umbral, cuenta los cuatro casos sobre las piezas de examen. Es el corazón de la evaluación: la vas a usar en el paso siguiente con diecinueve umbrales.
+**Cómo se lee:** esos cinco números **son el modelo**; es lo que se guarda en el `.joblib` de 1 KB del paso 2 del lab. El **signo** dice hacia dónde empuja cada señal: más temperatura, más vibración y más corriente acercan al defecto; más presión lo aleja. El tamaño de cada peso no se puede comparar a simple vista, porque cada señal tiene sus unidades. En la ficha de la [regresión logística](../glosario/03-aprendizaje-automatico.md#regresion-logistica) del glosario tienes la cuenta a mano con estos mismos pesos.
 
-**Pista:** `modelo.predict_proba(examen[SENALES])[:, 1]` da la probabilidad de defecto de cada pieza; `(proba >= umbral).astype(int)` la convierte en 0 o 1; `confusion_matrix(examen["defecto"], pred, labels=[0, 1]).ravel()` devuelve `tn, fp, fn, tp`, en ese orden.
+### 4 — Ver qué probabilidad da a cada pieza
 
-**Cómo sabes que está bien:** con las cuatro señales y umbral 0,5, tu modelo tiene que dar **exactamente** lo mismo que `lab m03-01` (15 encontrados, 6 escapados, 38 falsas alarmas, 172 correctas).
+**Qué ocurre:** antes de decidir nada, pides al modelo la **probabilidad de defecto** de cada pieza de examen y miras los dos extremos: las tres piezas que ve más sospechosas y las tres que ve más seguras, junto a lo que dijo calidad de verdad.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+# Probabilidad de defecto (de 0 a 1) para cada pieza de examen
+examen = examen.assign(probabilidad=modelo.predict_proba(examen[SENALES])[:, 1])
+
+# Las 3 piezas que el modelo ve más sospechosas y las 3 que ve más seguras
+columnas = ["pieza_id", "temperatura_c", "probabilidad", "defecto"]
+print(examen.sort_values("probabilidad", ascending=False)[columnas].head(3).round(3).to_string(index=False))
+print(examen.sort_values("probabilidad")[columnas].head(3).round(3).to_string(index=False))
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+pieza_id  temperatura_c  probabilidad  defecto
+   H0776          67.13         0.919        1
+   H0717          68.01         0.918        1
+   H0562          67.45         0.916        1
+pieza_id  temperatura_c  probabilidad  defecto
+   H0700          54.83         0.003        0
+   H0792          55.68         0.010        0
+   H0712          56.17         0.013        0
+```
+
+**Cómo se lee:** el modelo **no dice «defecto» o «buena»**: da un número entre 0 y 1. En los extremos acierta: las tres más sospechosas (0,92) eran defectuosas y las tres más seguras (0,01) eran buenas. Fíjate también en la temperatura: las sospechosas están a 67-68 °C y las seguras a 55-56 °C. El problema está en las piezas del medio, que es donde hay que decidir.
+
+### 5 — Decidir con un umbral y contar aciertos y errores
+
+**Qué ocurre:** conviertes la probabilidad en una decisión con un **umbral**: si la probabilidad llega al umbral, la pieza va a revisión. Después cuentas los cuatro casos de la [matriz de confusión](../glosario/03-aprendizaje-automatico.md#matriz-confusion). Lo escribes como una función, `evaluar(umbral)`, porque en el paso siguiente la usarás con diecinueve umbrales.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+def evaluar(umbral):
+    """Decide con un umbral y cuenta los cuatro casos sobre las piezas de examen."""
+    decision = (examen["probabilidad"] >= umbral).astype(int)   # 1 = «mándala a revisar»
+    tn, fp, fn, tp = confusion_matrix(examen["defecto"], decision, labels=[0, 1]).ravel()
+    return int(tp), int(fp), int(fn), int(tn)
+
+tp, fp, fn, tn = evaluar(0.5)
+print(f"umbral 0.5 -> encontrados={tp} escapados={fn} falsas_alarmas={fp} correctas={tn}")
+```
+
+**Resultado esperado** (línea nueva):
 
 ```text
 umbral 0.5 -> encontrados=15 escapados=6 falsas_alarmas=38 correctas=172
 ```
 
-Si no coincide, revisa el orden del corte (paso 2) o el orden en que devuelves los cuatro números.
+**Cómo se lee:** es **exactamente** lo que daba `lab m03-01`: 15 encontrados, 6 escapados, 38 falsas alarmas. Has reconstruido el comando. Fíjate en que `evaluar` **no vuelve a entrenar**: usa las probabilidades del paso 4 y solo cambia dónde se corta. Por eso mover el umbral no cambia el modelo.
 
-<details>
-<summary>Ver solución</summary>
+### 6 — Elegir el umbral por lo que cuesta
+
+**Qué ocurre:** en «Mejora» comparaste tres umbrales a mano. Ahora el código recorre diecinueve, calcula lo que cuestan los errores de cada uno y se queda con el más barato. Además, lo compara con la alternativa de no tener modelo: **revisar a mano todas las piezas**, que no deja escapar ningún defecto y cuesta `COSTE_REVISION` por cada pieza buena.
+
+Pega debajo de `# --- PASO 6`:
 
 ```python
-def evaluar(umbral):
-    proba = modelo.predict_proba(examen[SENALES])[:, 1]   # probabilidad de defecto
-    pred = (proba >= umbral).astype(int)                  # 1 = «mándala a revisar»
-    tn, fp, fn, tp = confusion_matrix(examen["defecto"], pred, labels=[0, 1]).ravel()
-    return int(tp), int(fp), int(fn), int(tn)
+print("umbral  escapados  falsas_alarmas  coste")
+mejor = None
+for i in range(1, 20):                                     # umbrales 0.05, 0.10 … 0.95
+    umbral = round(i * 0.05, 2)
+    tp, fp, fn, tn = evaluar(umbral)
+    coste = COSTE_ESCAPADO * fn + COSTE_REVISION * fp      # lo que cuestan los errores
+    print(f"{umbral:6.2f}  {fn:9d}  {fp:14d}  {coste:5d} €")
+    if mejor is None or coste < mejor[1]:                  # guarda el más barato
+        mejor = (umbral, coste)
+
+buenas = int((examen["defecto"] == 0).sum())
+revisar_todo = COSTE_REVISION * buenas                     # sin modelo: se revisa todo a mano
+print(f"mejor umbral={mejor[0]} coste={mejor[1]} € | revisar todo={revisar_todo} €")
 ```
 
-</details>
-
-### 5 — Elegir el umbral por lo que cuesta
-
-**Qué ocurre:** en «Mejora» comparaste tres umbrales a mano. Ahora tu código recorre diecinueve y, además, los compara con la alternativa de no tener modelo: **revisar a mano todas las piezas**.
-
-**Pista:** un bucle `for i in range(1, 20)` con `umbral = round(i * 0.05, 2)`; en cada vuelta, `coste = COSTE_ESCAPADO * fn + COSTE_REVISION * fp`. Revisar todo no deja escapar ningún defecto y cuesta `COSTE_REVISION` por cada pieza buena del examen.
-
-**Resultado esperado** (filas centrales recortadas):
+**Resultado esperado** (líneas nuevas; las centrales, recortadas):
 
 ```text
 umbral  escapados  falsas_alarmas  coste
@@ -328,62 +387,39 @@ umbral  escapados  falsas_alarmas  coste
   ...
   0.95         21               0  10500 €
 mejor umbral=0.05 coste=940 € | revisar todo=1050 €
-OK construye m03-01: el modelo ahorra 110 € frente a revisar todo
 ```
 
 **Cómo se lee:** dos sorpresas que el comando no enseñaba.
 
-- **El mejor umbral no es 0,3, es 0,05.** En «Mejora» solo mirabas tres umbrales. Con un defecto cien veces más caro que una revisión, lo que compensa es no dejar escapar ninguno, aunque eso mande a revisar 188 de 210 piezas buenas.
-- **El modelo apenas ahorra.** Revisar todo cuesta 1 050 €; el mejor modelo, 940 €. Con estos costes el modelo vale **110 €** en 231 piezas. Antes de poner un modelo en la línea, compáralo siempre con no tenerlo.
+- **El mejor umbral no es 0,3, es 0,05.** En «Mejora» solo mirabas tres. Con un defecto cien veces más caro que una revisión, lo que compensa es no dejar escapar ninguno, aunque eso mande a revisar 188 de 210 piezas buenas.
+- **El modelo apenas ahorra.** Revisar todo cuesta 1 050 €; el mejor modelo, 940 €: **110 €** en 231 piezas. Antes de poner un modelo en la línea, compáralo siempre con no tenerlo.
 
-<details>
-<summary>Ver solución</summary>
+### 7 — Decide tú: las señales
 
-```python
-print("umbral  escapados  falsas_alarmas  coste")
-mejor = None
-for i in range(1, 20):
-    umbral = round(i * 0.05, 2)
-    tp, fp, fn, tn = evaluar(umbral)
-    coste = COSTE_ESCAPADO * fn + COSTE_REVISION * fp
-    print(f"{umbral:6.2f}  {fn:9d}  {fp:14d}  {coste:5d} €")
-    if mejor is None or coste < mejor[1]:
-        mejor = (umbral, coste)
-
-buenas = int((examen["defecto"] == 0).sum())
-revisar_todo = COSTE_REVISION * buenas                   # sin modelo: se revisa todo
-print(f"mejor umbral={mejor[0]} coste={mejor[1]} € | revisar todo={revisar_todo} €")
-print("OK construye m03-01: el modelo", "ahorra" if mejor[1] < revisar_todo else "NO ahorra",
-      f"{abs(revisar_todo - mejor[1])} € frente a revisar todo")
-```
-
-</details>
-
-### 6 — Decide tú: las señales
-
-**Qué ocurre:** ahora que el código es tuyo, cambias lo que el comando no te dejaba: la lista `SENALES`, al principio del fichero. Pruébalo dos veces y ejecuta después de cada cambio.
+**Qué ocurre:** ahora que el código es tuyo, cambias lo que el comando no te dejaba: la lista `SENALES`, arriba del fichero. Pruébalo dos veces y ejecuta después de cada cambio.
 
 **Predice:** ¿cuál de las cuatro señales es la que más pesa? ¿Qué pasará si la quitas?
 
 ```python
 SENALES = ["temperatura_c"]                                  # prueba A: solo temperatura
+```
+
+```python
 SENALES = ["vibracion_mm_s", "corriente_a", "presion_bar"]   # prueba B: todo menos temperatura
 ```
 
-**Resultado esperado** (últimas líneas de cada prueba):
+**Resultado esperado** (líneas que cambian):
 
 ```text
 # A: solo temperatura
 umbral 0.5 -> encontrados=15 escapados=6 falsas_alarmas=37 correctas=173
 mejor umbral=0.1 coste=790 € | revisar todo=1050 €
-OK construye m03-01: el modelo ahorra 260 € frente a revisar todo
 ```
 
 ```text
 # B: sin temperatura
 umbral 0.5 -> encontrados=8 escapados=13 falsas_alarmas=97 correctas=113
 mejor umbral=0.35 coste=1045 € | revisar todo=1050 €
-OK construye m03-01: el modelo ahorra 5 € frente a revisar todo
 ```
 
 **Cómo se lee:**
@@ -394,15 +430,15 @@ OK construye m03-01: el modelo ahorra 5 € frente a revisar todo
 | solo temperatura | 6 | **790 €** | **260 €** |
 | todo menos temperatura | 13 | 1 045 € | 5 € |
 
-Casi todo lo que el modelo sabe está en la **temperatura**. Sin ella, el modelo no vale nada. Con solo ella, funciona **mejor** que con las cuatro: las otras tres añaden ruido. **Más señales no es mejor modelo**, y que una señal se pueda medir no quiere decir que haya que meterla.
+Casi todo lo que el modelo sabe está en la **temperatura**. Sin ella, el modelo no vale nada. Con solo ella, funciona **mejor** que con las cuatro: las otras tres añaden ruido. **Más señales no es mejor modelo**, y que una señal se pueda medir no quiere decir que haya que meterla. Vuelve a dejar las cuatro.
 
-### 7 — Decide tú: el precio de revisar
+### 8 — Decide tú: el precio de revisar
 
-**Qué ocurre:** vuelve a poner las cuatro señales y cambia `COSTE_REVISION = 5` por `COSTE_REVISION = 50`: la pieza hay que desmontarla para revisarla.
+**Qué ocurre:** con las cuatro señales, cambias `COSTE_REVISION = 5` por `COSTE_REVISION = 50`: la pieza hay que desmontarla para revisarla.
 
 **Predice:** ¿el umbral bueno subirá o bajará? ¿El modelo ahorrará más o menos?
 
-**Resultado esperado** (últimas líneas):
+**Resultado esperado** (filas y línea que importan):
 
 ```text
   0.65          7              15   4250 €
@@ -410,34 +446,33 @@ Casi todo lo que el modelo sabe está en la **temperatura**. Sin ella, el modelo
   0.75          8               2   4100 €
 ...
 mejor umbral=0.7 coste=3800 € | revisar todo=10500 €
-OK construye m03-01: el modelo ahorra 6700 € frente a revisar todo
 ```
 
-**Cómo se lee:** con el mismo modelo y los mismos datos, el umbral bueno pasa de 0,05 a **0,7**, y el modelo pasa de ahorrar 110 € a ahorrar **6 700 €**. Lo que vale un modelo no lo deciden solo sus datos: lo decide **lo que cuesta cada error en tu planta**. Por eso quien fija el umbral es calidad, con sus números.
+**Cómo se lee:** con el mismo modelo y los mismos datos, el umbral bueno pasa de 0,05 a **0,7**, y el modelo pasa de ahorrar 110 € a ahorrar **6 700 €** (10 500 − 3 800). Lo que vale un modelo no lo deciden solo sus datos: lo decide **lo que cuesta cada error en tu planta**. Por eso quien fija el umbral es calidad, con sus números. Vuelve a poner `COSTE_REVISION = 5`.
 
-### 8 — Haz trampa a propósito
+### 9 — Haz trampa a propósito
 
-**Qué ocurre:** compruebas con tu código el Reto 1. Añades `defecto`, la columna que escribe calidad después de inspeccionar, a la lista de entradas del modelo. Vuelve a poner `COSTE_REVISION = 5` y cambia la lista `SENALES`, al principio del fichero:
+**Qué ocurre:** compruebas el Reto 1. Añades `defecto`, la columna que escribe calidad **después** de inspeccionar, a la lista de entradas del modelo:
 
 ```python
 # TRAMPA: "defecto" no existe todavía cuando la carcasa sale de la estación
 SENALES = ["temperatura_c", "vibracion_mm_s", "corriente_a", "presion_bar", "defecto"]
 ```
 
-```bash
-docker compose --profile lab run --rm --no-deps lab construye m03_01_mi_modelo.py
-```
-
-**Resultado esperado** (líneas principales):
+**Resultado esperado** (líneas que cambian):
 
 ```text
+peso temperatura_c   +0.302
+peso vibracion_mm_s  +0.240
+peso corriente_a     +0.082
+peso presion_bar     -0.259
+peso defecto         +6.724
+término independiente  -21.354
 umbral 0.5 -> encontrados=21 escapados=0 falsas_alarmas=0 correctas=210
-...
 mejor umbral=0.1 coste=0 € | revisar todo=1050 €
-OK construye m03-01: el modelo ahorra 1050 € frente a revisar todo
 ```
 
-**Cómo se lee:** un modelo «perfecto», con coste cero, que no se puede usar en la línea, porque una de sus entradas llega cuando ya ha pasado el momento de decidir. El código da `OK`: **ningún programa detecta esta trampa por ti**, solo quien sabe cuándo nace cada dato. Vuelve a dejar las cuatro señales.
+**Cómo se lee:** mira los pesos del paso 3: el de `defecto` (+6,7) aplasta a todos los demás, que se han encogido. El modelo ha dejado de mirar el proceso y **copia la respuesta**. Resultado: un modelo «perfecto», con coste cero, que no se puede usar en la línea, porque esa entrada llega cuando ya ha pasado el momento de decidir. El script no da ningún error: **ningún programa detecta esta trampa por ti**, solo quien sabe cuándo nace cada dato. Vuelve a dejar las cuatro señales.
 
 ## Errores frecuentes
 
@@ -445,9 +480,10 @@ OK construye m03-01: el modelo ahorra 1050 € frente a revisar todo
 |---------|----------------|-----------------|
 | `FALLO: recall de defecto demasiado bajo` | el CSV limpio está mal generado | repite `m02-03` y luego `m03-01` |
 | no está `limpio.csv` | no hiciste M02-03 | el comando lo crea si falta; si falla, lanza `m02-03` |
-| `FALLO: te falta completar: paso N` | queda un hueco «TU PARTE» con su `raise` | borra la línea `raise NotImplementedError(...)` de ese paso y escribe tu código |
-| `NameError: name 'entrenar' is not defined` (o `modelo`) | el nombre de tu variable no es el que espera el resto del esqueleto | usa exactamente `entrenar`, `examen` y `modelo` |
-| tu paso 4 no da 15 / 6 / 38 / 172 | corte al azar en vez de por `pieza_id`, o los cuatro números en otro orden | `confusion_matrix(...).ravel()` devuelve `tn, fp, fn, tp` |
+| `NameError: name 'entrenar' is not defined` (o `modelo`, `examen`, `evaluar`) | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for` y `def` |
+| `FileNotFoundError: /data/limpio.csv` | no tienes el dataset limpio | lanza el paso 1 del lab (`lab m03-01`), que lo genera |
+| tu paso 5 no da 15 / 6 / 38 / 172 | cambiaste `SENALES` o `COSTE_*` arriba del fichero | vuelve a las cuatro señales y a `COSTE_REVISION = 5` |
 
 ## Conclusiones
 
