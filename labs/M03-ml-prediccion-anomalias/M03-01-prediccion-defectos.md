@@ -22,6 +22,8 @@ Comprender qué es un **modelo de predicción de defectos**: cómo aprende de la
   docker compose --profile lab run --rm --no-deps lab m02-03
   ```
 
+  📋 Fichas de [`m03-01`](../comandos-lab.md#m03-01) y [`m02-03`](../comandos-lab.md#m02-03).
+
 - «Constrúyelo tú» lee el mismo `limpio.csv` y **no** lo genera: haz antes el paso 1 o el comando de arriba.
 - RAM del entrenamiento: ~0,5 GB. CPU, sin GPU.
 
