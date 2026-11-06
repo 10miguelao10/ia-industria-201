@@ -25,6 +25,10 @@ def conectar_db() -> sqlite3.Connection:
         )
         """
     )
+    # Históricos creados antes de existir el tiempo de ciclo: se añade la columna
+    columnas = [fila[1] for fila in con.execute("PRAGMA table_info(lecturas)")]
+    if "tiempo_ciclo_s" not in columnas:
+        con.execute("ALTER TABLE lecturas ADD COLUMN tiempo_ciclo_s REAL")
     con.commit()
     return con
 
@@ -41,13 +45,14 @@ def main() -> None:
     def on_message(_client, _userdata, msg):
         estado = json.loads(msg.payload.decode())
         con.execute(
-            "INSERT INTO lecturas (pieza_id, ts, temperatura_c, vibracion_mm_s, corriente_a, payload) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO lecturas (pieza_id, ts, temperatura_c, vibracion_mm_s, corriente_a, tiempo_ciclo_s, payload) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 estado.get("pieza_id"),
                 estado.get("ts"),
                 estado.get("temperatura_c"),
                 estado.get("vibracion_mm_s"),
                 estado.get("corriente_a"),
+                estado.get("tiempo_ciclo_s"),
                 msg.payload.decode(),
             ),
         )

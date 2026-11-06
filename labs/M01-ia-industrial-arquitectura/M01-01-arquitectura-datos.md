@@ -20,7 +20,7 @@ Para eso trabajas con una arquitectura mínima, la de la estación EST-01: prime
 
 ### Qué está pasando en la línea
 
-**EST-01 es una estación de mecanizado de carcasas.** En el laboratorio sale una carcasa terminada cada segundo: la primera es `P0001`, la segunda `P0002`, y así sucesivamente.
+**EST-01 es una estación de mecanizado de carcasas.** Sale una carcasa terminada **aproximadamente cada segundo**: la primera es `P0001`, la segunda `P0002`, y así sucesivamente. Como en una máquina real, no es un reloj: cada carcasa tarda un poco más o un poco menos, las primeras tras arrancar van más lentas y, de vez en cuando, la estación se detiene unos segundos (una **microparada**: un atasco, un sensor de presencia, el operario retirando una pieza).
 
 Mientras la máquina trabaja cada carcasa, tres sensores la vigilan:
 
@@ -30,7 +30,7 @@ Mientras la máquina trabaja cada carcasa, tres sensores la vigilan:
 | Vibración | Cuánto tiembla la máquina | 0,22–0,28 mm/s |
 | Corriente del motor | Cuánto esfuerzo hace | ~4 A |
 
-Al terminar cada carcasa, la estación emite su **registro**: qué pieza es, a qué hora terminó y cuánto marcaron los tres sensores. Ese registro tiene que llegar al **histórico de la planta** para que, más adelante, alguien pueda consultarlo, entrenar un modelo con él o explicar una reclamación.
+Al terminar cada carcasa, la estación emite su **registro**: qué pieza es, a qué hora terminó, cuánto tardó y cuánto marcaron los tres sensores. El registro sale **cuando la carcasa termina**, no a intervalos fijos: es un **evento**. Ese registro tiene que llegar al **histórico de la planta** para que, más adelante, alguien pueda consultarlo, entrenar un modelo con él o explicar una reclamación.
 
 El camino del registro tiene tres tramos:
 
@@ -69,7 +69,7 @@ Esta arquitectura es **la mínima para que el dato se mueva**. Los pasos te ense
 
 ### 1 — Arrancar la estación y el camino de los registros
 
-**Qué ocurre:** enciendes la estación (empieza a fabricar y a emitir un registro por segundo), el broker que los reparte y el archivador que los guarda. Desde ese momento el histórico empieza a llenarse.
+**Qué ocurre:** enciendes la estación (empieza a fabricar y a emitir un registro por carcasa), el broker que los reparte y el archivador que los guarda. Desde ese momento el histórico empieza a llenarse.
 
 ```bash
 cd infra
@@ -98,10 +98,10 @@ Si alguno no aparece, ese tramo no existe y los registros no llegan al históric
 
 **El origen: lo último que fabricó la estación.** Abre en VS Code el fichero `infra/data/estado.json`.
 
-**Resultado esperado** (cambia cada segundo; si lo tienes abierto, VS Code lo recarga solo):
+**Resultado esperado** (cambia con cada carcasa; si lo tienes abierto, VS Code lo recarga solo):
 
 ```json
-{"estacion": "EST-01", "pieza_id": "P0048", "ts": "2026-11-06T01:51:10+00:00", "temperatura_c": 63.03, "vibracion_mm_s": 0.265, "corriente_a": 4.0, "secuencia": 48}
+{"estacion": "EST-01", "pieza_id": "P0056", "ts": "2026-11-06T02:12:34+00:00", "temperatura_c": 60.88, "vibracion_mm_s": 0.235, "corriente_a": 4.11, "secuencia": 56, "tiempo_ciclo_s": 0.9}
 ```
 
 **Qué es:** la estación reescribe este fichero con cada carcasa que termina. Solo guarda **la última**: es su «pantalla», no su memoria.
@@ -113,7 +113,7 @@ Si alguno no aparece, ese tramo no existe y los registros no llegan al históric
 docker compose exec mosquitto mosquitto_sub -t 'linea/est01/ciclo' -C 3
 ```
 
-**Resultado esperado:** tres registros, uno por segundo, con el mismo formato que `estado.json`.
+**Resultado esperado:** tres registros, uno por carcasa, con el mismo formato que `estado.json`. Mira `ts` y `tiempo_ciclo_s`: no llegan exactamente cada segundo.
 
 **El almacén: el histórico.** Abre en VS Code el fichero `infra/data/historial.sqlite`.
 
@@ -152,15 +152,15 @@ docker compose --profile lab run --rm --no-deps lab m01-01
 **Resultado esperado** (cambian la pieza y el total):
 
 ```text
-{"mqtt": {"estacion": "EST-01", "pieza_id": "P0010", "ts": "2026-11-04T17:12:46+00:00", "temperatura_c": 62.1, "vibracion_mm_s": 0.22, "corriente_a": 4.11, "secuencia": 10}, "archivadas": 7}
-OK m01-01: ciclo P0010 archivado; total=7
+{"mqtt": {"estacion": "EST-01", "pieza_id": "P0056", "ts": "2026-11-06T02:12:34+00:00", "temperatura_c": 60.88, "vibracion_mm_s": 0.235, "corriente_a": 4.11, "secuencia": 56, "tiempo_ciclo_s": 0.9}, "archivadas": 470}
+OK m01-01: ciclo P0056 archivado; total=470
 ```
 
 Cómo se lee:
 
-- `"mqtt": {…}` es el registro que acaba de pasar por el broker: la carcasa `P0010`, la décima desde que arrancó la estación, terminada a las 17:12:46 con el husillo a 62,1 °C.
-- `"archivadas": 7` son los registros que había en el histórico al empezar la comprobación.
-- El total puede ser algo menor que el número de pieza. Los registros que la estación emitió en el primer segundo, antes de que el archivador terminara de conectarse, nadie los escuchó y se perdieron. Es el comportamiento normal de un broker sin persistencia, y por eso el archivador tiene que estar siempre en marcha.
+- `"mqtt": {…}` es el registro que acaba de pasar por el broker: la carcasa `P0056`, la número 56 desde que arrancó la estación, terminada a las 02:12:34 (UTC) con el husillo a 60,88 °C, 0,9 s después de la anterior.
+- `"archivadas": 470` son los registros que había en el histórico al empezar la comprobación.
+- **El total y el número de pieza no coinciden**, y puede pasar en los dos sentidos. Si el histórico es de antes de este arranque, el total es **mayor** (aquí, 470 frente a 56): guarda carcasas de tandas anteriores. Si el histórico está recién vaciado, el total es algo **menor**: los registros que la estación emitió antes de que el archivador terminara de conectarse nadie los escuchó y se perdieron, que es el comportamiento normal de un broker sin persistencia.
 
 **Si lo repites** unos segundos después, verás una pieza posterior (`P0020`, por ejemplo) y un total mayor: la estación sigue fabricando y el archivador sigue guardando.
 
@@ -188,7 +188,7 @@ return ok("m01-01", f"ciclo {ciclo['pieza_id']} archivado; total={n}")
 docker compose logs -f --tail=0 sensor archivador
 ```
 
-**Resultado esperado** (cambian las piezas y las temperaturas; una línea nueva por segundo):
+**Resultado esperado** (cambian las piezas y las temperaturas; una línea nueva por carcasa):
 
 ```text
 sensor-1      | sensor: P2818 62.28 C
@@ -243,6 +243,7 @@ docker compose --profile lab run --rm --no-deps lab sql
    4 vibracion_mm_s    REAL        0       None   0
    5    corriente_a    REAL        0       None   0
    6        payload    TEXT        0       None   0
+   7 tiempo_ciclo_s    REAL        0       None   0
 ```
 
 `pk = 1` marca la clave primaria: solo `id`. Ninguna columna obliga a que `pieza_id` sea único.
@@ -267,7 +268,7 @@ Antes de seguir, **predice**: ¿qué pasará con estos dos números después del
 
 ### 3 — ¿Está completo? Carcasas por minuto
 
-**Qué ocurre:** la estación fabrica una carcasa por segundo, así que un minuto completo debe tener 60 registros. Agrupas el histórico por minuto y cuentas.
+**Qué ocurre:** la estación fabrica unas 60 carcasas por minuto. Agrupas el histórico por minuto y cuentas. La pregunta es: si un minuto tiene menos de 60, ¿se han perdido carcasas?
 
 ```bash
 docker compose --profile lab run --rm --no-deps lab sql \
@@ -275,19 +276,52 @@ docker compose --profile lab run --rm --no-deps lab sql \
    FROM lecturas GROUP BY substr(ts, 1, 16) ORDER BY substr(ts, 1, 16)"
 ```
 
-**Resultado esperado:**
+**Resultado esperado** (cambian las horas y los números):
 
 ```text
 minuto  registros
- 12:09          5
- 12:10         60
- 12:11         60
- 12:12         24
+ 02:04         48
+ 02:05         60
+ 02:06         60
+ 02:07         60
+ 02:08         54
+ 02:09         54
+ 02:10         35
 ```
 
-El primer y el último minuto están incompletos porque el histórico empieza y termina a mitad de minuto. Los de en medio, con 60, están completos. Repite esta consulta después del reto 2.
+**Cómo se lee:** el primer y el último minuto están incompletos porque el histórico empieza y termina a mitad de minuto. Pero en medio hay minutos con 54. **No se ha perdido nada**: en esos minutos la estación tuvo una microparada y **fabricó menos**. Contar por reloj no distingue «se fabricó menos» de «se guardó menos». Para eso hace falta la secuencia de la estación, que usarás en «Mejora la arquitectura».
 
-### 4 — ¿Cómo trabaja la estación?
+### 4 — Tiempo de ciclo y microparadas
+
+**Qué ocurre:** cada registro trae `tiempo_ciclo_s`, los segundos desde la carcasa anterior. Calculas cómo trabaja la estación y localizas las microparadas: carcasas que tardaron más de 2 segundos.
+
+```bash
+# Tiempo de ciclo medio, mínimo y máximo
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT COUNT(*) AS carcasas, ROUND(AVG(tiempo_ciclo_s), 2) AS ciclo_medio,
+          MIN(tiempo_ciclo_s) AS minimo, MAX(tiempo_ciclo_s) AS maximo FROM lecturas"
+
+# Las carcasas que llegaron tras una microparada
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT pieza_id, ts, tiempo_ciclo_s FROM lecturas WHERE tiempo_ciclo_s > 2 ORDER BY id"
+```
+
+**Resultado esperado:**
+
+```text
+ carcasas  ciclo_medio  minimo  maximo
+      371         1.03     0.9    6.89
+```
+
+```text
+pieza_id                        ts  tiempo_ciclo_s
+   P0251 2026-11-06T02:08:28+00:00            6.89
+   P0318 2026-11-06T02:09:41+00:00            6.73
+```
+
+**Cómo se lee:** la estación trabaja a algo más de un segundo por carcasa, entre 0,9 y 1,1 en condiciones normales. Las dos microparadas, de unos 7 segundos, explican los minutos con 54 del punto anterior: están a las 02:08 y a las 02:09. El tiempo de ciclo es la base de un indicador de planta muy usado, el **rendimiento** del OEE: cuánto se fabrica frente a lo que se podría fabricar.
+
+### 5 — ¿Cómo trabaja la estación?
 
 **Qué ocurre:** calculas las medidas de referencia del proceso. Es lo primero que se mira para saber qué es «normal».
 
@@ -338,7 +372,7 @@ docker compose start sensor
 Ahora la estación sigue fabricando, pero nadie guarda. Si tienes abierto el diario del paso 4, verás que la estación sigue anunciando carcasas y nadie las confirma. Para el archivador 10 segundos, vuelve a arrancarlo y busca huecos en la numeración del histórico.
 
 ```bash
-# La estación sigue: una carcasa por segundo
+# La estación sigue fabricando
 docker compose stop archivador
 sleep 10
 docker compose start archivador
@@ -365,13 +399,7 @@ ultima_antes siguiente  faltan
 
 Esas carcasas **se fabricaron**, y la estación publicó su registro, pero el broker no las guarda y el archivador no estaba escuchando. No están en el histórico y nada dio error. En planta pasa igual cuando se cae el servidor del histórico o se corta la red: hay piezas reales sin registro.
 
-Repite la consulta de carcasas por minuto (Investiga, punto 3): el minuto en que paraste el archivador tiene menos de 60.
-
-```text
-minuto  registros
- 12:10         60
- 12:11         49
-```
+Repite la consulta de carcasas por minuto (Investiga, punto 3): el minuto en que paraste el archivador tiene menos registros. Pero, como viste, un minuto con microparada también. El hueco en la **numeración** de esta consulta es lo que demuestra que hubo pérdida: en una microparada la numeración sigue sin saltos.
 
 </details>
 
@@ -459,7 +487,7 @@ Ninguna combinación se repite: `pieza_id` + `ts` identifica cada carcasa aunque
 
 ### 2 — Conciliar lo fabricado con lo registrado
 
-**Qué ocurre:** comparas cuántas carcasas ha fabricado la estación desde su último arranque (lo dice la `secuencia` que viaja en cada registro) con cuántas hay en el histórico. Es la comprobación que una planta hace a diario entre el MES y el histórico.
+**Qué ocurre:** comparas cuántas carcasas ha fabricado la estación desde su último arranque (lo dice la `secuencia` que viaja en cada registro) con cuántas hay en el histórico. A diferencia de contar por minuto, esto no se confunde con las microparadas: la secuencia solo cuenta carcasas fabricadas. Es la comprobación que una planta hace a diario entre el MES y el histórico.
 
 ```bash
 docker compose --profile lab run --rm --no-deps lab sql \
@@ -519,7 +547,8 @@ Un modelo aprende del histórico y decide sobre piezas reales. Por eso la arquit
 | Un único archivador, sin respaldo | Reto 2 | Si se cae, no hay histórico de ese tramo |
 | El identificador lo pone un contador de la máquina, que se reinicia | Reto 3: tras reiniciar, cada `pieza_id` aparece varias veces | Varias carcasas distintas con el mismo nombre |
 | La tabla no tiene una clave de pieza única | Reto 3: el histórico acepta los repetidos | No se sabe a cuál pertenece un resultado de calidad |
-| Nadie compara lo fabricado con lo registrado | El total del paso 2 no cuadra con el número de pieza, y nada avisa | Los fallos anteriores pasan inadvertidos |
+| Nadie compara lo fabricado con lo registrado | El total del paso 3 no cuadra con el número de pieza, y nada avisa | Los fallos anteriores pasan inadvertidos |
+| Contar por reloj confunde producción con pérdida | Minutos con 54 registros por microparadas, sin pérdida | Se buscan pérdidas que no existen, o se dan por buenas pérdidas reales |
 
 La forma de detectar debilidades es siempre la misma: **provocar un fallo de un componente y comprobar qué le pasa al dato**.
 
@@ -531,7 +560,7 @@ La forma de detectar debilidades es siempre la misma: **provocar un fallo de un 
 | Caída del almacén o de la red | *Store-and-forward* en el equipo edge: guarda localmente y reenvía al volver |
 | Identificador que se repite | Identificador que no depende de la máquina (MES, DataMatrix grabado en la pieza), siempre con su hora |
 | Histórico que acepta duplicados | Clave única en la tabla (pieza + hora, o el identificador del MES) |
-| Fallos que nadie ve | Conciliación periódica entre las piezas producidas según el MES y los registros del histórico |
+| Fallos que nadie ve | Conciliación periódica entre las piezas producidas según el MES y los registros del histórico, **por secuencia, no por reloj** |
 
 En los módulos siguientes irás viendo piezas de esa arquitectura completa: calidad del dato (M02), edge (M06), servicio con versión (M07) y trazabilidad (M08).
 

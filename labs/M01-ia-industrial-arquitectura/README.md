@@ -65,7 +65,7 @@ Este módulo trabaja los dos primeros eslabones y el de vigilancia. Los modelos 
 
 ### La línea del curso: EST-01
 
-Todo el curso trabaja sobre **EST-01**, una estación de mecanizado de carcasas simulada. Fabrica **una carcasa por segundo** y, mientras la mecaniza, tres sensores miden la temperatura del husillo, la vibración y la corriente del motor. Cada pieza de la arquitectura es un contenedor Docker en tu puesto.
+Todo el curso trabaja sobre **EST-01**, una estación de mecanizado de carcasas simulada. Fabrica **unas 60 carcasas por minuto**, pero no con la precisión de un reloj: el tiempo de ciclo varía un poco de una carcasa a otra, las primeras tras arrancar van más lentas y de vez en cuando hay **microparadas** de unos segundos, como en una máquina real. Mientras mecaniza cada carcasa, tres sensores miden la temperatura del husillo, la vibración y la corriente del motor. Cada pieza de la arquitectura es un contenedor Docker en tu puesto.
 
 ---
 
@@ -100,7 +100,7 @@ Lo que hace que un dato se pueda seguir de punta a punta es que cada registro ll
 
 #### Paso 1 — Encender la línea
 
-**Qué vamos a ver:** se arrancan los tres componentes del camino del dato. Cada uno es un contenedor, un proceso aislado con su propia función. Desde este momento la estación fabrica una carcasa por segundo.
+**Qué vamos a ver:** se arrancan los tres componentes del camino del dato. Cada uno es un contenedor, un proceso aislado con su propia función. Desde este momento la estación fabrica unas 60 carcasas por minuto.
 
 ```bash
 # Arranca en segundo plano (-d) la estación, el broker y el archivador
@@ -145,7 +145,7 @@ docker compose exec mosquitto mosquitto_sub -t 'linea/est01/ciclo' -C 1
 **Resultado esperado** (cambian la pieza, la hora y los valores):
 
 ```text
-{"estacion": "EST-01", "pieza_id": "P1987", "ts": "2026-11-06T01:40:50+00:00", "temperatura_c": 62.96, "vibracion_mm_s": 0.25, "corriente_a": 4.05, "secuencia": 1987}
+{"estacion": "EST-01", "pieza_id": "P0043", "ts": "2026-11-06T02:12:21+00:00", "temperatura_c": 61.49, "vibracion_mm_s": 0.265, "corriente_a": 4.03, "secuencia": 43, "tiempo_ciclo_s": 0.92}
 ```
 
 **Cómo se lee:** es el **registro** de una carcasa, en formato JSON:
@@ -153,12 +153,13 @@ docker compose exec mosquitto mosquitto_sub -t 'linea/est01/ciclo' -C 1
 | Campo | Valor | Qué es |
 |-------|-------|--------|
 | `estacion` | `EST-01` | Qué máquina la fabricó |
-| `pieza_id` | `P1987` | El identificador de la carcasa |
-| `ts` | `2026-11-06T01:40:50+00:00` | Cuándo terminó, en hora UTC (en España, una hora más en invierno) |
-| `temperatura_c` | `62.96` | Temperatura del husillo durante el ciclo, en °C |
-| `vibracion_mm_s` | `0.25` | Vibración de la máquina, en mm/s |
-| `corriente_a` | `4.05` | Corriente del motor, en amperios: cuánto esfuerzo ha hecho |
-| `secuencia` | `1987` | El contador interno de la estación desde que arrancó |
+| `pieza_id` | `P0043` | El identificador de la carcasa |
+| `ts` | `2026-11-06T02:12:21+00:00` | Cuándo terminó, en hora UTC (en España, una hora más en invierno) |
+| `temperatura_c` | `61.49` | Temperatura del husillo durante el ciclo, en °C |
+| `vibracion_mm_s` | `0.265` | Vibración de la máquina, en mm/s |
+| `corriente_a` | `4.03` | Corriente del motor, en amperios: cuánto esfuerzo ha hecho |
+| `secuencia` | `43` | El contador interno de la estación desde que arrancó |
+| `tiempo_ciclo_s` | `0.92` | Segundos desde la carcasa anterior. Ronda 1, pero varía; tras una microparada sube a varios segundos |
 
 > **Qué señalar en pantalla:** «Esto es lo que viaja: una ficha por carcasa, con quién, cuándo y cómo se fabricó. Es la materia prima de toda la IA del curso».
 
@@ -176,11 +177,11 @@ docker compose exec mosquitto mosquitto_sub -t 'linea/est01/ciclo' -C 1
 **Resultado esperado:**
 
 ```text
-{"estacion": "EST-01", "pieza_id": "P1987", "ts": "2026-11-06T01:40:50+00:00", …}
-{"estacion": "EST-01", "pieza_id": "P1991", "ts": "2026-11-06T01:40:54+00:00", …}
+{"estacion": "EST-01", "pieza_id": "P0043", "ts": "2026-11-06T02:12:21+00:00", …}
+{"estacion": "EST-01", "pieza_id": "P0047", "ts": "2026-11-06T02:12:25+00:00", …}
 ```
 
-**Cómo se lee:** la segunda escucha recibe la `P1991`, la que se fabricó **cuando nos volvimos a conectar**. Las carcasas `P1988` a `P1990` se publicaron mientras no escuchábamos y no las hemos visto. El broker no las ha perdido para todos: el archivador sí estaba escuchando. Pero a nosotros no nos las va a dar nunca.
+**Cómo se lee:** la segunda escucha recibe la `P0047`, la que se fabricó **cuando nos volvimos a conectar**. Las carcasas `P0044` a `P0046` se publicaron mientras no escuchábamos y no las hemos visto. El broker no las ha perdido para todos: el archivador sí estaba escuchando. Pero a nosotros no nos las va a dar nunca.
 
 > **Qué señalar en pantalla:** «El broker es como una megafonía: lo oye quien está en la sala en ese momento. Si queremos el pasado, alguien tiene que estar siempre escuchando y apuntándolo». Ese alguien es el archivador.
 
@@ -189,30 +190,30 @@ docker compose exec mosquitto mosquitto_sub -t 'linea/est01/ciclo' -C 1
 **Qué vamos a ver:** buscamos en el histórico la carcasa que cogimos al vuelo en el paso 2. `lab sql` lanza una consulta SQL contra la base de datos del archivador, en solo lectura.
 
 ```bash
-# Busca la carcasa por su identificador (cambia P1987 por la que te haya salido)
+# Busca la carcasa por su identificador (cambia P0043 por la que te haya salido)
 docker compose --profile lab run --rm --no-deps lab sql \
   "SELECT id, pieza_id, ts, temperatura_c, vibracion_mm_s, corriente_a
-   FROM lecturas WHERE pieza_id = 'P1987' ORDER BY id DESC LIMIT 1"
+   FROM lecturas WHERE pieza_id = 'P0043' ORDER BY id DESC LIMIT 1"
 ```
 
 **Resultado esperado:**
 
 ```text
-   id pieza_id                        ts  temperatura_c  vibracion_mm_s  corriente_a
-48009    P1987 2026-11-06T01:40:50+00:00          62.96            0.25         4.05
+  id pieza_id                        ts  temperatura_c  vibracion_mm_s  corriente_a
+ 459    P0043 2026-11-06T02:12:21+00:00          61.49           0.265         4.03
 ```
 
 **Cómo se lee:**
 
 - La **misma carcasa**, con la **misma hora** y las **mismas medidas** que vimos pasar por el broker. Ha cruzado los tres tramos: la estación la emitió, el broker la repartió y el archivador la guardó.
-- `id` es una columna nueva: el número de fila que pone la base de datos. No viene de la estación, y no coincide con el número de pieza: aquí la fila es la 48 009 y la pieza la 1987, porque el histórico guarda también carcasas de otras tandas. Por qué eso importa lo descubrirás en el laboratorio.
+- `id` es una columna nueva: el número de fila que pone la base de datos. No viene de la estación, y no coincide con el número de pieza: aquí la fila es la 459 y la pieza la 43, porque el histórico guarda también carcasas de otras tandas. Por qué eso importa lo descubrirás en el laboratorio.
 - `lecturas` es la tabla donde el archivador guarda una fila por registro. Su estructura completa la verás en el laboratorio.
 
 > **Qué señalar en pantalla:** «Lo que hace posible seguir un dato de punta a punta es que lleva estación, pieza y hora. Sin eso, no sabríamos cuál de todas las filas es esta carcasa».
 
 #### Paso 5 — La pregunta que abre el laboratorio
 
-> **Si el archivador no hubiera estado escuchando en el segundo en que se fabricó la P1987, ¿dónde estaría ahora esa carcasa?**
+> **Si el archivador no hubiera estado escuchando en el segundo en que se fabricó la P0043, ¿dónde estaría ahora esa carcasa?**
 
 Deja la pregunta abierta. En el laboratorio lo comprobarás.
 

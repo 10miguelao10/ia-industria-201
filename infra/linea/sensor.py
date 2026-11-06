@@ -10,7 +10,22 @@ from linea.config import ESTACION, MQTT_HOST, MQTT_PORT, TOPIC_CICLO
 from linea.estado import escribir
 from linea.metricas import Metricas
 
-INTERVALO = 1.0
+# Cadencia de la estación: como en una máquina real, no es un reloj perfecto
+CICLO_NOMINAL_S = 1.0          # tiempo de ciclo de diseño
+VARIACION = 0.10               # ±10 % de una carcasa a otra (material, temperatura, colas)
+PROB_MICROPARADA = 1 / 150     # de media, una microparada cada ~150 carcasas (unos 2,5 min)
+MICROPARADA_S = (3.0, 8.0)     # duración de una microparada: entre 3 y 8 s sin producir
+RAMPA_PIEZAS = 5               # al arrancar, las primeras carcasas van más lentas
+
+
+def espera_ciclo(n: int, azar: random.Random) -> float:
+    """Segundos hasta terminar la carcasa n: ciclo variable, rampa de arranque y microparadas."""
+    ciclo = CICLO_NOMINAL_S * (1 + azar.uniform(-VARIACION, VARIACION))
+    if n <= RAMPA_PIEZAS:
+        ciclo *= 1.3                                   # arranque en frío
+    if n > RAMPA_PIEZAS and azar.random() < PROB_MICROPARADA:
+        ciclo += azar.uniform(*MICROPARADA_S)          # microparada: atasco, sensor de presencia…
+    return ciclo
 
 
 def lectura(n: int) -> dict:
@@ -48,21 +63,32 @@ def main() -> None:
     metricas.definir("estacion_temperatura_husillo_celsius", "gauge", "Temperatura del husillo en la última carcasa")
     metricas.definir("estacion_vibracion_mm_s", "gauge", "Vibración en la última carcasa")
     metricas.definir("estacion_corriente_amperios", "gauge", "Corriente del motor en la última carcasa")
+    metricas.definir("estacion_tiempo_ciclo_segundos", "gauge", "Tiempo que tardó la última carcasa, desde la anterior")
+    metricas.definir("estacion_microparadas_total", "counter", "Microparadas desde que arrancó la estación")
     metricas.servir(9102)
 
     cliente = conectar()
+    azar = random.Random()               # el ritmo cambia en cada arranque; las medidas, no
     n = 1
+    anterior = time.monotonic()
     while True:
+        espera = espera_ciclo(n, azar)
+        if espera > CICLO_NOMINAL_S * 2:
+            metricas.sumar("estacion_microparadas_total")
+        time.sleep(espera)               # la carcasa se está mecanizando
+        ahora = time.monotonic()
         estado = lectura(n)
+        estado["tiempo_ciclo_s"] = round(ahora - anterior, 2)
+        anterior = ahora
         escribir(estado)
         cliente.publish(TOPIC_CICLO, json.dumps(estado), qos=0)
         metricas.sumar("estacion_piezas_fabricadas_total")
         metricas.poner("estacion_temperatura_husillo_celsius", estado["temperatura_c"])
         metricas.poner("estacion_vibracion_mm_s", estado["vibracion_mm_s"])
         metricas.poner("estacion_corriente_amperios", estado["corriente_a"])
+        metricas.poner("estacion_tiempo_ciclo_segundos", estado["tiempo_ciclo_s"])
         print(f"sensor: {estado['pieza_id']} {estado['temperatura_c']} C", flush=True)
         n += 1
-        time.sleep(INTERVALO)
 
 
 if __name__ == "__main__":

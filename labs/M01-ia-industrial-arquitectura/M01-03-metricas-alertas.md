@@ -38,7 +38,7 @@ Para eso se usan **métricas** y **alertas**:
 | Qué es | Una fila por carcasa, con su pieza, hora y medidas | Un número que resume, muestreado cada 5 s |
 | Ejemplo | `P0153, 12:12:27, 62,97 °C` | `estacion_piezas_fabricadas_total 153` |
 | Sirve para | Entrenar, conciliar, auditar una pieza | Vigilar tendencias y alertar |
-| ¿Ve cada pieza? | Sí | No: entre muestreo y muestreo pasan 5 carcasas |
+| ¿Ve cada pieza? | Sí | No: entre muestreo y muestreo pasan unas 5 carcasas (lo verás en el paso 4) |
 
 Las dos cosas se complementan: el histórico guarda **qué pasó con cada pieza**; las métricas dicen **si el sistema está funcionando ahora**.
 
@@ -90,7 +90,7 @@ Abre en Chrome la dirección de métricas de la estación: <http://localhost:910
 
 **Resultado esperado** (cambian los valores; recarga y verás cómo cambian):
 
-![Página de métricas de la estación: cuatro métricas con su ayuda y su tipo](../img/M01-03-metricas-estacion.png)
+![Página de métricas de la estación: seis métricas con su ayuda y su tipo](../img/M01-03-metricas-estacion.png)
 
 **Qué es esto:** es el **formato de exposición de Prometheus**, un estándar que entiende cualquier sistema de monitorización. Cada métrica ocupa tres líneas:
 
@@ -98,14 +98,14 @@ Abre en Chrome la dirección de métricas de la estación: <http://localhost:910
 |-------|---------|----------|
 | `# HELP` | `# HELP estacion_piezas_fabricadas_total Carcasas fabricadas desde que arrancó la estación` | Qué mide, en palabras |
 | `# TYPE` | `# TYPE estacion_piezas_fabricadas_total counter` | De qué tipo es |
-| El valor | `estacion_piezas_fabricadas_total 25.0` | Nombre y valor en este instante |
+| El valor | `estacion_piezas_fabricadas_total 56.0` | Nombre y valor en este instante |
 
-**Qué ves:** cuatro métricas de la estación. La primera es un contador de carcasas; las otras tres, las medidas de la última carcasa. Hay dos tipos:
+**Qué ves:** seis métricas de la estación: dos contadores (carcasas fabricadas y microparadas) y cuatro valores de la última carcasa (temperatura, vibración, corriente y tiempo de ciclo). Hay dos tipos:
 
 | Tipo | Qué es | Ejemplo |
 |------|--------|---------|
-| `counter` (contador) | Solo sube; vuelve a 0 si el proceso se reinicia | Carcasas fabricadas |
-| `gauge` (indicador) | Sube y baja; es el valor de ahora | Temperatura, vibración, corriente |
+| `counter` (contador) | Solo sube; vuelve a 0 si el proceso se reinicia | Carcasas fabricadas, microparadas |
+| `gauge` (indicador) | Sube y baja; es el valor de ahora | Temperatura, vibración, corriente, tiempo de ciclo |
 
 Abre ahora la del archivador: <http://localhost:9101/metrics>
 
@@ -123,10 +123,12 @@ curl -s http://localhost:9102/metrics | grep -v '^#'
 ```
 
 ```text
-estacion_piezas_fabricadas_total 25.0
-estacion_temperatura_husillo_celsius 62.31
-estacion_vibracion_mm_s 0.22
-estacion_corriente_amperios 3.98
+estacion_piezas_fabricadas_total 56.0
+estacion_temperatura_husillo_celsius 60.88
+estacion_vibracion_mm_s 0.235
+estacion_corriente_amperios 4.11
+estacion_tiempo_ciclo_segundos 0.9
+estacion_microparadas_total 0.0
 ```
 
 <details>
@@ -169,13 +171,74 @@ rate(archivador_registros_guardados_total[1m])
 sum(increase(estacion_piezas_fabricadas_total[1m])) - sum(increase(archivador_registros_guardados_total[1m]))
 ```
 
-**Resultado esperado:** las dos primeras dan **1** (una carcasa por segundo). La tercera, **0** o casi 0.
+**Resultado esperado:** las dos primeras dan **alrededor de 1** (entre 0,9 y 1), las dos casi iguales. La tercera, **0** o casi 0.
 
-![Gráfica de carcasas por segundo: estable en 1, con caídas en los reinicios](../img/M01-03-piezas-por-segundo.png)
+![Gráfica de carcasas por segundo: en torno a 1, con valles en las microparadas](../img/M01-03-piezas-por-segundo.png)
 
-**Cómo se lee:** la línea plana en 1 es la estación trabajando a su ritmo. Cada caída coincide con un reinicio de algún componente. Es la misma conciliación que hiciste en SQL en el M01-01, pero calculada sola cada 5 segundos.
+**Cómo se lee:** la línea en torno a 1 es la estación trabajando a su ritmo, con sus pequeñas variaciones. Los valles son minutos con microparada: se fabricó menos. Que la tercera consulta siga en 0 dice que **lo que se fabrica, se guarda**, aunque se fabrique menos. Es la misma conciliación que hiciste en SQL en el M01-01, pero calculada sola cada 5 segundos.
 
-### 4 — Las reglas de alerta
+### 4 — Evento frente a muestra
+
+**Qué ocurre:** comparas cómo ven la misma estación el histórico y Prometheus. El histórico guarda **un registro por carcasa**, cuando la carcasa termina: es un **evento**. Prometheus pregunta **cada 5 segundos**, pase lo que pase: es una **muestra**. Vas a ver qué se pierde con cada forma.
+
+Primero, cuántos datos de cada tipo hay en el último minuto:
+
+```bash
+# Eventos: registros guardados en el último minuto
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT COUNT(*) AS registros FROM lecturas
+   WHERE ts >= strftime('%Y-%m-%dT%H:%M:%S+00:00', 'now', '-60 seconds')"
+```
+
+```promql
+# Muestras: cuántas veces ha preguntado Prometheus en el último minuto
+count_over_time(estacion_piezas_fabricadas_total[1m])
+```
+
+**Resultado esperado:** unos **60 registros** en el histórico y **12 muestras** en Prometheus.
+
+Ahora, el tiempo de ciclo en Prometheus. En <http://localhost:9090/graph>, pestaña **Graph**, con un rango de 15 minutos:
+
+```promql
+estacion_tiempo_ciclo_segundos
+```
+
+![Tiempo de ciclo en Prometheus: oscila entre 0,9 y 1,1 sin ningún pico](../img/M01-03-tiempo-ciclo.png)
+
+Y las microparadas, en el histórico:
+
+```bash
+docker compose --profile lab run --rm --no-deps lab sql \
+  "SELECT pieza_id, ts, tiempo_ciclo_s FROM lecturas WHERE tiempo_ciclo_s > 2 ORDER BY id"
+```
+
+```text
+pieza_id                        ts  tiempo_ciclo_s
+   P0251 2026-11-06T02:08:28+00:00            6.89
+   P0318 2026-11-06T02:09:41+00:00            6.73
+   P0372 2026-11-06T02:10:41+00:00            7.20
+   P0394 2026-11-06T02:11:07+00:00            5.22
+```
+
+**Cómo se lee:** en el mismo intervalo hubo **cuatro microparadas** de entre 5 y 7 segundos, y la gráfica de Prometheus **no enseña ninguna**. El valor de 6,89 s solo estuvo en la página de métricas desde que terminó esa carcasa hasta que terminó la siguiente, apenas un segundo, y Prometheus pregunta cada 5: no lo vio nunca.
+
+| | Evento (histórico) | Muestra (Prometheus) |
+|--|--------------------|----------------------|
+| Cuándo se produce | Cuando pasa algo: termina una carcasa | Cada 5 s, pase lo que pase |
+| Cuántos por minuto | Los que haya: unos 60, menos con microparadas | Siempre 12 |
+| Ve una microparada | Sí, en el `tiempo_ciclo_s` de la carcasa siguiente | No, si dura menos que el intervalo de muestreo |
+| Sirve para | Saber qué pasó con cada pieza | Vigilar tendencias y alertar |
+
+Por eso los contadores (carcasas fabricadas, microparadas) son la forma correcta de llevar eventos a Prometheus: aunque se pregunte cada 5 segundos, el contador no se pierde nada, porque acumula. Compruébalo:
+
+```promql
+# Microparadas en los últimos 15 minutos, según el contador
+increase(estacion_microparadas_total[15m])
+```
+
+Da un número parecido al de filas de la consulta anterior. El contador sí las ha visto todas.
+
+### 5 — Las reglas de alerta
 
 **Qué ocurre:** abres las reglas que vigilan la arquitectura. Cada una es una consulta PromQL con una condición y un tiempo mínimo.
 
@@ -393,6 +456,7 @@ Es vigilar **el sistema que trae los datos**, no solo el proceso. Cada component
 | Archivador parado | `ArchivadorCaido` | El fallo que también se ve en el panel, pero ahora avisa solo |
 | Broker reiniciado | `HistoricoSinDatos`, `RegistrosPerdidos` | Un **fallo silencioso**: el archivador vivo y sin guardar, sin ningún error |
 | Umbral en el límite | `TemperaturaHusilloAlta` en *pending* intermitente | Sin `for`, una alarma que nadie atendería |
+| Microparadas que la gráfica no enseña | Paso 4: cuatro microparadas en el histórico, ninguna en `estacion_tiempo_ciclo_segundos` | Un indicador muestreado se pierde lo que dura menos que su intervalo; un contador, no |
 
 ### Cómo se perfecciona
 

@@ -31,7 +31,7 @@ El estado vivo está en `infra/data/` (no se versiona). El modelo generativo est
 
 | Dato | Origen | Cómo se crea |
 |------|--------|----------------|
-| Ciclo en vivo | `sensor` | Secuencia determinista, un mensaje/s en `linea/est01/ciclo` |
+| Ciclo en vivo | `sensor` | Un mensaje por carcasa en `linea/est01/ciclo`: unas 60 por minuto, con tiempo de ciclo variable (±10 %), rampa de arranque y microparadas de 3–8 s cada ~2,5 min. Las medidas son deterministas; el ritmo, no |
 | Misma señal por OPC-UA y Modbus | `opcua` y `modbus` leen `estado.json` | No hay un segundo proceso físico |
 | Histórico para entrenar | `python -m linea.cli m02-03` | 800 piezas sintéticas, con huecos, temperaturas en décimas y algún 9999 |
 | Imágenes de calidad | `m04-01` | 64×64 generadas con Pillow: pieza gris y, si hay defecto, un rayón blanco |
