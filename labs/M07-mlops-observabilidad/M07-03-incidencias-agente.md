@@ -252,30 +252,6 @@ docker compose --profile lab run --rm --no-deps lab m07-03
 
 Al terminar, `docker compose restart archivador` para recuperar el histórico.
 
-## Reto
-
-### 1 — ¿Y si el agente reiniciara él solo?
-
-Sería fácil añadir una herramienta que ejecute `docker compose restart archivador`. ¿La añadirías?
-
-<details>
-<summary>Ver solución</summary>
-
-No en este punto. Ya has visto que el diagnóstico puede contradecir los datos: un agente que actúa sobre lo que redacta un modelo así puede reiniciar lo que no debe. La regla es la del M05-04: **solo herramientas de lectura**. Si algún día se automatiza una acción, que sea concreta, reversible, con confirmación de una persona y registrada.
-
-</details>
-
-### 2 — Una alerta sin herramientas propias
-
-Baja el [umbral](../glosario/03-aprendizaje-automatico.md#umbral) de `TemperaturaHusilloAlta` a 62,5 °C y su `for` a 0 s, como en el M01-03, y lanza el agente cuando esté activa. ¿Qué herramientas usa y qué propone?
-
-<details>
-<summary>Ver solución</summary>
-
-Usa solo `temperatura_actual` (lo dice `PLAN`) y propone avisar al operario y revisar la refrigeración, que es lo que dice su sección del runbook. Si la alerta ya se ha apagado cuando lanzas el agente, sale `FALLO: no hay alertas activas`: con `for: 0s` se enciende y se apaga en pocos segundos. Deja después la regla como estaba (`> 70` y `for: 5s`) y reinicia Prometheus.
-
-</details>
-
 ## Mejora el agente
 
 **Qué ocurre:** para `RegistrosPerdidos`, el agente no mira cuál fue la última carcasa guardada, que es un dato útil para saber desde cuándo se pierde. Vas a añadirle esa herramienta.
@@ -298,6 +274,272 @@ No hace falta reiniciar nada: `lab` lee el código cada vez. Provoca la incidenc
 
 **Cómo se lee:** mejorar un agente así es **darle mejores datos**, no un modelo más grande. Cada herramienta nueva es de lectura y está escrita y revisada por una persona.
 
+## Constrúyelo tú: tu propio agente de incidencias
+
+**Qué está pasando:** `lab m07-03` reúne los datos de una alerta, busca su sección en el runbook y pide al modelo un diagnóstico. Ahora lo construyes tú, con una pieza que el comando no tiene: **una comprobación automática del diagnóstico** contra los datos medidos, que en el lab hacías a ojo en el paso 5. Al final provocas el fallo silencioso del archivador y dejas que tu agente lo diagnostique.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** saber si hay algo que diagnosticar antes de construir el agente.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m07_03_mi_agente_incidencias.py`](../../infra/construye/m07_03_mi_agente_incidencias.py). El paso 1 ya está escrito: una función `promql` para preguntar a Prometheus y la lista de alertas **disparadas**, la misma que ves en <http://localhost:9090/alerts>. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m07_03_mi_agente_incidencias.py
+```
+
+**Resultado esperado:**
+
+```text
+alertas activas: ninguna
+```
+
+**Cómo se lee:** con la línea sana, ninguna. Un agente de incidencias empieza siempre por aquí: sin alerta, no tiene nada que hacer. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**.
+
+### 2 — Las herramientas de lectura
+
+**Para qué:** darle al agente los datos que necesita para entender una alerta, sin poder cambiar nada.
+
+**Qué ocurre:** escribes tres herramientas que **solo leen** de Prometheus: qué servicios están vivos, cuántos segundos lleva el archivador sin guardar y cuántas carcasas se han perdido en el último minuto. Las pruebas ahora, con la línea sana.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+def estado_servicios():
+    return {r["metric"]["job"]: "vivo" if r["value"][1] == "1" else "caído" for r in promql("up")}
+
+def segundos_sin_guardar():
+    r = promql("time() - archivador_ultimo_registro_timestamp_seconds")
+    return {"segundos_sin_guardar": round(float(r[0]["value"][1])) if r else "sin dato"}
+
+def perdidas_ultimo_minuto():
+    r = promql("sum(increase(estacion_piezas_fabricadas_total[1m])) - sum(increase(archivador_registros_guardados_total[1m]))")
+    return {"carcasas_perdidas_ultimo_minuto": round(float(r[0]["value"][1])) if r else "sin dato"}
+
+HERRAMIENTAS = {"estado_servicios": estado_servicios, "segundos_sin_guardar": segundos_sin_guardar,
+                "perdidas_ultimo_minuto": perdidas_ultimo_minuto}
+for nombre, herramienta in HERRAMIENTAS.items():
+    print(f"{nombre}: {herramienta()}")
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas; cambian los números):
+
+```text
+estado_servicios: {'archivador': 'vivo', 'sensor': 'vivo'}
+segundos_sin_guardar: {'segundos_sin_guardar': 5}
+perdidas_ultimo_minuto: {'carcasas_perdidas_ultimo_minuto': 0}
+```
+
+**Cómo se lee:** son las preguntas de tu alerta del M01-03, convertidas en herramientas. Con la línea sana, todo vivo, pocos segundos sin guardar y ninguna carcasa perdida. Ninguna de las tres puede reiniciar ni escribir nada.
+
+### 3 — El plan: qué herramientas para cada alerta
+
+**Para qué:** que sea tu código, y no el modelo, quien decida qué datos se miran ante cada alerta.
+
+**Qué ocurre:** escribes el `PLAN`: para cada alerta, la lista de herramientas que hay que usar. Una función reúne los datos de una alerta ejecutando sus herramientas.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+PLAN = {
+    "ArchivadorCaido": ["estado_servicios"],
+    "HistoricoSinDatos": ["estado_servicios", "segundos_sin_guardar", "perdidas_ultimo_minuto"],
+    "RegistrosPerdidos": ["segundos_sin_guardar", "perdidas_ultimo_minuto"],
+}
+
+def reunir(alerta):
+    hechos = {}
+    for herramienta in PLAN.get(alerta, ["estado_servicios"]):
+        hechos.update(HERRAMIENTAS[herramienta]())
+    return hechos
+
+print("datos que reuniría para HistoricoSinDatos:", reunir("HistoricoSinDatos"))
+```
+
+**Resultado esperado** (línea nueva; cambian los números):
+
+```text
+datos que reuniría para HistoricoSinDatos: {'archivador': 'vivo', 'sensor': 'vivo', 'segundos_sin_guardar': 5, 'carcasas_perdidas_ultimo_minuto': 0}
+```
+
+**Cómo se lee:** para `HistoricoSinDatos`, el agente mira las tres cosas. El plan es una tabla que cualquiera puede leer y revisar: se sabe de antemano qué hará el agente ante cada alerta. Una alerta sin plan usa solo `estado_servicios`.
+
+### 4 — La sección del runbook
+
+**Para qué:** que el agente proponga lo que dice el procedimiento, no lo que se le ocurra.
+
+**Qué ocurre:** lees el runbook, lo partes por sus títulos `## Alerta` y devuelves la sección de la alerta pedida.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+RUNBOOK = open("/opt/linea/docs/runbook-est01.md", encoding="utf-8").read()     # infra/linea/docs/
+
+def procedimiento(alerta):
+    for seccion in RUNBOOK.split("\n## ")[1:]:
+        titulo, _, cuerpo = seccion.partition("\n")
+        if titulo.strip() == alerta:
+            return cuerpo.strip()
+    return "No hay entrada en el runbook para esta alerta."
+
+print("runbook de HistoricoSinDatos:", procedimiento("HistoricoSinDatos")[:160], "...")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+runbook de HistoricoSinDatos: El archivador está vivo pero no guarda registros. Causa habitual: el broker se reinició y el archivador no renovó su suscripción.
+Acción: reiniciar el archivado ...
+```
+
+**Cómo se lee:** es el texto que escribieron las personas que conocen la línea. El agente no decide qué hacer: **busca qué dice el procedimiento**, igual que el asistente del M05-03 buscaba el párrafo.
+
+### 5 — El diagnóstico y su comprobación
+
+**Para qué:** redactar el diagnóstico con el modelo y no fiarse de él sin comprobarlo.
+
+**Qué ocurre:** das al modelo la alerta, los datos y el runbook, y le pides dos frases. Después sacas las cifras del diagnóstico y compruebas que **cada una está en los datos medidos**; si alguna no está, el diagnóstico se marca para revisar.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+def diagnosticar(alerta, hechos):
+    mensajes = [{"role": "system", "content": "Eres el asistente de mantenimiento. Usa solo los datos y el runbook. No inventes cifras."},
+                {"role": "user", "content": f"Alerta: {alerta}\nDatos: {json.dumps(hechos, ensure_ascii=False)}\n"
+                                            f"Runbook: {procedimiento(alerta)}\n\nEn dos frases: qué pasa y qué propone el runbook."}]
+    r = httpx.post("http://llm:8088/v1/chat/completions", json={"messages": mensajes, "max_tokens": 120}, timeout=60)
+    return r.json()["choices"][0]["message"]["content"].strip()
+
+def cifras_inventadas(texto, hechos):
+    medidas = set(re.findall(r"\d+", json.dumps(hechos)))
+    return sorted(set(re.findall(r"\d+", texto)) - medidas)
+
+for alerta in activas:
+    hechos = reunir(alerta)
+    diagnostico = diagnosticar(alerta, hechos)
+    inventadas = cifras_inventadas(diagnostico, hechos)
+    informe = {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "alerta": alerta, "hechos": hechos,
+               "diagnostico": diagnostico, "cifras_sin_respaldo": inventadas,
+               "estado": "REVISAR: cifras sin respaldo" if inventadas else "propuesta pendiente de una persona"}
+    with open("/data/mis_incidencias.jsonl", "a") as f:
+        f.write(json.dumps(informe, ensure_ascii=False) + "\n")
+    print(json.dumps(informe, ensure_ascii=False, indent=1))
+if not activas:
+    print("sin alertas activas: el agente no hace nada")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+sin alertas activas: el agente no hace nada
+```
+
+**Cómo se lee:** con la línea sana no hay alertas y el agente no llama al modelo. Lo nuevo frente al comando es `cifras_inventadas`: en el paso 5 del lab comparabas el diagnóstico con los hechos a ojo; ahora lo hace el código, y un diagnóstico con cifras que no salen de los datos queda marcado. El paso 6 lo pone a prueba.
+
+### 6 — Decide tú: provocar el fallo silencioso
+
+**Para qué:** ver al agente diagnosticar una incidencia real, y comprobar si su diagnóstico se sostiene.
+
+**Qué ocurre:** reinicias el broker, como en el paso 3 del lab, esperas a que `HistoricoSinDatos` se dispare y ejecutas tu agente. Después recuperas el archivador.
+
+```bash
+docker compose restart mosquitto
+sleep 40                                  # que la alerta pase de pendiente a disparada
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m07_03_mi_agente_incidencias.py
+docker compose restart archivador         # la acción la hace una persona
+```
+
+**Resultado esperado** (cambian los números y el texto del diagnóstico):
+
+```text
+alertas activas: ['HistoricoSinDatos', 'RegistrosPerdidos']
+...
+{
+ "ts": "2026-11-06T15:14:29Z",
+ "alerta": "HistoricoSinDatos",
+ "hechos": {
+  "archivador": "vivo",
+  "sensor": "vivo",
+  "segundos_sin_guardar": 46,
+  "carcasas_perdidas_ultimo_minuto": 45
+ },
+ "diagnostico": "Qué pasa: El archivador está vivo pero no guarda registros. Propone: Reiniciar el archivador y comprobar que vuelve a guardar.",
+ "cifras_sin_respaldo": [],
+ "estado": "propuesta pendiente de una persona"
+}
+{
+ "ts": "2026-11-06T15:14:31Z",
+ "alerta": "RegistrosPerdidos",
+ "hechos": {
+  "segundos_sin_guardar": 49,
+  "carcasas_perdidas_ultimo_minuto": 50
+ },
+ "diagnostico": "¿Qué pasa? El broker y el archivador están en marcha, y el archivador guarda. El runbook propone que comprobar que el broker y el archivador están en marcha y que el archivador guarda.",
+ "cifras_sin_respaldo": [],
+ "estado": "propuesta pendiente de una persona"
+}
+```
+
+**Cómo se lee:** se han disparado dos alertas y el agente ha hecho un informe para cada una, con sus datos: 46 segundos sin guardar y 45 carcasas perdidas en el último minuto. **El primer diagnóstico es correcto** y propone lo que dice el runbook. **El segundo dice que «el archivador guarda»**, justo lo contrario de los datos que tiene delante (49 s sin guardar, 50 carcasas perdidas). Y tu comprobación lo deja pasar, porque no hay ninguna **cifra** [inventada](../glosario/04-ia-generativa.md#alucinacion): el error está en las palabras. Por eso el estado de cada informe es «propuesta pendiente de una persona»: la comprobación automática atrapa una parte de los errores, no todos. En el reto 1 añades una segunda comprobación para este caso.
+## Reto
+
+### 1 — Antes de dejarle reiniciar, comprobar lo que dice
+
+**La situación:** sería fácil añadir al agente una herramienta que ejecute `docker compose restart archivador`, y así se arreglaría solo. Pero en el paso 6 de «Constrúyelo tú» uno de los dos diagnósticos decía que el archivador guardaba, cuando los datos decían lo contrario, y la comprobación de cifras no lo vio.
+
+**Qué haces:** después de «Constrúyelo tú», añades al final de tu agente una segunda comprobación, de **coherencia**: lees tus incidencias registradas en `mis_incidencias.jsonl` y marcas las que dicen que el archivador guarda cuando sus propios datos dicen que lleva más de 15 s sin guardar.
+
+**Pistas:** recorre el fichero línea a línea con `json.loads`; `informe["hechos"].get("segundos_sin_guardar")`; `re.search(r"archivador (sí )?guarda", texto)` encuentra la afirmación, y `"no guarda" not in texto` descarta la negación.
+
+**Lo que buscas:** qué informes contradicen sus propios datos, y si dejarías actuar solo a un agente que los escribe.
+
+<details>
+<summary>Ver solución</summary>
+
+```python
+# Reto 1: una segunda comprobación, de coherencia, sobre las incidencias registradas
+def contradice(informe):
+    sin_guardar = informe["hechos"].get("segundos_sin_guardar")
+    dice_que_guarda = re.search(r"archivador (sí )?guarda", informe["diagnostico"]) and "no guarda" not in informe["diagnostico"]
+    return isinstance(sin_guardar, int) and sin_guardar > 15 and bool(dice_que_guarda)
+
+for linea in open("/data/mis_incidencias.jsonl"):
+    informe = json.loads(linea)
+    print(f"{informe['alerta']:18s} sin_guardar={informe['hechos'].get('segundos_sin_guardar')}  "
+          f"{'CONTRADICE los datos: no actuar sin revisar' if contradice(informe) else 'coherente'}")
+```
+
+```text
+HistoricoSinDatos  sin_guardar=46  coherente
+RegistrosPerdidos  sin_guardar=49  CONTRADICE los datos: no actuar sin revisar
+```
+
+La comprobación atrapa el informe incoherente. Pero fíjate en lo que ha hecho falta: una regla escrita a mano **para una frase concreta**. Otro día el modelo dirá lo mismo con otras palabras y la regla no lo verá. Por mucho que se añadan comprobaciones, siempre quedará un hueco.
+
+**Por eso la herramienta de reiniciar no se añade.** Un agente que actúa sobre lo que redacta un modelo pequeño acabará reiniciando lo que no debe. La regla es la del M05-04: **solo herramientas de lectura**; el agente reúne, redacta y propone, y una persona revisa y actúa. Si algún día se automatiza una acción, se hace con una regla fija sobre los datos (como la alerta), no sobre el texto del modelo.
+
+</details>
+
+### 2 — Una alerta sin herramientas propias
+
+Baja el [umbral](../glosario/03-aprendizaje-automatico.md#umbral) de `TemperaturaHusilloAlta` a 62,5 °C y su `for` a 0 s, como en el M01-03, y lanza el agente cuando esté activa. ¿Qué herramientas usa y qué propone?
+
+<details>
+<summary>Ver solución</summary>
+
+Usa solo `temperatura_actual` (lo dice `PLAN`) y propone avisar al operario y revisar la refrigeración, que es lo que dice su sección del runbook. Si la alerta ya se ha apagado cuando lanzas el agente, sale `FALLO: no hay alertas activas`: con `for: 0s` se enciende y se apaga en pocos segundos. Deja después la regla como estaba (`> 70` y `for: 5s`) y reinicia Prometheus.
+
+</details>
+
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
@@ -307,6 +549,10 @@ No hace falta reiniciar nada: `lab` lee el código cada vez. Provoca la incidenc
 | Error de conexión con `http://llm:8088` | `llm` parado o cargando | `docker compose up -d llm` y espera a que conteste `/salud` (M05-01) |
 | El reinicio del broker no provoca la incidencia | El archivador ya está corregido (M01-03) | `git checkout linea/archivador.py` y `docker compose restart archivador` |
 | El diagnóstico tarda mucho | El panel u otro contenedor ocupan memoria | `docker compose stop panel` |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `alertas activas: ninguna` después de reiniciar el broker | todavía no ha pasado el tiempo de la alerta, o ya corregiste el archivador en «Mejora» | espera 40 s; si corregiste el archivador, para el archivador con `docker compose stop archivador` para provocar `ArchivadorCaido` |
 
 ## Conclusiones
 

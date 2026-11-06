@@ -32,7 +32,7 @@ De menos a más autonomía. Cada escalón exige más garantías que el anterior.
 
 **En la línea:** en el M06-01, la regresión logística tarda 0,35 ms por pieza en el edge; un ciclo dura 1 s.
 
-**Lo usas en:** <!--usos:inferencia-->[M06](../M06-edge-integracion-ot/README.md) · [M06-01](../M06-edge-integracion-ot/M06-01-inferencia-edge.md) · [M07](../M07-mlops-observabilidad/README.md) · [M07-01](../M07-mlops-observabilidad/M07-01-servicio-inferencia.md) · [M08](../M08-ciberseguridad-gobierno/README.md)<!--/usos-->
+**Lo usas en:** <!--usos:inferencia-->[M06](../M06-edge-integracion-ot/README.md) · [M06-01](../M06-edge-integracion-ot/M06-01-inferencia-edge.md) · [M07](../M07-mlops-observabilidad/README.md) · [M07-01](../M07-mlops-observabilidad/M07-01-servicio-inferencia.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-02](../M08-ciberseguridad-gobierno/M08-02-gobierno-trazabilidad.md)<!--/usos-->
 
 <a id="latencia"></a>
 ### Latencia
@@ -48,7 +48,7 @@ De menos a más autonomía. Cada escalón exige más garantías que el anterior.
 
 **En la línea:** FastAPI en el puerto 8000. `/salud` dice si está vivo, la versión y la huella del modelo.
 
-**Lo usas en:** <!--usos:api-->[M01-03](../M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) · [M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md)<!--/usos-->
+**Lo usas en:** <!--usos:api-->[M01-03](../M01-ia-industrial-arquitectura/M01-03-metricas-alertas.md) · [M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md) · [M08-02](../M08-ciberseguridad-gobierno/M08-02-gobierno-trazabilidad.md)<!--/usos-->
 
 <a id="dictamen"></a>
 ### Dictamen
@@ -66,7 +66,7 @@ De menos a más autonomía. Cada escalón exige más garantías que el anterior.
 
 **En la línea:** `linea/est01/consigna`, nivel de refrigeración de 1 a 3. La estación rechaza lo que esté fuera.
 
-**Lo usas en:** <!--usos:consigna-->[M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M05-04](../M05-ia-generativa/M05-04-agentes.md) · [M06-02](../M06-edge-integracion-ot/M06-02-integracion-ot.md) · [M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md)<!--/usos-->
+**Lo usas en:** <!--usos:consigna-->[M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M05-04](../M05-ia-generativa/M05-04-agentes.md) · [M06-02](../M06-edge-integracion-ot/M06-02-integracion-ot.md) · [M06-03](../M06-edge-integracion-ot/M06-03-prediccion-actuacion.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md) · [M08-02](../M08-ciberseguridad-gobierno/M08-02-gobierno-trazabilidad.md)<!--/usos-->
 
 <a id="mlops"></a>
 ### MLOps
@@ -88,7 +88,7 @@ datos → entrenar → evaluar → versionar → desplegar → vigilar ─┐
 
 **Dónde se rompe:** en el M07-01 cambias la etiqueta a `defecto-0.2` sin tocar el modelo: la versión dice «modelo nuevo» y la huella sigue igual, `69a897cdf955`. Un auditor que solo mirara la versión se equivocaría. La etiqueta dice lo que alguien **cree** que hay; la huella, lo que **hay**.
 
-**Lo usas en:** <!--usos:version-huella-->[M07](../M07-mlops-observabilidad/README.md) · [M07-01](../M07-mlops-observabilidad/M07-01-servicio-inferencia.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-02](../M08-ciberseguridad-gobierno/M08-02-gobierno-trazabilidad.md)<!--/usos-->
+**Lo usas en:** <!--usos:version-huella-->[M06-02](../M06-edge-integracion-ot/M06-02-integracion-ot.md) · [M07](../M07-mlops-observabilidad/README.md) · [M07-01](../M07-mlops-observabilidad/M07-01-servicio-inferencia.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-02](../M08-ciberseguridad-gobierno/M08-02-gobierno-trazabilidad.md)<!--/usos-->
 
 <a id="deriva"></a>
 ### Deriva
@@ -137,7 +137,7 @@ datos → entrenar → evaluar → versionar → desplegar → vigilar ─┐
 
 **Qué es:** comprobar **quién** es el que se conecta antes de dejarle leer o escribir. Sin autenticación, el sistema no distingue al modelo de cualquier otro.
 
-**Lo usas en:** <!--usos:autenticacion-->[M02-01](../M02-captura-integracion-datos/M02-01-telemetria.md) · [M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md)<!--/usos-->
+**Lo usas en:** <!--usos:autenticacion-->[M02-01](../M02-captura-integracion-datos/M02-01-telemetria.md) · [M02-02](../M02-captura-integracion-datos/M02-02-protocolos.md) · [M06-02](../M06-edge-integracion-ot/M06-02-integracion-ot.md) · [M08](../M08-ciberseguridad-gobierno/README.md) · [M08-01](../M08-ciberseguridad-gobierno/M08-01-evaluacion-riesgos.md)<!--/usos-->
 
 <a id="trazabilidad"></a>
 ### Trazabilidad (el rastro)

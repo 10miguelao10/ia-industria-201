@@ -171,12 +171,179 @@ curl -s http://localhost:8000/salud
 
 **Cómo se lee:** coinciden: el modelo que contesta es el del fichero. Si alguien sustituyera el fichero (por ejemplo, volviendo a lanzar `m03-03` con otros datos) y no recreara el servicio, la huella del disco y la del servicio dejarían de coincidir: el servicio seguiría contestando con el modelo anterior. En una plataforma de [MLOps](../glosario/05-operacion-gobierno.md#mlops), cada modelo se registra con su huella, sus datos de entrenamiento y sus [métricas](../glosario/02-observabilidad.md#metrica), y la versión se asigna a esa huella, no a mano.
 
+## Constrúyelo tú: tu propio servicio de inferencia
+
+**Qué está pasando:** el servicio del puerto 8000 está escrito en `infra/linea/inferencia_api.py`. Ahora escribes tú uno igual, pieza a pieza, con la misma librería (FastAPI): defines qué tiene que traer cada petición, qué devuelve la salud y qué devuelve un dictamen, con su versión y su huella. Lo pruebas sin arrancar ningún contenedor, con un cliente de pruebas que llama a tu servicio desde el mismo script, y al final le enseñas a **rechazar** una pieza imposible.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** saber qué modelo va a servir tu servicio, antes de escribirlo.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m07_01_mi_servicio.py`](../../infra/construye/m07_01_mi_servicio.py). El paso 1 ya está escrito: carga el modelo del M03-03, lee su versión y calcula su huella, como hace `inferencia_api.py` al arrancar. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m07_01_mi_servicio.py
+```
+
+**Resultado esperado:**
+
+```text
+servirá el modelo defecto-0.1 con huella 69a897cdf955
+```
+
+**Cómo se lee:** la misma versión y la misma huella que devuelve `curl http://localhost:8000/salud`: es el mismo fichero. `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**.
+
+### 2 — El contrato de entrada
+
+**Para qué:** que el servicio sepa exactamente qué tiene que traer cada petición, y rechace lo demás.
+
+**Qué ocurre:** describes una pieza como una clase: un identificador y cuatro señales numéricas. FastAPI usará esta descripción para comprobar cada petición antes de que llegue al modelo.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+class Pieza(BaseModel):
+    pieza_id: str
+    temperatura_c: float
+    vibracion_mm_s: float
+    corriente_a: float
+    presion_bar: float
+
+print("contrato de entrada:", list(Pieza.model_fields))
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+contrato de entrada: ['pieza_id', 'temperatura_c', 'vibracion_mm_s', 'corriente_a', 'presion_bar']
+```
+
+**Cómo se lee:** cinco campos, cada uno con su tipo. Es el **contrato**: lo que el servicio promete aceptar. Una aplicación de planta que quiera un dictamen sabe qué mandar sin leer el código del modelo.
+
+### 3 — La salud del servicio
+
+**Para qué:** que cualquiera pueda preguntar si el servicio está vivo y qué modelo tiene cargado.
+
+**Qué ocurre:** creas la aplicación y su primera dirección, `/salud`, que devuelve el estado, la versión y la huella.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+app = FastAPI(title="mi servicio de inferencia")
+
+@app.get("/salud")
+def salud():
+    return {"estado": "ok", "version": VERSION, "huella_modelo": HUELLA}
+
+print("direcciones del servicio:", [r.path for r in app.routes if r.path in ("/salud", "/predecir")])
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+direcciones del servicio: ['/salud']
+```
+
+**Cómo se lee:** el servicio existe, aunque todavía no lo ha llamado nadie. `@app.get("/salud")` dice: cuando alguien pida `GET /salud`, ejecuta esta función y devuelve su resultado en JSON. Es lo que mira un sistema de monitorización para saber si el servicio está vivo y con qué modelo.
+
+### 4 — El dictamen
+
+**Para qué:** que cada respuesta diga qué decidió y con qué modelo exacto, para poder rastrearla.
+
+**Qué ocurre:** añades `POST /predecir`: recibe una `Pieza`, pide la probabilidad al modelo y devuelve la decisión junto con la hora, la versión y la huella.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+@app.post("/predecir")
+def predecir(pieza: Pieza):
+    fila = pd.DataFrame([pieza.model_dump(exclude={"pieza_id"})])
+    p = float(MODELO.predict_proba(fila)[0, 1])
+    return {"pieza_id": pieza.pieza_id, "dictamen": "revisar" if p >= 0.5 else "seguir", "probabilidad": round(p, 3),
+            "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "version": VERSION, "huella_modelo": HUELLA}
+
+print("direcciones del servicio:", [r.path for r in app.routes if r.path in ("/salud", "/predecir")])
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+direcciones del servicio: ['/salud', '/predecir']
+```
+
+**Cómo se lee:** ya tiene las dos direcciones del servicio del lab. Fíjate en que `predecir` no comprueba nada a mano: si la petición no cumple el contrato del paso 2, FastAPI la rechaza antes de llamar a la función.
+
+### 5 — Llamarlo como un cliente
+
+**Para qué:** probar el servicio de verdad, por HTTP, sin arrancar ningún contenedor.
+
+**Qué ocurre:** creas un cliente de pruebas, que habla con tu `app` por HTTP dentro del mismo script, y le pides la salud y el dictamen de una pieza de `limpio.csv`.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+cliente = TestClient(app)
+print("GET /salud ->", cliente.get("/salud").json())
+pieza = pd.read_csv("/data/limpio.csv").iloc[0]
+cuerpo = {"pieza_id": pieza["pieza_id"], **{c: float(pieza[c]) for c in ["temperatura_c", "vibracion_mm_s", "corriente_a", "presion_bar"]}}
+r = cliente.post("/predecir", json=cuerpo)
+print(f"POST /predecir -> HTTP {r.status_code}", r.json())
+```
+
+**Resultado esperado** (líneas nuevas; cambia la hora):
+
+```text
+GET /salud -> {'estado': 'ok', 'version': 'defecto-0.1', 'huella_modelo': '69a897cdf955'}
+POST /predecir -> HTTP 200 {'pieza_id': 'H0001', 'dictamen': 'seguir', 'probabilidad': 0.08, 'ts': '2026-11-06T15:08:01+00:00', 'version': 'defecto-0.1', 'huella_modelo': '69a897cdf955'}
+```
+
+**Cómo se lee:** las mismas respuestas que da el servicio del puerto 8000 con `curl`: has escrito un servicio de inferencia completo en unas veinte líneas. El cliente de pruebas es lo que se usa para comprobar un servicio antes de desplegarlo.
+
+### 6 — Decide tú: una pieza imposible
+
+**Para qué:** comprobar si el contrato basta para proteger al modelo de datos absurdos.
+
+**Qué ocurre:** añades al final este bloque, que manda una pieza con 9999 °C, el valor del sensor clavado del M02-03, y ejecutas:
+
+```python
+# Una pieza con el sensor de temperatura clavado
+falsa = {**cuerpo, "pieza_id": "CLAVADO", "temperatura_c": 9999}
+r = cliente.post("/predecir", json=falsa)
+print(f"9999 °C -> HTTP {r.status_code}", r.json())
+```
+
+**Resultado esperado** (la línea nueva):
+
+```text
+9999 °C -> HTTP 200 {'pieza_id': 'CLAVADO', 'dictamen': 'revisar', 'probabilidad': 1.0, 'ts': '2026-11-06T15:08:04+00:00', 'version': 'defecto-0.1', 'huella_modelo': '69a897cdf955'}
+```
+
+**Cómo se lee:** **el servicio la acepta y da un dictamen**, «revisar» con probabilidad 1,0: 9999 es un número válido para el contrato, y el modelo nunca vio nada parecido. Esta vez acierta por casualidad; con un valor imposible en otra señal podría decir «seguir». Ahora cambia en el paso 2 la línea `temperatura_c: float` por `temperatura_c: float = Field(ge=0, le=150)` (de 0 a 150 °C) y vuelve a ejecutar:
+
+```text
+9999 °C -> HTTP 422 {'detail': [{'type': 'less_than_equal', 'loc': ['body', 'temperatura_c'], 'msg': 'Input should be less than or equal to 150', 'input': 9999, 'ctx': {'le': 150.0}}]}
+```
+
+Ahora **la rechaza** con el motivo, sin llegar al modelo. Un contrato que solo dice «un número» deja pasar lo imposible; un buen contrato pone los rangos físicos de cada señal. Quita el bloque cuando acabes, y deja el rango: es una mejora.
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
 | `curl: (7) Failed to connect` | `api` no arrancó, normalmente porque faltaba el `.joblib` | `docker compose logs api`; si falta el modelo, `m03-03` y `docker compose up -d api` |
 | responde otra versión | el contenedor arrancó con un `VERSION` viejo | `docker compose up -d --force-recreate api` |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `FileNotFoundError: /data/modelo_defecto.joblib` | no hiciste el M03-03 | lanza `lab m03-03` |
 
 ## Conclusiones
 

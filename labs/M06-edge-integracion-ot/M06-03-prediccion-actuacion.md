@@ -336,6 +336,181 @@ Recarga <http://localhost:9090/alerts> cada 10 segundos.
 
 Termina el fallo (`lab evento fin`, y `lab consigna 1` cuando se normalice).
 
+## Constrúyelo tú: tu propio vigilante predictivo
+
+**Qué está pasando:** `lab m06-03` aprende de las métricas cómo es la temperatura normal, vigila y propone subir la refrigeración antes de llegar a 70 °C. Ahora lo construyes tú, directamente sobre Prometheus: pides el [histórico](../glosario/01-datos-arquitectura.md#historico) de temperatura, calculas hasta dónde llega y cuánto sube normalmente, prevés cuánto falta para el límite y vigilas en **modo asistido**, proponiendo sin actuar. Al final provocas el fallo de refrigeración y ves a tu vigilante adelantarse a la alerta.
+
+**Cómo se trabaja en cada paso:**
+
+1. Lees para qué es el paso y qué hace el bloque.
+2. Copias el bloque y lo pegas en el fichero, **debajo del comentario de ese paso** (`# --- PASO N …`), en lugar de la línea `# (pega aquí el bloque del paso N)`.
+3. Guardas y ejecutas el script. Cada ejecución repite todo desde el principio, así que la salida crece paso a paso: lo nuevo aparece al final.
+
+### 1 — Abrir el fichero y ejecutarlo tal cual
+
+**Para qué:** tener el histórico de temperatura del que se va a aprender lo normal.
+
+**Qué ocurre:** abres en VS Code el fichero [`infra/construye/m06_03_mi_vigilante_predictivo.py`](../../infra/construye/m06_03_mi_vigilante_predictivo.py). Arriba están las **decisiones** (`APRENDER_MIN`, `VIGILAR_S`, `VENTANA_S`); debajo, el paso 1 ya escrito: una función `serie` que pide a Prometheus un tramo de la métrica de temperatura, como hace `lab exportar`. Lo ejecutas sin tocar nada.
+
+```bash
+# Ejecuta tu script con el Python del contenedor lab (-W ignore oculta avisos de las librerías)
+docker compose --profile lab run --rm --no-deps --entrypoint python lab -W ignore /construye/m06_03_mi_vigilante_predictivo.py
+```
+
+**Resultado esperado:**
+
+```text
+121 muestras de los últimos 10 min: mínima=60.87 media=62.04 máxima=63.24 °C
+```
+
+**Cómo se lee:** unas 120 muestras, una cada 5 s, alrededor de 62 °C. Si la mínima sale en 0 o la máxima pasa de 70, el tramo incluye una parada o un fallo: espera a tener 10 minutos sanos o el vigilante aprenderá lo que no es normal (es el reto 2 del lab). `--entrypoint python` hace que el contenedor `lab` ejecute **tu fichero**.
+
+### 2 — Hasta dónde llega lo normal
+
+**Para qué:** tener un límite de temperatura aprendido de la propia máquina, no un número puesto a ojo.
+
+**Qué ocurre:** descartas las muestras imposibles (por debajo de 40 °C, la estación parada) y calculas el percentil 99,5: la temperatura que una muestra normal solo supera 1 vez de cada 200.
+
+Pega debajo de `# --- PASO 2`:
+
+```python
+sanas = temp[temp > 40]                           # fuera las muestras con la estación parada
+limite_normal = np.percentile(sanas, 99.5)
+print(f"lo normal llega hasta {limite_normal:.2f} °C (percentil 99,5 de {len(sanas)} muestras)")
+```
+
+Ejecuta de nuevo (el mismo comando del paso 1).
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+lo normal llega hasta 63.22 °C (percentil 99,5 de 121 muestras)
+```
+
+**Cómo se lee:** el límite de lo normal queda cerca de 63 °C, **muy por debajo de los 70** de la alerta. Esa distancia es el margen que tiene el vigilante para avisar antes. Es la banda normal del glosario.
+
+### 3 — Cuánto sube normalmente
+
+**Para qué:** distinguir una temperatura alta que sube de una que solo oscila.
+
+**Qué ocurre:** recorres el histórico en ventanas de `VENTANA_S` segundos, ajustas una recta a cada una y te quedas con su pendiente en grados por minuto. El percentil 99,5 de esas pendientes es la subida máxima normal.
+
+Pega debajo de `# --- PASO 3`:
+
+```python
+def subida(ts, valores):
+    """Pendiente de la recta que mejor ajusta los valores, en °C por minuto."""
+    return np.polyfit(ts - ts[0], valores, 1)[0] * 60
+
+n = VENTANA_S // 5                                  # muestras por ventana
+pendientes = [subida(t[i:i + n], temp[i:i + n]) for i in range(0, len(temp) - n) if temp[i:i + n].min() > 40]
+subida_max = np.percentile(pendientes, 99.5)
+print(f"subida máxima normal: {subida_max:.2f} °C/min (de {len(pendientes)} ventanas de {VENTANA_S} s)")
+```
+
+**Resultado esperado** (líneas nuevas):
+
+```text
+subida máxima normal: 0.34 °C/min (de 97 ventanas de 120 s)
+```
+
+**Cómo se lee:** en funcionamiento normal, la temperatura sube y baja unas décimas por minuto: oscila. Una subida sostenida de más de eso no es normal. Con el límite del paso 2 tienes las dos condiciones del detector: **más caliente de lo normal y subiendo más de lo normal**.
+
+### 4 — Prever cuánto falta para la alerta
+
+**Para qué:** adelantarse: saber cuándo llegaría a 70 °C si sigue así.
+
+**Qué ocurre:** con los últimos `VENTANA_S` segundos calculas la subida actual y, si sube, cuántos minutos faltan para los 70 °C siguiendo la recta.
+
+Pega debajo de `# --- PASO 4`:
+
+```python
+def prever():
+    ts, v = serie(VENTANA_S / 60)
+    ahora, ritmo = v[-1], subida(ts, v)
+    minutos = (LIMITE_ALERTA - ahora) / ritmo if ritmo > 0 else None
+    return ahora, ritmo, minutos
+
+ahora, ritmo, minutos = prever()
+print(f"ahora {ahora:.2f} °C, subida {ritmo:+.2f} °C/min, " +
+      (f"llegaría a 70 °C en {minutos:.0f} min" if minutos else "no sube: no llegará"))
+```
+
+**Resultado esperado** (línea nueva; cambian los números):
+
+```text
+ahora 63.17 °C, subida +0.16 °C/min, llegaría a 70 °C en 43 min
+```
+
+**Cómo se lee:** con la máquina sana, la subida es de unas décimas, a veces negativa, así que los minutos que faltan salen en decenas o no salen. La temperatura de una muestra a otra oscila un grado arriba o abajo: por eso la subida se calcula con dos minutos de muestras y no con las dos últimas. La previsión es una recta: sirve para decir «si sigue así», no para adivinar qué hará.
+
+### 5 — Vigilar en modo asistido
+
+**Para qué:** que el vigilante proponga una acción solo cuando hay motivo, y que la decida una persona.
+
+**Qué ocurre:** durante `VIGILAR_S` segundos, cada 10 s, prevés. Si la temperatura pasa del límite normal **y** sube más que la subida máxima normal, el vigilante **propone** subir la refrigeración a 3, con los minutos que faltan. No envía nada a la estación.
+
+Pega debajo de `# --- PASO 5`:
+
+```python
+print("hora      temp    subida/min  previsión")
+inicio = time.time()
+while time.time() - inicio < VIGILAR_S:
+    ahora, ritmo, minutos = prever()
+    if ahora > limite_normal and ritmo > subida_max:
+        aviso = f"PROPUESTA: subir refrigeración a 3 (70 °C en ~{minutos:.1f} min). La decide el operario."
+    else:
+        aviso = "normal"
+    print(f"{time.strftime('%H:%M:%S')}  {ahora:6.2f}  {ritmo:+10.2f}  {aviso}")
+    time.sleep(10)
+```
+
+**Resultado esperado** (líneas nuevas; cambian los números):
+
+```text
+hora      temp    subida/min  previsión
+15:06:18   63.17       +0.16  normal
+15:06:28   61.38       +0.06  normal
+15:06:38   62.31       +0.15  normal
+```
+
+**Cómo se lee:** con la máquina sana, todo «normal»: el vigilante no molesta. Es el **modo asistido** del lab: tu código propone y la persona decide con `lab consigna 3`. En el paso 6 verás si se adelanta de verdad.
+
+### 6 — Decide tú: provocar el fallo de refrigeración
+
+**Para qué:** comprobar que tu vigilante propone la acción antes de que salte la alerta.
+
+**Qué ocurre:** cambias `VIGILAR_S = 30` por `VIGILAR_S = 150` y ejecutas. En **otra terminal**, justo después, provocas el fallo. Al terminar, lo apagas y devuelves la refrigeración a su nivel.
+
+```bash
+# En otra terminal, nada más lanzar el script
+docker compose --profile lab run --rm --no-deps lab evento fallo-refrigeracion
+
+# Cuando termine el script
+docker compose --profile lab run --rm --no-deps lab evento fin
+docker compose --profile lab run --rm --no-deps lab consigna 1
+```
+
+📋 Fichas de los comandos [`evento`](../comandos-lab.md#evento) y [`consigna`](../comandos-lab.md#consigna).
+
+**Resultado esperado** (las líneas de vigilancia; cambian los números):
+
+```text
+hora      temp    subida/min  previsión
+15:07:02   61.41       +0.06  normal
+15:07:12   62.49       +0.16  normal
+15:07:22   61.83       +0.01  normal
+15:07:32   63.19       +0.42  normal
+15:07:42   63.20       +0.33  normal
+15:07:52   64.80       +0.65  PROPUESTA: subir refrigeración a 3 (70 °C en ~7.9 min). La decide el operario.
+15:08:02   63.83       +0.91  PROPUESTA: subir refrigeración a 3 (70 °C en ~6.8 min). La decide el operario.
+15:08:12   65.34       +1.45  PROPUESTA: subir refrigeración a 3 (70 °C en ~3.2 min). La decide el operario.
+...
+15:09:12   68.33       +2.94  PROPUESTA: subir refrigeración a 3 (70 °C en ~0.6 min). La decide el operario.
+15:09:22   67.21       +2.78  PROPUESTA: subir refrigeración a 3 (70 °C en ~1.0 min). La decide el operario.
+```
+
+**Cómo se lee:** durante el primer minuto del fallo no pasa nada visible: la temperatura todavía está dentro de lo normal. A los 50 s, **la temperatura sale de la banda y sube más deprisa de lo normal a la vez**, y el vigilante propone subir la refrigeración con casi **8 minutos de margen** antes de los 70 °C. La alerta de Prometheus todavía no había saltado, ni saltó en los 150 s. Si en ese momento lanzas `lab consigna 3`, como en el paso 5 del lab, la temperatura deja de subir. La proyección se va acortando porque la subida se acelera: una recta llega tarde cuando la curva se empina, lo que se nota en el último minuto.
 ## Errores frecuentes
 
 | Síntoma | Causa probable | Cómo arreglarlo |
@@ -345,6 +520,11 @@ Termina el fallo (`lab evento fin`, y `lab consigna 1` cuando se normalice).
 | El modelo no propone nada | La temperatura no se sale de lo normal: ¿enviaste el evento? | `lab evento fallo-refrigeracion` y espera un minuto |
 | La temperatura no baja tras la consigna | El fallo sigue y la refrigeración es 1 | `lab consigna 3` |
 | La temperatura sigue alta tras `evento fin` | Se recupera despacio con refrigeración 1 | `lab consigna 3` y luego `lab consigna 1` |
+| `NameError: name '…' is not defined` | pegaste un bloque en el hueco de otro paso, o te saltaste uno | cada bloque va debajo de su `# --- PASO N`, en orden |
+| `IndentationError` | el bloque quedó con espacios de más o de menos al pegarlo | las líneas de cada bloque empiezan en la columna 0, salvo las de dentro de `for`, `if`, `while` y `def` |
+| `ModuleNotFoundError` | ejecutaste el script con el Python de tu equipo | ejecútalo con el comando del paso 1, dentro del contenedor `lab` |
+| `IndexError` en `serie` | Prometheus no tiene la métrica todavía, o lleva poco tiempo en marcha | arranca prometheus y deja pasar 10 minutos de funcionamiento normal |
+| la banda normal sale por encima de 70 °C | el histórico de 10 minutos incluye un fallo provocado | espera 10 minutos sin fallos y vuelve a ejecutar |
 
 ## Conclusiones
 
