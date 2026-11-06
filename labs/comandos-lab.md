@@ -68,7 +68,7 @@ docker compose --profile lab run --rm --no-deps lab sql "SELECT COUNT(*) FROM le
 | | |
 |--|--|
 | Necesita en marcha | Nada (solo `lab`). Para tener datos, antes `mosquitto`, `sensor` y `archivador` |
-| Lee | `historial.sqlite`, en **solo lectura**. Si existe `calidad.sqlite`, también, con sus tablas como `calidad.inspecciones` |
+| Lee | `historial.sqlite`, en **solo lectura**. Si existe `calidad.sqlite`, también, con sus tablas como `calidad.inspecciones`. Y los CSV de `data/` como tablas: `crudo`, `limpio`, `imposibles`, `dataset_linea`, `lote_resultado`, `notas_extraidas`, `manifiesto`, `vigilancia`, `metricas` |
 | Escribe | Nada. Un `DELETE`, `UPDATE` o `DROP` se rechaza: no puedes estropear el histórico |
 | Termina bien si | La consulta es válida (enseña las filas, o `(ninguna fila)`) |
 | `FALLO` si | No hay histórico todavía o la consulta tiene un error |
@@ -171,6 +171,171 @@ for n in notas:
 </details>
 
 Se usa en [M02-03](M02-captura-integracion-datos/M02-03-preparacion-datos.md).
+
+### modbus
+
+**Qué hace:** hace de cliente Modbus y lee registros del esclavo en crudo, sin aplicar ninguna escala.
+
+```bash
+lab modbus            # registros 0 a 3
+lab modbus 0 12       # 12 registros desde el 0
+lab modbus 10 1       # solo el registro 10 (paro de seguridad)
+```
+
+| | |
+|--|--|
+| Necesita en marcha | `modbus` (y `sensor`, para que haya valores) |
+| Lee | Los registros del esclavo Modbus (puerto 1502) |
+| Escribe | Nada |
+| `OK` si | El esclavo responde |
+| `FALLO` si | `modbus` no está en marcha |
+
+Se usa en [M02-02](M02-captura-integracion-datos/M02-02-protocolos.md) y en la demo del M06.
+
+### opcua
+
+**Qué hace:** hace de cliente OPC-UA: se conecta al servidor, recorre el objeto `Estacion` y enseña cada variable con su valor y su tipo.
+
+| | |
+|--|--|
+| Necesita en marcha | `opcua` (y `sensor`) |
+| Lee | El servidor OPC-UA (puerto 4840) |
+| Escribe | Nada |
+| `OK` si | Encuentra el objeto `Estacion` |
+| `FALLO` si | El servidor no responde |
+
+Se usa en [M02-02](M02-captura-integracion-datos/M02-02-protocolos.md).
+
+### pasarela
+
+**Qué hace:** hace de pasarela de protocolos durante N segundos: lee los registros 0–3 por Modbus cada segundo, aplica el mapa de registros (escalas) y publica el resultado en MQTT, en `linea/est01/pasarela`, ya en grados.
+
+```bash
+lab pasarela 10       # 10 segundos
+```
+
+| | |
+|--|--|
+| Necesita en marcha | `modbus`, `mosquitto` |
+| Lee | Registros Modbus 0 a 3 |
+| Escribe | Publica en `linea/est01/pasarela` |
+| `OK` si | Termina los N segundos |
+| `FALLO` si | Modbus no conecta |
+
+Se usa en [M02-02](M02-captura-integracion-datos/M02-02-protocolos.md).
+
+### arbol
+
+**Qué hace:** enseña en texto las reglas del árbol de decisión guardado: el de la línea (`modelo_defecto.joblib`, de M03-03) o, con `linea`, el del dataset propio (`modelo_linea.joblib`, de M03-04).
+
+```bash
+lab arbol             # el modelo de la línea
+lab arbol linea       # el entrenado con tu dataset
+```
+
+| | |
+|--|--|
+| Necesita en marcha | Nada (solo `lab`) |
+| Lee | `modelo_defecto.joblib` o `modelo_linea.joblib` |
+| Escribe | Nada |
+| `OK` si | El fichero es un árbol |
+| `FALLO` si | Falta el fichero o no es un árbol (por ejemplo, si ganó la regresión logística) |
+
+Se usa en [M03-03](M03-ml-prediccion-anomalias/M03-03-comparacion-modelos.md) y [M03-04](M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md).
+
+### preguntar
+
+**Qué hace:** envía una pregunta al modelo de lenguaje local. Con `procedimiento`, antes busca el párrafo del procedimiento de la estación que más palabras comparte con la pregunta y se lo da al modelo.
+
+```bash
+lab preguntar "¿A qué par se aprieta el tornillo de la brida?"
+lab preguntar "¿A qué par se aprieta el tornillo de la brida?" procedimiento
+```
+
+| | |
+|--|--|
+| Necesita en marcha | `llm` |
+| Lee | La respuesta del modelo · con `procedimiento`, `linea/docs/procedimiento-est01.md` |
+| Escribe | Nada |
+| `OK` si | El modelo responde |
+| `FALLO` si | Falta la pregunta (si el modelo no responde, error de conexión) |
+
+Se usa en [M05-01](M05-ia-generativa/M05-01-modelo-local.md), [M05-03](M05-ia-generativa/M05-03-asistente-documentacion.md) y [M05-04](M05-ia-generativa/M05-04-agentes.md).
+
+### buscar
+
+**Qué hace:** enseña cómo puntúa cada párrafo del procedimiento para una pregunta (palabras en común) y cuál elegiría el asistente. Con `filtrar`, no cuenta palabras vacías («a», «de», «la»…) ni títulos.
+
+```bash
+lab buscar "¿A qué temperatura hay que avisar?"
+lab buscar "¿A qué temperatura hay que avisar?" filtrar
+```
+
+| | |
+|--|--|
+| Necesita en marcha | Nada (solo `lab`). No llama al modelo |
+| Lee | `linea/docs/procedimiento-est01.md` |
+| Escribe | Nada |
+| `OK` si | Hay pregunta |
+| `FALLO` si | Falta la pregunta |
+
+Se usa en [M05-03](M05-ia-generativa/M05-03-asistente-documentacion.md).
+
+### evento
+
+**Qué hace:** provoca o termina un fallo **simulado** en la estación, publicando en `linea/est01/evento`. Con el fallo de refrigeración, el husillo gana unos 0,05 °C por carcasa.
+
+```bash
+lab evento fallo-refrigeracion
+lab evento fin
+```
+
+| | |
+|--|--|
+| Necesita en marcha | `mosquitto`, `sensor` |
+| Lee | Nada |
+| Escribe | Publica en `linea/est01/evento` |
+| `OK` si | Se publica |
+| `FALLO` si | El tipo no es `fallo-refrigeracion` ni `fin` |
+
+Solo existe en el laboratorio, para poder practicar con un fallo. Se usa en [M06-03](M06-edge-integracion-ot/M06-03-prediccion-actuacion.md) y [M07-02](M07-mlops-observabilidad/M07-02-monitorizacion.md).
+
+### consigna
+
+**Qué hace:** pide a la estación un nivel de refrigeración, publicando en `linea/est01/consigna`. La estación **solo acepta niveles de 1 a 3**: si se pide otro, lo recorta.
+
+```bash
+lab consigna 3        # más refrigeración
+lab consigna 1        # nivel normal
+```
+
+| | |
+|--|--|
+| Necesita en marcha | `mosquitto`, `sensor` |
+| Lee | Nada |
+| Escribe | Publica en `linea/est01/consigna` |
+| `OK` si | Se publica |
+| `FALLO` si | El broker no responde |
+
+Se usa en [M06-03](M06-edge-integracion-ot/M06-03-prediccion-actuacion.md).
+
+### exportar
+
+**Qué hace:** baja de Prometheus (con su API `query_range`) la temperatura del husillo y el tiempo de ciclo de los últimos N minutos, una muestra cada 5 s, a `data/metricas.csv`.
+
+```bash
+lab exportar 10       # últimos 10 minutos
+```
+
+| | |
+|--|--|
+| Necesita en marcha | `prometheus` con métricas recogidas |
+| Lee | La API de Prometheus |
+| Escribe | `metricas.csv` (consultable con `lab sql` como tabla `metricas`) |
+| `OK` si | Hay datos |
+| `FALLO` si | Prometheus no tiene datos de temperatura |
+
+Se usa en [M06-03](M06-edge-integracion-ot/M06-03-prediccion-actuacion.md).
 
 ---
 
@@ -370,6 +535,7 @@ Se usa en [M02-02](M02-captura-integracion-datos/M02-02-protocolos.md).
 
 | | |
 |--|--|
+| Parámetros | `rellenar`: además, escribe `limpio_relleno.csv` con los huecos rellenados con la media y compara |
 | Necesita en marcha | Nada (solo `lab`) |
 | Lee | Nada: el histórico lo genera el propio comando |
 | Escribe | `crudo.csv` (tal cual) · `limpio.csv` (una fila por pieza, en grados) · `imposibles.csv` (los 9999). Los sobrescribe si ya existían |
@@ -451,6 +617,7 @@ Se usa en [M02-04](M02-captura-integracion-datos/M02-04-dataset-linea.md).
 
 | | |
 |--|--|
+| Parámetros | `umbral=0.5` (umbral de decisión), `equilibrar=si` o `no` (peso extra a la clase defecto) |
 | Necesita en marcha | Nada (solo `lab`) |
 | Lee | `limpio.csv` (si falta, lo genera como `m02-03`) |
 | Escribe | `modelo_logreg.joblib` |
@@ -491,6 +658,7 @@ Se usa en [M03-01](M03-ml-prediccion-anomalias/M03-01-prediccion-defectos.md).
 
 | | |
 |--|--|
+| Parámetros | `umbral=13.3` (distancia a partir de la cual avisa). Escribe también `vigilancia.csv` |
 | Necesita en marcha | Nada (solo `lab`) |
 | Lee | Nada: genera sus propios ciclos normales (400) y los 200 de vigilancia |
 | Escribe | `detector_anomalia.joblib` |
@@ -655,6 +823,7 @@ Se usa en [M03-04](M03-ml-prediccion-anomalias/M03-04-entrenar-datos-linea.md).
 
 | | |
 |--|--|
+| Parámetros | `lado=16` (tamaño al que se reduce cada foto; con otro valor no se guarda el modelo) |
 | Necesita en marcha | Nada (solo `lab`) |
 | Lee | `imagenes/manifiesto.csv` (si falta, genera las fotos) |
 | Escribe | `imagenes/buenas/*.png` · `imagenes/defectuosas/*.png` · `imagenes/manifiesto.csv` · `modelo_vision.joblib` |
@@ -693,6 +862,7 @@ Se usa en [M04-01](M04-vision-control-calidad/M04-01-clasificacion-componentes.m
 
 | | |
 |--|--|
+| Parámetros | `brillo=230` (brillo de fila a partir del cual una pieza buena «tiene marca») |
 | Necesita en marcha | Nada (solo `lab`) |
 | Lee | Las fotos y `imagenes/manifiesto.csv` (si faltan, las genera) |
 | Escribe | Nada |
@@ -739,6 +909,7 @@ Se usa en [M04-02](M04-vision-control-calidad/M04-02-deteccion-defectos.md).
 
 | | |
 |--|--|
+| Parámetros | `umbral=0.5`, `duda=0` (con `duda=0.1`, las piezas a menos de 0,1 del umbral quedan como `dudosa`) |
 | Necesita en marcha | Nada (solo `lab`) |
 | Lee | `modelo_vision.joblib` (si falta, lo entrena como `m04-01`) · las fotos |
 | Escribe | `lote_entrada/*.png` · `lote_resultado.csv` |
@@ -1025,6 +1196,7 @@ Se usa en [M05-04](M05-ia-generativa/M05-04-agentes.md). El rechazo de escritura
 
 | | |
 |--|--|
+| Parámetros | `modelo=modelo_defecto.joblib` (fichero del modelo a medir) |
 | Necesita en marcha | Nada (solo `lab`) |
 | Lee | `modelo_defecto.joblib` · la primera pieza de `limpio.csv` |
 | Escribe | Nada |
@@ -1064,6 +1236,7 @@ Se usa en [M06-01](M06-edge-integracion-ot/M06-01-inferencia-edge.md).
 
 | | |
 |--|--|
+| Parámetros | `umbral=0.5` |
 | Necesita en marcha | `mosquitto`, `sensor`, `modbus` |
 | Lee | `modelo_defecto.joblib` · `estado.json` (la presión se fija en 6 bar) · el tema `linea/est01/dictamen` · registro Modbus 10 |
 | Escribe | Publica un evento en `linea/est01/dictamen` |
@@ -1107,6 +1280,51 @@ def cmd_m06_02(_args):
 </details>
 
 Se usa en [M06-02](M06-edge-integracion-ot/M06-02-integracion-ot.md).
+
+### m06-03
+
+**Qué hace:** dos fases. `aprender` lee `metricas.csv`, descarta muestras imposibles y aprende el comportamiento normal: hasta dónde llega la temperatura (percentil 99,5) y cuánto sube como mucho en 2 minutos. `vigilar` consulta Prometheus cada 10 s: si la temperatura está por encima de lo normal **y** sube más de lo normal, calcula cuándo llegará a 70 °C y, si es en menos de 5 minutos, propone (o aplica) subir la refrigeración.
+
+```bash
+lab m06-03 aprender
+lab m06-03 vigilar segundos=150                     # asistido: propone
+lab m06-03 vigilar segundos=180 modo=automatico     # automático: aplica la consigna 3
+```
+
+| | |
+|--|--|
+| Parámetros | `segundos=` (duración de la vigilancia), `modo=asistido` o `modo=automatico` |
+| Necesita en marcha | `prometheus`, `sensor`, `mosquitto` |
+| Lee | `metricas.csv` (aprender) · Prometheus y `modelo_termico.json` (vigilar) |
+| Escribe | `modelo_termico.json` (aprender) · `actuaciones.jsonl` y, en automático, una consigna en `linea/est01/consigna` |
+| `OK` si | Termina |
+| `FALLO` si | Faltan `metricas.csv` o `modelo_termico.json`, o hay menos de 120 muestras válidas |
+
+<details>
+<summary>Código (<code>infra/linea/cli.py</code>, función <code>cmd_m06_03</code>)</summary>
+
+```python
+# aprender
+df = df[df.temperatura_c >= 40]                                  # fuera muestras imposibles
+subidas = [np.polyfit(np.arange(24) * 5, temp[i:i + 24], 1)[0] for i in range(len(temp) - 24)]
+modelo = {"limite_normal": np.percentile(temp, 99.5),
+          "pendiente_normal_max": np.percentile(np.abs(subidas), 99.5)}
+
+# vigilar (cada 10 s)
+valores = _serie("estacion_temperatura_husillo_celsius", 2)      # últimos 2 minutos de Prometheus
+pendiente = _pendiente(valores)                                   # recta ajustada: °C por segundo
+anomalo = temp > modelo["limite_normal"] and pendiente > modelo["pendiente_normal_max"]
+if anomalo:
+    faltan = (70 - temp) / pendiente                              # segundos hasta 70 °C
+    if faltan < 300:
+        if automatico:
+            _publicar(TOPIC_CONSIGNA, {"refrigeracion": 3, "origen": "modelo"})   # la estación limita a 1-3
+        # se registra la propuesta o la acción en actuaciones.jsonl
+```
+
+</details>
+
+Se usa en [M06-03](M06-edge-integracion-ot/M06-03-prediccion-actuacion.md).
 
 ---
 
@@ -1156,6 +1374,7 @@ Se usa en [M07-01](M07-mlops-observabilidad/M07-01-servicio-inferencia.md).
 
 | | |
 |--|--|
+| Parámetros | `grados=8` (desplazamiento de temperatura), `vivo` (mide con las últimas 120 carcasas del histórico) |
 | Necesita en marcha | Nada (solo `lab`) |
 | Lee | `modelo_defecto.joblib` · `limpio.csv` |
 | Escribe | `seguimiento.json` (tasa base y tasa desplazada) |

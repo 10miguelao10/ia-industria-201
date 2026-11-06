@@ -103,11 +103,24 @@ En el M05, detén el panel (`docker compose stop panel`) antes de arrancar `llm`
 | M03-04 | `lab` y el `dataset_linea.csv` de M02-04 | ~0,5 GB | el `.joblib` | no |
 | M04-01 a M04-04 | `lab` | ~0,5 GB | ~80 PNG pequeñas | no |
 | M05-01 a M05-04 | `llm` (+ sensor en M05-04) | hasta 2 GB | ~470 MB del GGUF | solo la primera descarga |
+| M01-02 (IA sobre el dato), M02-03 (notas de turno) | además, `llm` | hasta 2 GB más | — | no |
 | M06-01 | `lab` con el modelo de M03 | ~0,4 GB | — | no |
 | M06-02 | `lab` + mosquitto + modbus + sensor | ~0,7 GB | — | no |
+| M06-03 | mosquitto, sensor, archivador, prometheus (con 10 min de métricas normales) | ~0,8 GB | `metricas.csv`, `modelo_termico.json`, `actuaciones.jsonl` | no |
 | M07-01, M07-02 | `api` + el `.joblib` | ~0,8 GB | el registro jsonl | no |
 | M07-03 | mosquitto, sensor, archivador, prometheus, llm | hasta 3 GB | `incidencias.jsonl` | no |
 | M08-01 | modbus (registro de paro) | ~0,2 GB | — | no |
 | M08-02 | `api` | ~0,8 GB | el jsonl de predicciones | no |
 
 Para el panel: <http://localhost:8501>. Para el servicio de inferencia: <http://localhost:8000/salud>. Para el modelo generativo: <http://localhost:8088/salud>. Para Prometheus: <http://localhost:9090>.
+
+## Eventos y consignas simulados (M06-03)
+
+La estación acepta dos mensajes de control por MQTT, solo para practicar:
+
+| Tema | Mensaje | Efecto |
+|------|---------|--------|
+| `linea/est01/evento` | `{"tipo": "fallo_refrigeracion"}` o `{"tipo": "fin"}` | Provoca o termina un fallo: el husillo gana ~0,05 °C por carcasa |
+| `linea/est01/consigna` | `{"refrigeracion": N}` | Nivel de refrigeración; la estación lo limita a 1–3 |
+
+Se envían con `lab evento …` y `lab consigna …`. Sin ellos, la estación se comporta siempre igual. Si la temperatura se queda alta tras un fallo, `lab evento fin` y `lab consigna 3`; cuando baje de 63 °C, `lab consigna 1`. Reiniciar la estación (`docker compose restart sensor`) también la devuelve a su estado normal.
