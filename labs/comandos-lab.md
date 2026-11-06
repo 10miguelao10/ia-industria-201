@@ -682,16 +682,16 @@ def cmd_m03_02(_args):
     distancias = detector.mahalanobis(escala.transform(vig[FEATURES]))
     marcas = np.where(distancias >= 13.3, -1, 1)  # -1 = aviso; 13,3 = percentil 99 con 4 señales
 
-    # la columna "inyectada" solo se usa aquí, para contar aciertos
-    raro = vig["inyectada"] == 1
+    # la columna "averia_simulada" solo se usa aquí, para contar aciertos
+    raro = vig["averia_simulada"] == 1
     pillados = int(((marcas == -1) & raro).sum())
     total = int(raro.sum())
-    print(f"inyectados={total} detectados={pillados}")
+    print(f"averias_simuladas={total} avisadas={pillados}")
     if pillados / total < 0.7:
-        return fallo("el detector no ve los ciclos inyectados")
+        return fallo("el detector no ve las averías simuladas")
 
     joblib.dump(detector, DATA / "detector_anomalia.joblib")
-    return ok("m03-02", f"avisos sobre inyectados {pillados}/{total}")
+    return ok("m03-02", f"averías simuladas avisadas {pillados}/{total}")
 ```
 
 </details>

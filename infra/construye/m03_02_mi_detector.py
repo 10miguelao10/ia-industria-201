@@ -11,17 +11,17 @@ from linea.datos import generar_limpio, vigilancia   # los mismos generadores qu
 # --- Decisiones tuyas (las cambiarás en los pasos finales) -------------------
 SENALES = ["temperatura_c", "vibracion_mm_s", "corriente_a", "presion_bar"]
 UMBRAL = 13.3                 # distancia a partir de la cual se avisa
-VIBRACION_ALTERADA = None     # None = la avería del lab (vibración ~1,3 mm/s); un número = otra avería
+VIBRACION_AVERIA = None     # None = la avería del lab (vibración ~1,3 mm/s); un número = otra avería
 CICLOS_POR_TURNO = 8 * 3600   # un ciclo por segundo durante un turno de 8 h
 
 # --- PASO 1: los ciclos (ya está hecho) --------------------------------------
 base = generar_limpio(400, seed=3)
 normal = base[base["defecto"] == 0]                   # solo ciclos sanos: con esto aprende
 vig = vigilancia()                                    # 200 ciclos nuevos que hay que vigilar
-if VIBRACION_ALTERADA is not None:                    # otra avería: cambia la vibración de los 20 alterados
-    vig.loc[vig["inyectada"] == 1, "vibracion_mm_s"] = VIBRACION_ALTERADA
-alterado = vig["inyectada"] == 1                      # la marca: solo se usa para contar al final
-print(f"ciclos normales para aprender={len(normal)} ciclos a vigilar={len(vig)} alterados={int(alterado.sum())}")
+if VIBRACION_AVERIA is not None:                    # otra avería: cambia la vibración de las 20 averías simuladas
+    vig.loc[vig["averia_simulada"] == 1, "vibracion_mm_s"] = VIBRACION_AVERIA
+averia = vig["averia_simulada"] == 1                      # la marca: solo se usa para contar al final
+print(f"ciclos normales para aprender={len(normal)} ciclos a vigilar={len(vig)} averias_simuladas={int(averia.sum())}")
 
 # --- PASO 2: aprender cómo es lo normal --------------------------------------
 # (pega aquí el bloque del paso 2)

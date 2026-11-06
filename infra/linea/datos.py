@@ -92,12 +92,12 @@ def vigilancia(n_normal: int = 180, n_raros: int = 20, seed: int = 11) -> pd.Dat
     filas = []
     for i in range(1, n_normal + 1):
         fila = _fila(i, rng)
-        fila["inyectada"] = 0
+        fila["averia_simulada"] = 0
         filas.append(fila)
     for i in range(n_normal + 1, n_normal + n_raros + 1):
         fila = _fila(i, rng)
         fila["vibracion_mm_s"] = round(1.1 + rng.random() * 0.4, 3)
-        fila["inyectada"] = 1
+        fila["averia_simulada"] = 1
         filas.append(fila)
     return pd.DataFrame(filas)
 

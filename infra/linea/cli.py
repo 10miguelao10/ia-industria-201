@@ -362,7 +362,7 @@ def cmd_m03_02(args) -> int:
     umbral = _param(args, "umbral", 13.3)  # por defecto, chi-cuadrado 0,99 con 4 señales
     distancias = detector.mahalanobis(escala.transform(vig[FEATURES]))
     marcas = np.where(distancias >= umbral, -1, 1)
-    raro = vig["inyectada"] == 1
+    raro = vig["averia_simulada"] == 1
     pillados = int(((marcas == -1) & raro).sum())
     total = int(raro.sum())
     falsos = int(((marcas == -1) & ~raro).sum())
@@ -370,11 +370,11 @@ def cmd_m03_02(args) -> int:
     salida["distancia"] = distancias.round(2)
     salida["aviso"] = (marcas == -1).astype(int)
     salida.to_csv(DATA / "vigilancia.csv", index=False)
-    print(f"umbral={umbral} inyectados={total} detectados={pillados} avisos_sobre_normales={falsos} de {int((~raro).sum())}")
+    print(f"umbral={umbral} averias_simuladas={total} avisadas={pillados} avisos_sobre_normales={falsos} de {int((~raro).sum())}")
     if pillados / total < 0.7:
-        return fallo("el detector no ve los ciclos inyectados")
+        return fallo("el detector no ve las averías simuladas")
     joblib.dump(detector, DATA / "detector_anomalia.joblib")
-    return ok("m03-02", f"avisos sobre inyectados {pillados}/{total}")
+    return ok("m03-02", f"averías simuladas avisadas {pillados}/{total}")
 
 
 def cmd_m03_03(_args) -> int:
