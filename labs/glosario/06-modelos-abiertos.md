@@ -2,7 +2,7 @@
 
 [← Hoja anterior](05-operacion-gobierno.md) · [Índice del glosario](README.md)
 
-Qué modelos de IA se pueden instalar en los equipos de la propia planta, sin enviar datos fuera: para qué sirve cada tipo, cuándo usarlo y cuándo no, qué licencia tiene y qué equipo necesita. No hace falta probarlos todos; hace falta **saber situarlos** para elegir bien y para entender lo que pide un integrador. Lo practicas en el [M05-05](../M05-ia-generativa/M05-05-modelos-abiertos.md).
+Qué modelos de IA se pueden instalar en los equipos de la propia planta, sin enviar datos fuera: un **catálogo por tarea** (texto, búsqueda, documentos, voz, visión, series temporales y filtros de seguridad) con para qué sirve cada modelo, cuándo usarlo y cuándo no, qué licencia tiene y qué equipo necesita. No hace falta probarlos todos; hace falta **saber situarlos** para elegir bien y para entender lo que pide un integrador. Lo practicas en el [M05-05](../M05-ia-generativa/M05-05-modelos-abiertos.md).
 
 > Los modelos y las licencias cambian cada pocos meses. Esta hoja recoge la situación de **noviembre de 2026**; antes de elegir un modelo, se comprueba su ficha oficial (en Hugging Face, la «model card» y el fichero `LICENSE`).
 
@@ -22,20 +22,34 @@ Qué modelos de IA se pueden instalar en los equipos de la propia planta, sin en
 │   ├── Mediano denso (unos 7–32 B): GPU de servidor ........... ○ Qwen3.8 27B · ○ Mistral Small · ○ Gemma
 │   └── Mezcla de expertos, MoE (muchos parámetros, pocos activos) ○ Qwen3.6 35B-A3B · ○ gpt-oss
 │
-├── Buscar por significado en documentos ── modelo de embeddings ✔ Qwen3-Embedding 0.6B (M05-05)
+├── Buscar en documentos
+│   ├── Encontrar por significado (embeddings) ................. ✔ Qwen3-Embedding 0.6B (M05-05) · ○ BGE-M3 · ○ multilingual-e5
+│   └── Reordenar lo encontrado (reranker) ..................... ○ Qwen3-Reranker · ○ bge-reranker
 │
-├── Pasar voz a texto ── reconocimiento de voz (ASR) ........... ○ Qwen3-ASR 1.7B · ○ Voxtral Mini 3B · ○ Whisper
+├── Leer documentos: OCR de etiquetas, albaranes, planos, PDF .. ○ PaddleOCR · ○ Docling · ○ modelos multimodales
+│
+├── Voz
+│   ├── Pasar voz a texto (ASR) ................................ ○ Whisper · ○ Qwen3-ASR · ○ Voxtral · ○ Parakeet
+│   └── Pasar texto a voz (TTS) ................................ ○ Kokoro
 │
 ├── Ver ── visión
 │   ├── ¿Esta foto es buena o mala? (clasificar) ............... ✔ regresión logística y red (M04)
-│   ├── ¿Qué hay y dónde? (detectar objetos) ................... ○ YOLO
-│   └── Entender una imagen y hablar de ella (multimodal) ...... ○ Qwen3.8 27B · ○ Gemma
+│   ├── ¿Es distinta de las buenas? (anomalía visual) .......... ○ PatchCore y otros, con Anomalib
+│   ├── ¿Qué hay y dónde? (detectar objetos) ................... ○ YOLO · ○ RT-DETR · ○ D-FINE · ○ YOLOX
+│   ├── ¿Qué puntos exactos son la pieza o el defecto? (segmentar) ○ SAM 2
+│   └── Entender una imagen y hablar de ella (multimodal) ...... ○ Qwen3.8 27B · ○ Gemma · ○ Florence-2
+│
+├── Prever una serie temporal (temperatura, consumo, demanda) .. ✔ recta de tendencia (M06-03) · ○ Chronos-Bolt · ○ TimesFM
+│
+├── Vigilar lo que entra y sale de un LLM (filtro de seguridad) ○ Llama Guard · ○ Granite Guardian · ○ Qwen3Guard
 │
 └── Predecir un defecto o una avería con datos de proceso ...... ✔ árbol, regresión logística (M03)
                                                                    NO es trabajo de un LLM
 ```
 
 **Lo primero que aclara el mapa:** «modelo de IA» no es una sola cosa. Un modelo de lenguaje redacta; un modelo de embeddings no redacta nada, convierte textos en números para comparar su significado; un modelo de voz solo transcribe; y para predecir defectos con señales de máquina, lo adecuado sigue siendo el aprendizaje automático clásico del M03. Elegir empieza por la **tarea**, no por el nombre del modelo.
+
+Los modelos con nombre de cada rama son **ejemplos conocidos a noviembre de 2026**, no una lista cerrada: en cada tarea salen modelos nuevos cada pocos meses. Lo que dura es la rama: saber qué tipo de modelo pide cada tarea.
 
 <a id="comparacion-tipos"></a>
 ### Comparación por tipo de modelo
@@ -51,12 +65,101 @@ Qué modelos de IA se pueden instalar en los equipos de la propia planta, sin en
 | **Multimodal** (imagen + texto) | Describir una foto, leer una placa o un plano | Asistencia al técnico con una foto | Para inspeccionar en línea a 1 pieza por segundo | GPU de servidor |
 | **Aprendizaje clásico** (M03) | Predecir con datos de proceso | Defectos, anomalías, mantenimiento | Para texto, voz o imágenes complejas | CPU, kilobytes |
 
+<a id="catalogo"></a>
+## 2. El catálogo por tarea
+
+Para cada tarea, varios modelos abiertos conocidos, para qué sirve cada uno y cuándo **no** conviene. No hace falta probarlos: sirve para reconocerlos cuando aparezcan en un pedido, una oferta o una demo, y para hacer las preguntas correctas. La licencia es la de su ficha a noviembre de 2026; antes de usar uno, se comprueba de nuevo (sección 5).
+
+<a id="cat-texto"></a>
+### Redactar, resumir, extraer y conversar (modelos de lenguaje)
+
+| Modelo (ejemplos) | Tamaño | Para qué es bueno | Cuándo **no** | Licencia |
+|-------------------|--------|-------------------|---------------|----------|
+| **Qwen2.5 0.5B / 1.5B** | Pequeño | Frases cortas con el dato delante, en un equipo sin GPU | Si tiene que saber o razonar por sí mismo | Apache 2.0 |
+| **Phi-4-mini** | Pequeño | Razonar bien para su tamaño, en CPU | Textos largos en español muy técnicos | MIT |
+| **Gemma** (pequeños y medianos) | Pequeño a mediano | Buen equilibrio calidad/tamaño; algunos ven imágenes | Versiones antiguas: licencia propia | Apache 2.0 desde Gemma 4 |
+| **Mistral Small** | Mediano | Asistentes en español y francés, empresa europea | Puestos sin GPU | Apache 2.0 |
+| **Qwen3.8 27B** | Mediano denso | Informes, código, documentación, ve imágenes | Equipos sin GPU de servidor | Apache 2.0 |
+| **Qwen3.6 35B-A3B**, **gpt-oss** | MoE | Mucho volumen: resumir, extraer, chat con muchos usuarios | Si la memoria es justa (ocupa como uno grande) | Apache 2.0 |
+| **DeepSeek** | MoE muy grande | Razonamiento complejo | Casi siempre en planta: pide varios GPU | MIT |
+| **Llama** | De pequeño a muy grande | Mucho ecosistema y ejemplos | Si la licencia comunitaria no encaja (multimodales y UE) | Comunitaria propia |
+
+<a id="cat-buscar"></a>
+### Buscar en documentos: embeddings y rerankers
+
+Un **modelo de embeddings** convierte cada texto en una lista de números para encontrar los que significan algo parecido (M05-05). Un **reranker** recibe la pregunta y los diez párrafos que ha encontrado el de embeddings, y los **reordena** leyéndolos de verdad: es más lento, pero afina mucho. Un buscador serio usa los dos.
+
+| Modelo (ejemplos) | Tipo | Para qué es bueno | Cuándo **no** | Licencia |
+|-------------------|------|-------------------|---------------|----------|
+| **Qwen3-Embedding** (0.6B, 4B, 8B) | Embeddings | Multilingüe, buen español; el pequeño va en CPU | — | Apache 2.0 |
+| **BGE-M3** | Embeddings | Multilingüe, textos largos, muy usado | — | MIT |
+| **multilingual-e5** | Embeddings | Ligero y multilingüe | Documentos muy largos | MIT |
+| **jina-embeddings-v3** | Embeddings | Buena calidad | **Uso comercial sin contrato: su licencia es no comercial** | CC BY-NC 4.0 |
+| **Qwen3-Reranker**, **bge-reranker** | Reranker | Afinar los primeros resultados de la búsqueda | Como buscador único: es lento para miles de textos | Apache 2.0 (comprobar en cada ficha) |
+
+<a id="cat-documentos"></a>
+### Leer documentos: OCR y estructura
+
+| Herramienta o modelo | Para qué es buena | Cuándo **no** | Licencia |
+|----------------------|-------------------|---------------|----------|
+| **PaddleOCR** | Leer texto de fotos: etiquetas, placas, albaranes; muchos idiomas | Entender lo que dice: solo lo lee | Apache 2.0 |
+| **Docling** (IBM) | Convertir PDF y documentos con tablas en texto ordenado, para un RAG | Fotos de etiquetas en la línea | MIT |
+| **Modelos multimodales** (Qwen3.8, Gemma, Florence-2) | Leer y además interpretar: «¿qué referencia pone en la placa?» | A una pieza por segundo: son lentos | Apache 2.0 / MIT |
+
+<a id="cat-voz"></a>
+### Voz: pasar a texto y generar
+
+| Modelo (ejemplos) | Para qué es bueno | Cuándo **no** | Licencia |
+|-------------------|-------------------|---------------|----------|
+| **Whisper** (large-v3, turbo) | Transcribir en muchos idiomas; el más extendido | Con mucho ruido de planta sin micrófono adecuado | MIT |
+| **Qwen3-ASR** | Transcripción multilingüe, ligero | — | Apache 2.0 |
+| **Voxtral Mini** | Transcribir y entender audio; europeo (Mistral) | — | Apache 2.0 (comprobar en su ficha) |
+| **Parakeet** (NVIDIA) | Muy rápido, sobre todo en GPU NVIDIA | Si el idioma no está entre los suyos | CC BY 4.0 (comprobar la versión) |
+| **Kokoro** | Texto a voz ligero: avisos hablados en un puesto | Voces personalizadas | Apache 2.0 |
+
+Usar **dos transcriptores distintos** y comparar es una forma barata de saber cuándo una transcripción no es fiable (sección 3).
+
+<a id="cat-vision"></a>
+### Visión: clasificar, detectar, segmentar y buscar anomalías
+
+| Modelo o herramienta | Pregunta que responde | Para qué en planta | Cuándo **no** | Licencia |
+|----------------------|-----------------------|--------------------|---------------|----------|
+| **Clasificador** (M04) | ¿Buena o mala? | Una foto por pieza, un defecto conocido | Si hay que decir dónde | La del código que uses |
+| **PatchCore** y otros, con **Anomalib** | ¿Se parece a las buenas? | Inspección cuando **casi no hay fotos de defectos**: aprende solo de piezas buenas | Si los defectos son sutiles y cambian de forma constantemente | Apache 2.0 el código; **los modelos ya entrenados con MVTec AD heredan su licencia no comercial** |
+| **YOLO** (Ultralytics) | ¿Qué hay y dónde? | Localizar piezas, defectos o personas, en tiempo real | **Sin licencia de empresa**: es AGPL-3.0 | AGPL-3.0 o comercial |
+| **RT-DETR**, **D-FINE**, **YOLOX** | ¿Qué hay y dónde? | Lo mismo que YOLO, con licencia permisiva | Si no hay quien los entrene: piden más trabajo que YOLO | Apache 2.0 (en su repositorio original) |
+| **SAM 2** | ¿Qué puntos exactos son esto? | Medir el área de un defecto, recortar la pieza, preparar fotos para entrenar | Para decidir solo: no sabe qué es un defecto | Apache 2.0 |
+
+En inspección industrial, **la anomalía visual suele ser el primer modelo útil**: en una línea hay miles de fotos de piezas buenas y muy pocas de defectuosas. Es la misma idea del M03-02 (aprender lo normal), aplicada a imágenes.
+
+<a id="cat-series"></a>
+### Series temporales: prever
+
+| Modelo | Para qué es bueno | Cuándo **no** | Licencia |
+|--------|-------------------|---------------|----------|
+| **Recta de tendencia** (M06-03, `predict_linear`) | Una señal que sube de forma sostenida | Señales con ciclos (turnos, días) | — |
+| **Chronos-Bolt** (Amazon) | Prever una serie sin entrenar nada («cero ejemplos»), en CPU; de 9 M a 205 M parámetros | Si la avería no se ve en la propia serie | Apache 2.0 |
+| **TimesFM 2.5** (Google) | Lo mismo, con contextos largos | Versiones posteriores: comprueba si siguen siendo de uso comercial | Apache 2.0 (la 2.5) |
+
+Estos modelos **prevén** cómo seguirá una curva; no dicen si eso es una avería. Combinados con la banda normal del M06-03 (¿se va a salir de lo normal?), mejoran la previsión cuando la señal tiene ritmos de turno o de día.
+
+<a id="cat-seguridad"></a>
+### Filtros de seguridad para modelos de lenguaje
+
+| Modelo | Para qué es bueno | Cuándo **no** | Licencia |
+|--------|-------------------|---------------|----------|
+| **Llama Guard** | Revisar lo que entra y sale de un asistente: peticiones peligrosas, respuestas que no debe dar | Si la licencia comunitaria no encaja | Comunitaria (Llama) |
+| **Granite Guardian** (IBM) | Lo mismo, y detectar respuestas no apoyadas en el documento | — | Apache 2.0 |
+| **Qwen3Guard** | Lo mismo, multilingüe | — | Apache 2.0 (comprobar en su ficha) |
+
+Un filtro **no sustituye** a no dar herramientas de escritura (M05-04): es una capa más.
+
 ---
 
 <a id="caso-real"></a>
-## 2. Un caso real: lo que pide un integrador
+## 3. Un ejemplo: leer un pedido real
 
-Un equipo de integración pidió hace poco preparar estos modelos en un servidor propio. Todos tienen licencia Apache 2.0. Así se lee cada línea del pedido con esta hoja:
+Un ejemplo de cómo se usa el catálogo. Un equipo de integración pidió hace poco preparar estos modelos en un servidor propio, todos con licencia Apache 2.0. Así se lee cada línea del pedido:
 
 | Modelo pedido | Tipo | Para qué lo quieren | Qué dice su nombre |
 |---------------|------|---------------------|--------------------|
@@ -71,12 +174,12 @@ Un equipo de integración pidió hace poco preparar estos modelos en un servidor
 - **Dos modelos para lo mismo.** Para la voz piden dos transcriptores de fabricantes distintos: si los dos coinciden, la transcripción es fiable; si no, se revisa. Es la misma idea que la comprobación del diagnóstico del M07-03: no fiarse de una sola salida.
 - **Un modelo grande para escribir y otro rápido para el volumen.** El denso de 27 B para lo que pide calidad (un informe); el MoE para lo que llega en cantidad (resumir y extraer de muchos textos), porque cada respuesta le cuesta como uno de 3 B.
 - **FP8 dice qué GPU hace falta.** FP8 es un formato de 8 bits que aprovechan las GPU de servidor recientes. Sin una de esas GPU, estos mismos modelos se instalarían en otro formato (GGUF, como el del curso).
-- **Todo Apache 2.0.** No es casualidad: es la licencia más sencilla para uso comercial (sección 4).
+- **Todo Apache 2.0.** No es casualidad: es la licencia más sencilla para uso comercial (sección 5).
 
 ---
 
 <a id="familias"></a>
-## 3. Las familias más conocidas
+## 4. Las familias más conocidas
 
 | Familia | De quién | Fuerte en | Licencia habitual (comprobar en cada modelo) |
 |---------|----------|-----------|----------------------------------------------|
@@ -86,12 +189,12 @@ Un equipo de integración pidió hace poco preparar estos modelos en un servidor
 | **Phi** | Microsoft | Modelos pequeños que razonan bien para su tamaño | MIT |
 | **gpt-oss** | OpenAI | Modelos MoE para servidor | Apache 2.0 |
 | **DeepSeek** | DeepSeek | Modelos MoE muy grandes, razonamiento | MIT |
-| **Llama** | Meta | Muy extendido, mucho ecosistema | Licencia comunitaria propia, con condiciones (sección 4) |
+| **Llama** | Meta | Muy extendido, mucho ecosistema | Licencia comunitaria propia, con condiciones (sección 5) |
 | **Whisper** | OpenAI | Voz a texto, muchos idiomas | MIT |
-| **YOLO** | Ultralytics | Detección de objetos en imágenes | **AGPL-3.0** o licencia de empresa (sección 4) |
+| **YOLO** | Ultralytics | Detección de objetos en imágenes | **AGPL-3.0** o licencia de empresa (sección 5) |
 
 <a id="licencias"></a>
-## 4. Licencias: lo que hay que mirar antes de instalar
+## 5. Licencias: lo que hay que mirar antes de instalar
 
 **Pesos abiertos no es lo mismo que código abierto.** Casi todos estos modelos publican los **pesos** (el fichero que se descarga), pero no los datos con los que se entrenaron. Se pueden usar y adaptar; no se puede reproducir cómo se hicieron. Lo que manda es la licencia de cada modelo.
 
@@ -104,17 +207,27 @@ Un equipo de integración pidió hace poco preparar estos modelos en un servidor
 
 **La trampa más habitual en industria es YOLO.** Es el detector de objetos más conocido y se instala en minutos, pero el de Ultralytics es AGPL-3.0: para un sistema de inspección de una planta, en la práctica, hace falta su licencia de empresa o elegir otro detector con licencia permisiva. Es una decisión de compras y legal, no del técnico que lo prueba.
 
+**Otras trampas que aparecen en el catálogo:**
+
+| Dónde | La trampa |
+|-------|-----------|
+| **jina-embeddings-v3** | Su licencia es no comercial (CC BY-NC): para usarlo en la empresa hace falta un contrato con Jina |
+| **Modelos de anomalía visual ya entrenados** | El código (Anomalib, PatchCore) es Apache 2.0, pero si los pesos se entrenaron con el conjunto de imágenes MVTec AD, heredan su licencia no comercial: hay que entrenarlos con fotos propias |
+| **Series temporales** | TimesFM 2.5 es Apache 2.0; según algunas fuentes, versiones posteriores tienen pesos solo para uso no comercial |
+| **Detectores dentro de Ultralytics** | RT-DETR es Apache 2.0 en su repositorio original, pero el que viene dentro del paquete de Ultralytics queda bajo su AGPL |
+| **Pesos frente a datos** | Un modelo puede tener pesos Apache 2.0 y haberse entrenado con datos de otra licencia; la ficha lo suele decir |
+
 **La regla:** la licencia se comprueba **en la ficha oficial de cada modelo concreto**, no por la familia: dentro de una misma familia hay modelos con licencias distintas, y cambian de una versión a otra.
 
 <a id="memoria"></a>
-## 5. Formatos y memoria: cuánto ocupa un modelo
+## 6. Formatos y memoria: cuánto ocupa un modelo
 
 La memoria que necesita un modelo es, sobre todo, **parámetros × bytes por parámetro**, más un margen para la conversación (el contexto).
 
 | Formato | Bytes por parámetro | Un modelo de 27 B ocupa | Dónde se usa |
 |---------|---------------------|--------------------------|--------------|
 | BF16 (el original) | 2 | ~54 GB | Entrenar, ajustar, servidores grandes |
-| FP8 | 1 | ~27 GB | GPU de servidor recientes (el pedido de la sección 2) |
+| FP8 | 1 | ~27 GB | GPU de servidor recientes (el pedido de la sección 3) |
 | GGUF Q4 (4 bits) | ~0,6 | ~16–17 GB | CPU, portátiles, equipos edge (el curso: llama.cpp) |
 
 Con el modelo del curso: 0,5 B en Q4 son **470 MB**, y por eso cabe en el contenedor de 2 GB. En el reto del M05-01 estimaste que uno de 7 B no cabría; en el [M05-05](../M05-ia-generativa/M05-05-modelos-abiertos.md) lo mides con uno de 1,5 B.
@@ -122,18 +235,18 @@ Con el modelo del curso: 0,5 B en Q4 son **470 MB**, y por eso cabe en el conten
 Un **MoE** engaña: el 35B-A3B **ocupa** como uno de 35 B (hay que cargar todos los expertos), pero **calcula** como uno de 3 B. Es rápido, no pequeño.
 
 <a id="servir"></a>
-## 6. Cómo se sirven
+## 7. Cómo se sirven
 
 | Servidor | Para qué | Cuándo elegirlo | En el curso |
 |----------|----------|-----------------|-------------|
 | **llama.cpp** | Ejecutar modelos GGUF en CPU (o GPU), con poco | Equipos edge, un puesto, sin GPU | ✔ el contenedor `llm` |
 | **Ollama** | Lo mismo, con una instalación muy sencilla | Probar modelos en un portátil, un usuario | ○ |
-| **vLLM** | Servir modelos en GPU a muchos usuarios a la vez | Un servidor de planta para todos los asistentes | ○ es lo que usaría el pedido de la sección 2 |
+| **vLLM** | Servir modelos en GPU a muchos usuarios a la vez | Un servidor de planta para todos los asistentes | ○ es lo que usaría el pedido de la sección 3 |
 
 Los tres hablan el mismo «idioma» por HTTP (`/v1/chat/completions`), así que una aplicación como la del M05-02 funciona con cualquiera: cambia la dirección del servicio, no el código.
 
 <a id="cuando-no"></a>
-## 7. Cuándo no hace falta un modelo generativo
+## 8. Cuándo no hace falta un modelo generativo
 
 | Si lo que necesitas es… | Lo adecuado | En el curso |
 |-------------------------|-------------|-------------|
@@ -145,16 +258,16 @@ Los tres hablan el mismo «idioma» por HTTP (`/v1/chat/completions`), así que 
 Un modelo generativo redacta muy bien y se equivoca con seguridad. En planta se usa para **redactar, resumir y buscar** con los datos delante, y se comprueba lo que dice.
 
 <a id="elegir"></a>
-## 8. Cómo elegir, en cinco preguntas
+## 9. Cómo elegir, en cinco preguntas
 
-1. **¿Qué tarea es?** Redactar, buscar, transcribir, ver o predecir (sección 1). Si es predecir con datos de proceso, no es un LLM.
-2. **¿Qué licencia tiene ese modelo concreto?** Apache 2.0 o MIT simplifican; cualquier otra, a legal (sección 4).
-3. **¿En qué equipo va a correr?** Memoria disponible y si hay GPU (sección 5): eso fija el tamaño y el formato.
+1. **¿Qué tarea es?** Redactar, buscar, transcribir, ver o predecir (secciones 1 y 2). Si es predecir con datos de proceso, no es un LLM.
+2. **¿Qué licencia tiene ese modelo concreto?** Apache 2.0 o MIT simplifican; cualquier otra, a legal (sección 5).
+3. **¿En qué equipo va a correr?** Memoria disponible y si hay GPU (sección 6): eso fija el tamaño y el formato.
 4. **¿Funciona en español y con el vocabulario de la planta?** Se prueba con preguntas reales de la planta, no con las del fabricante.
-5. **¿Cuánto tarda y cuántos lo usarán a la vez?** Un usuario en un puesto, llama.cpp u Ollama; muchos usuarios, vLLM en un servidor (sección 6).
+5. **¿Cuánto tarda y cuántos lo usarán a la vez?** Un usuario en un puesto, llama.cpp u Ollama; muchos usuarios, vLLM en un servidor (sección 7).
 
 Las preguntas 3 a 5 las contestas midiendo en el [M05-05](../M05-ia-generativa/M05-05-modelos-abiertos.md).
 
 ---
 
-**Fuentes** (consultadas en noviembre de 2026): fichas de [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B), [Qwen3.6-35B-A3B-FP8](https://modal.com/library/qwen/qwen3-6-35b-a3b-fp8), [colección Qwen3-Embedding](https://huggingface.co/collections/Qwen/qwen3-embedding), [Qwen3-ASR](https://qwen.ai/blog?id=qwen3asr), [artículo de Voxtral](https://arxiv.org/pdf/2507.13264), [licencia de Ultralytics](https://ultralytics.com/license) y [documentación de YOLO](https://docs.ultralytics.com/); comparativas de licencias ([1](https://codersera.com/blog/open-source-llms-landscape-2026/), [2](https://sysart.consulting/knowledge-hub/open-weight-model-licenses/)) y de servidores ([1](https://insiderllm.com/guides/llamacpp-vs-ollama-vs-vllm/), [2](https://www.morphllm.com/comparisons/vllm-vs-ollama)). Las comparativas de terceros no siempre coinciden entre sí: lo que vale es la ficha oficial de cada modelo.
+**Fuentes** (consultadas en noviembre de 2026): fichas de [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B), [Qwen3.6-35B-A3B-FP8](https://modal.com/library/qwen/qwen3-6-35b-a3b-fp8), [colección Qwen3-Embedding](https://huggingface.co/collections/Qwen/qwen3-embedding), [Qwen3-ASR](https://qwen.ai/blog?id=qwen3asr), [artículo de Voxtral](https://arxiv.org/pdf/2507.13264), [licencia de Ultralytics](https://ultralytics.com/license) y [documentación de YOLO](https://docs.ultralytics.com/); comparativas de licencias ([1](https://codersera.com/blog/open-source-llms-landscape-2026/), [2](https://sysart.consulting/knowledge-hub/open-weight-model-licenses/)) y de servidores ([1](https://insiderllm.com/guides/llamacpp-vs-ollama-vs-vllm/), [2](https://www.morphllm.com/comparisons/vllm-vs-ollama)); [Anomalib](https://pypi.org/project/anomalib/2.3.0/) y la [ficha de un modelo PatchCore entrenado con MVTec AD](https://huggingface.co/yusufdxb/inspectnet-cx); [Chronos-Bolt](https://huggingface.co/autogluon/chronos-bolt-base) y [TimesFM 2.5](https://huggingface.co/docs/transformers/model_doc/timesfm2_5); comparativas de embeddings ([1](https://wz-it.com/en/blog/best-embedding-models-german/), [2](https://learn.engineering.vips.edu/compare/bge-m3-vs-jina-embeddings-v3)); [PaddleOCR](https://pypi.org/project/vaaale-paddleocr) y [voz local](https://pasqualepillitteri.it/de/news/28187/lokale-sprach-ki-sprachausgabe-transkription). Las comparativas de terceros no siempre coinciden entre sí: lo que vale es la ficha oficial de cada modelo.

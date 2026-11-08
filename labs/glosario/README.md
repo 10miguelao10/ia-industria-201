@@ -31,6 +31,7 @@ Cada ficha dice **qué es**, **cómo es en la línea del curso**, **dónde se ro
 | ¿Prompt, RAG, herramientas o ajuste fino? | [Comparación: cómo darle conocimiento a un modelo](04-ia-generativa.md#comparacion-conocimiento) |
 | ¿Qué tamaños y formatos de LLM hay? | [Mapa de IA generativa](04-ia-generativa.md#mapa) |
 | ¿Qué modelo abierto uso para cada tarea, y cuándo no? | [Mapa de modelos abiertos](06-modelos-abiertos.md#mapa) y [comparación por tipo](06-modelos-abiertos.md#comparacion-tipos) |
+| ¿Qué modelo hay para leer documentos, transcribir voz, detectar defectos en fotos o prever una serie? | [Catálogo por tarea](06-modelos-abiertos.md#catalogo) |
 | ¿Qué licencia tiene un modelo y qué me obliga? | [Licencias](06-modelos-abiertos.md#licencias) |
 | ¿Cuánta memoria necesita un modelo? | [Formatos y memoria](06-modelos-abiertos.md#memoria) |
 | ¿llama.cpp, Ollama o vLLM? | [Cómo se sirven](06-modelos-abiertos.md#servir) |
@@ -51,6 +52,13 @@ Cada ficha dice **qué es**, **cómo es en la línea del curso**, **dónde se ro
 | [Autenticación](05-operacion-gobierno.md#autenticacion) | Operación, MLOps y gobierno |
 | [Banda normal y pendiente](03-aprendizaje-automatico.md#banda-normal) | Aprendizaje automático y visión |
 | [Broker](01-datos-arquitectura.md#broker) | Datos y arquitectura |
+| [Catálogo: buscar en documentos (embeddings y rerankers)](06-modelos-abiertos.md#cat-buscar) | Modelos abiertos en planta |
+| [Catálogo: filtros de seguridad para modelos de lenguaje](06-modelos-abiertos.md#cat-seguridad) | Modelos abiertos en planta |
+| [Catálogo: leer documentos (OCR)](06-modelos-abiertos.md#cat-documentos) | Modelos abiertos en planta |
+| [Catálogo: modelos de lenguaje](06-modelos-abiertos.md#cat-texto) | Modelos abiertos en planta |
+| [Catálogo: series temporales](06-modelos-abiertos.md#cat-series) | Modelos abiertos en planta |
+| [Catálogo: visión (clasificar, detectar, segmentar, anomalías)](06-modelos-abiertos.md#cat-vision) | Modelos abiertos en planta |
+| [Catálogo: voz](06-modelos-abiertos.md#cat-voz) | Modelos abiertos en planta |
 | [Clases desequilibradas](03-aprendizaje-automatico.md#desequilibrio) | Aprendizaje automático y visión |
 | [Cómo elegir, en cinco preguntas](06-modelos-abiertos.md#elegir) | Modelos abiertos en planta |
 | [Cómo se sirven](06-modelos-abiertos.md#servir) | Modelos abiertos en planta |
