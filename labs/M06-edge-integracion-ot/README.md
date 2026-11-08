@@ -1,6 +1,6 @@
 # M06 — Edge AI e integración industrial
 
-[← Página anterior](../M05-ia-generativa/M05-04-agentes.md) · [Siguiente página →](M06-01-inferencia-edge.md)
+[← Página anterior](../M05-ia-generativa/M05-05-modelos-abiertos.md) · [Siguiente página →](M06-01-inferencia-edge.md)
 
 > [!NOTE]
 > **Cómo funciona este módulo.** Tiene tres bloques, uno por laboratorio. En cada bloque: primero la **teoría** y una **demostración** que se proyecta en clase, paso a paso; después **practicas tú** con el laboratorio, a tu ritmo.

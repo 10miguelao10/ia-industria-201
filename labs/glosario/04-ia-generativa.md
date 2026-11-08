@@ -62,7 +62,7 @@ IA generativa (aprendizaje profundo → transformers)
 
 **Dónde se rompe:** no sabe nada de EST-01. Si le preguntas, se inventa algo que suena bien ([alucinación](#alucinacion)).
 
-**Lo usas en:** <!--usos:llm-->[M01-02](../M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md) · [M02](../M02-captura-integracion-datos/README.md) · [M02-03](../M02-captura-integracion-datos/M02-03-preparacion-datos.md) · [M05](../M05-ia-generativa/README.md) · [M05-01](../M05-ia-generativa/M05-01-modelo-local.md) · [M06](../M06-edge-integracion-ot/README.md) · [M07](../M07-mlops-observabilidad/README.md) · [M08](../M08-ciberseguridad-gobierno/README.md)<!--/usos-->
+**Lo usas en:** <!--usos:llm-->[M01-02](../M01-ia-industrial-arquitectura/M01-02-visualizacion-supervision.md) · [M02](../M02-captura-integracion-datos/README.md) · [M02-03](../M02-captura-integracion-datos/M02-03-preparacion-datos.md) · [M05](../M05-ia-generativa/README.md) · [M05-01](../M05-ia-generativa/M05-01-modelo-local.md) · [M05-05](../M05-ia-generativa/M05-05-modelos-abiertos.md) · [M06](../M06-edge-integracion-ot/README.md) · [M07](../M07-mlops-observabilidad/README.md) · [M08](../M08-ciberseguridad-gobierno/README.md)<!--/usos-->
 
 <a id="token"></a>
 ### Token
@@ -71,7 +71,7 @@ IA generativa (aprendizaje profundo → transformers)
 
 **En la línea:** en el M05-02, con `max_tokens: 60`, la respuesta se corta y llega `finish_reason: "length"`.
 
-**Lo usas en:** <!--usos:token-->[M05-01](../M05-ia-generativa/M05-01-modelo-local.md) · [M05-02](../M05-ia-generativa/M05-02-integracion-aplicacion.md)<!--/usos-->
+**Lo usas en:** <!--usos:token-->[M05-01](../M05-ia-generativa/M05-01-modelo-local.md) · [M05-02](../M05-ia-generativa/M05-02-integracion-aplicacion.md) · [M05-05](../M05-ia-generativa/M05-05-modelos-abiertos.md)<!--/usos-->
 
 <a id="contexto"></a>
 ### Ventana de contexto
@@ -87,7 +87,7 @@ IA generativa (aprendizaje profundo → transformers)
 
 **Por qué importa:** es lo que permite correr un LLM en un equipo edge sin GPU.
 
-**Lo usas en:** <!--usos:cuantizacion-->[M05](../M05-ia-generativa/README.md) · [M05-01](../M05-ia-generativa/M05-01-modelo-local.md) · [M06](../M06-edge-integracion-ot/README.md)<!--/usos-->
+**Lo usas en:** <!--usos:cuantizacion-->[M05](../M05-ia-generativa/README.md) · [M05-01](../M05-ia-generativa/M05-01-modelo-local.md) · [M05-05](../M05-ia-generativa/M05-05-modelos-abiertos.md) · [M06](../M06-edge-integracion-ot/README.md)<!--/usos-->
 
 <a id="prompt"></a>
 ### Prompt e instrucciones
@@ -136,14 +136,14 @@ IA generativa (aprendizaje profundo → transformers)
 
 **Dónde se rompe:** si la búsqueda elige mal el párrafo, el modelo contesta bien… sobre otra cosa. En el M05-03, las [palabras vacías](#palabras-vacias) («el», «de», «a») hacen ganar a un párrafo equivocado.
 
-**Lo usas en:** <!--usos:rag-->[M05](../M05-ia-generativa/README.md) · [M05-03](../M05-ia-generativa/M05-03-asistente-documentacion.md)<!--/usos-->
+**Lo usas en:** <!--usos:rag-->[M05](../M05-ia-generativa/README.md) · [M05-03](../M05-ia-generativa/M05-03-asistente-documentacion.md) · [M05-05](../M05-ia-generativa/M05-05-modelos-abiertos.md)<!--/usos-->
 
 <a id="palabras-vacias"></a>
 ### Palabras vacías (stopwords)
 
 **Qué es:** las palabras que aparecen en cualquier texto y no dicen de qué trata: artículos, preposiciones. Se quitan antes de buscar.
 
-**Lo usas en:** <!--usos:palabras-vacias-->[M05-03](../M05-ia-generativa/M05-03-asistente-documentacion.md)<!--/usos-->
+**Lo usas en:** <!--usos:palabras-vacias-->[M05-03](../M05-ia-generativa/M05-03-asistente-documentacion.md) · [M05-05](../M05-ia-generativa/M05-05-modelos-abiertos.md)<!--/usos-->
 
 <a id="agente"></a>
 ### Agente y herramienta

@@ -1388,6 +1388,63 @@ def cmd_sql(args) -> int:
 
 
 
+
+class _Silencio:
+    """Calla los mensajes internos de llama.cpp (van a stderr a bajo nivel)."""
+    def __enter__(self):
+        import os
+        self.guardado = os.dup(2)
+        nulo = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(nulo, 2)
+        os.close(nulo)
+    def __exit__(self, *_):
+        import os
+        os.dup2(self.guardado, 2)
+        os.close(self.guardado)
+
+
+BANCO_EST01 = [   # preguntas de planta y la palabra que tiene que salir en una respuesta correcta
+    ("¿A qué par se aprieta el tornillo de la brida?", "12"),
+    ("¿A partir de qué temperatura se avisa al turno?", "70"),
+    ("¿Con qué se bloquea el husillo antes de medirlo?", "cerrojo"),
+    ("¿Cuál es la temperatura habitual mínima del husillo?", "58"),
+]
+
+
+def cmd_m05_05(args) -> int:
+    """lab m05-05 [sin-documento]: compara los modelos de texto de /modelos con preguntas de EST-01."""
+    import resource
+    from llama_cpp import Llama
+
+    con_doc = "sin-documento" not in args
+    ficheros = sorted(p for p in Path("/modelos").glob("*.gguf") if "embedding" not in p.name)
+    if len(ficheros) < 2:
+        return fallo("hace falta un segundo modelo en infra/modelos/ (paso 1 de M05-05)")
+    print(f"preguntas={len(BANCO_EST01)}  con el párrafo del procedimiento={'sí' if con_doc else 'no'}")
+    print("modelo                               tamaño  carga  memoria  tokens/s  acierto")
+    for ruta in ficheros:
+        t0 = time.time()
+        with _Silencio():
+            llm = Llama(model_path=str(ruta), n_ctx=1024, n_threads=4, verbose=False)
+        carga = time.time() - t0
+        aciertos, tokens, segundos = 0, 0, 0.0
+        for pregunta, clave in BANCO_EST01:
+            texto = f"Texto: {_fragmento(pregunta)}\n\nPregunta: {pregunta}" if con_doc else pregunta
+            t0 = time.time()
+            with _Silencio():
+                r = llm.create_chat_completion(
+                    messages=[{"role": "system", "content": "Responde en una frase. Usa solo el texto si se te da."},
+                              {"role": "user", "content": texto}], max_tokens=60, temperature=0.1)
+            segundos += time.time() - t0
+            tokens += r["usage"]["completion_tokens"]
+            aciertos += clave in r["choices"][0]["message"]["content"].lower()
+        memoria = int(open("/proc/self/statm").read().split()[1]) * resource.getpagesize() / 2**20   # memoria en uso ahora
+        print(f"{ruta.name[:36]:36s} {ruta.stat().st_size / 1e9:5.2f} GB {carga:4.1f} s {memoria:6.0f} MB  {tokens / segundos:8.1f}  {aciertos} de {len(BANCO_EST01)}")
+        del llm
+        import gc
+        gc.collect()                                     # libera el modelo antes de cargar el siguiente
+    return ok("m05-05", f"{len(ficheros)} modelos comparados con las mismas preguntas")
+
 COMANDOS = {
     "m01-01": cmd_m01_01,
     "m01-02": cmd_m01_02,
@@ -1410,6 +1467,7 @@ COMANDOS = {
     "m05-03": cmd_m05_03,
     "m05-03-ausente": cmd_m05_03_ausente,
     "m05-04": cmd_m05_04,
+    "m05-05": cmd_m05_05,
     "m06-01": cmd_m06_01,
     "m06-02": cmd_m06_02,
     "m07-01": cmd_m07_01,

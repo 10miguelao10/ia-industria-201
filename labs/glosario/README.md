@@ -18,6 +18,7 @@ Cada ficha dice **qué es**, **cómo es en la línea del curso**, **dónde se ro
 | [Aprendizaje automático y visión](03-aprendizaje-automatico.md) | Mapa de familias de algoritmos, cómo funciona cada uno y cómo se evalúa | M03–M04, M06, M07 |
 | [IA generativa y agentes](04-ia-generativa.md) | Modelos de lenguaje, cómo darles el conocimiento de la planta, RAG y agentes | M05, M01-02, M02-03, M07-03 |
 | [Operación, MLOps y gobierno](05-operacion-gobierno.md) | Cuánto decide el modelo, cómo se sirve, se vigila, se protege y se rinden cuentas | M06–M08 |
+| [Modelos abiertos en planta](06-modelos-abiertos.md) | Qué modelos existen para cada tarea, cuándo usarlos y cuándo no, licencias, memoria y cómo se sirven | M05-05 |
 
 ## Mapas de familias y comparaciones
 
@@ -29,6 +30,10 @@ Cada ficha dice **qué es**, **cómo es en la línea del curso**, **dónde se ro
 | ¿Qué métodos de visión hay? | [Visión: una imagen son números](03-aprendizaje-automatico.md#vision-pixeles) |
 | ¿Prompt, RAG, herramientas o ajuste fino? | [Comparación: cómo darle conocimiento a un modelo](04-ia-generativa.md#comparacion-conocimiento) |
 | ¿Qué tamaños y formatos de LLM hay? | [Mapa de IA generativa](04-ia-generativa.md#mapa) |
+| ¿Qué modelo abierto uso para cada tarea, y cuándo no? | [Mapa de modelos abiertos](06-modelos-abiertos.md#mapa) y [comparación por tipo](06-modelos-abiertos.md#comparacion-tipos) |
+| ¿Qué licencia tiene un modelo y qué me obliga? | [Licencias](06-modelos-abiertos.md#licencias) |
+| ¿Cuánta memoria necesita un modelo? | [Formatos y memoria](06-modelos-abiertos.md#memoria) |
+| ¿llama.cpp, Ollama o vLLM? | [Cómo se sirven](06-modelos-abiertos.md#servir) |
 | ¿Cuánto debe decidir el modelo? | [Mapa de modos de actuación](05-operacion-gobierno.md#mapa) |
 | ¿Qué tipos de alerta hay? | [Alerta y tiempo `for`](02-observabilidad.md#alerta) |
 | ¿Con qué se protege la línea? | [Superficie de ataque y medidas](05-operacion-gobierno.md#superficie) |
@@ -47,9 +52,13 @@ Cada ficha dice **qué es**, **cómo es en la línea del curso**, **dónde se ro
 | [Banda normal y pendiente](03-aprendizaje-automatico.md#banda-normal) | Aprendizaje automático y visión |
 | [Broker](01-datos-arquitectura.md#broker) | Datos y arquitectura |
 | [Clases desequilibradas](03-aprendizaje-automatico.md#desequilibrio) | Aprendizaje automático y visión |
+| [Cómo elegir, en cinco preguntas](06-modelos-abiertos.md#elegir) | Modelos abiertos en planta |
+| [Cómo se sirven](06-modelos-abiertos.md#servir) | Modelos abiertos en planta |
 | [Comparación de clasificadores](03-aprendizaje-automatico.md#comparacion-clasificadores) | Aprendizaje automático y visión |
+| [Comparación por tipo de modelo](06-modelos-abiertos.md#comparacion-tipos) | Modelos abiertos en planta |
 | [Comparación: cómo darle a un modelo el conocimiento de la planta](04-ia-generativa.md#comparacion-conocimiento) | IA generativa y agentes |
 | [Consigna](05-operacion-gobierno.md#consigna) | Operación, MLOps y gobierno |
+| [Cuándo no hace falta un modelo generativo](06-modelos-abiertos.md#cuando-no) | Modelos abiertos en planta |
 | [Cuantización (GGUF)](04-ia-generativa.md#cuantizacion) | IA generativa y agentes |
 | [Dataset](01-datos-arquitectura.md#dataset) | Datos y arquitectura |
 | [Deriva](05-operacion-gobierno.md#deriva) | Operación, MLOps y gobierno |
@@ -61,6 +70,7 @@ Cada ficha dice **qué es**, **cómo es en la línea del curso**, **dónde se ro
 | [Escalado de las señales](03-aprendizaje-automatico.md#escalado) | Aprendizaje automático y visión |
 | [Etiqueta](03-aprendizaje-automatico.md#etiqueta) | Aprendizaje automático y visión |
 | [Evento y muestra](01-datos-arquitectura.md#evento) | Datos y arquitectura |
+| [Formatos y memoria: cuánto ocupa un modelo](06-modelos-abiertos.md#memoria) | Modelos abiertos en planta |
 | [Frescura del dato](02-observabilidad.md#frescura) | Observabilidad y alertas |
 | [Fuga de información](03-aprendizaje-automatico.md#fuga) | Aprendizaje automático y visión |
 | [Gobierno de la IA y Reglamento europeo](05-operacion-gobierno.md#gobierno) | Operación, MLOps y gobierno |
@@ -68,7 +78,9 @@ Cada ficha dice **qué es**, **cómo es en la línea del curso**, **dónde se ro
 | [Incidencia](05-operacion-gobierno.md#incidencia) | Operación, MLOps y gobierno |
 | [Indicador de proceso, KPI y OEE](02-observabilidad.md#kpi) | Observabilidad y alertas |
 | [Inferencia](05-operacion-gobierno.md#inferencia) | Operación, MLOps y gobierno |
+| [Las familias más conocidas](06-modelos-abiertos.md#familias) | Modelos abiertos en planta |
 | [Latencia](05-operacion-gobierno.md#latencia) | Operación, MLOps y gobierno |
+| [Licencias: lo que hay que mirar antes de instalar](06-modelos-abiertos.md#licencias) | Modelos abiertos en planta |
 | [Limpieza de datos](01-datos-arquitectura.md#limpieza) | Datos y arquitectura |
 | [Mapa de registros](01-datos-arquitectura.md#mapa-registros) | Datos y arquitectura |
 | [Matriz de confusión, recall y falsas alarmas](03-aprendizaje-automatico.md#matriz-confusion) | Aprendizaje automático y visión |
@@ -104,6 +116,7 @@ Cada ficha dice **qué es**, **cómo es en la línea del curso**, **dónde se ro
 | [Token](04-ia-generativa.md#token) | IA generativa y agentes |
 | [Trazabilidad (el rastro)](05-operacion-gobierno.md#trazabilidad) | Operación, MLOps y gobierno |
 | [Umbral de decisión](03-aprendizaje-automatico.md#umbral) | Aprendizaje automático y visión |
+| [Un caso real: lo que pide un integrador](06-modelos-abiertos.md#caso-real) | Modelos abiertos en planta |
 | [Ventana de contexto](04-ia-generativa.md#contexto) | IA generativa y agentes |
 | [Versión y huella del modelo](05-operacion-gobierno.md#version-huella) | Operación, MLOps y gobierno |
 | [Visión: una imagen son números](03-aprendizaje-automatico.md#vision-pixeles) | Aprendizaje automático y visión |

@@ -1,6 +1,6 @@
 # Glosario 5 — Operación, MLOps y gobierno
 
-[← Hoja anterior](04-ia-generativa.md) · [Índice del glosario](README.md)
+[← Hoja anterior](04-ia-generativa.md) · [Índice del glosario](README.md) · [Siguiente hoja →](06-modelos-abiertos.md)
 
 Qué pasa cuando el modelo sale del laboratorio y entra en la línea: cómo se sirve, cómo actúa, cómo se vigila, cómo se protege y cómo se rinden cuentas. Lo usas del M06 al M08.
 

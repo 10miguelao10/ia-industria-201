@@ -177,7 +177,7 @@ puntos  palabras en común                párrafo
 ...
 ```
 
-**Cómo se lee:** ahora gana el párrafo correcto. Pero solo con 1 punto: «avisar» no coincide con «avisa», la palabra que usa el procedimiento. Contar palabras exactas es frágil ante sinónimos y conjugaciones. Los asistentes reales buscan **por significado** (con *embeddings*, que convierten cada texto en números de forma que textos parecidos quedan cerca), y por eso encuentran el párrafo aunque la pregunta use otras palabras.
+**Cómo se lee:** ahora gana el párrafo correcto. Pero solo con 1 punto: «avisar» no coincide con «avisa», la palabra que usa el procedimiento. Contar palabras exactas es frágil ante sinónimos y conjugaciones. Los asistentes reales buscan **por significado** (con *[embeddings](../glosario/06-modelos-abiertos.md#comparacion-tipos)*, que convierten cada texto en números de forma que textos parecidos quedan cerca), y por eso encuentran el párrafo aunque la pregunta use otras palabras.
 
 ## Constrúyelo tú: tu propio asistente con el procedimiento
 

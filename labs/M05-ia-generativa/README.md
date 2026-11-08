@@ -3,7 +3,7 @@
 [← Página anterior](../M04-vision-control-calidad/M04-04-red-neuronal.md) · [Siguiente página →](M05-01-modelo-local.md)
 
 > [!NOTE]
-> **Cómo funciona este módulo.** Tiene cuatro bloques, uno por laboratorio. En cada bloque: primero la **teoría** y una **demostración** que se proyecta en clase, paso a paso; después **practicas tú** con el laboratorio, a tu ritmo.
+> **Cómo funciona este módulo.** Tiene cinco bloques, uno por laboratorio. En cada bloque: primero la **teoría** y una **demostración** que se proyecta en clase, paso a paso; después **practicas tú** con el laboratorio, a tu ritmo.
 
 ## Qué aprenderás
 
@@ -11,6 +11,7 @@
 - Cómo se **integra** en una aplicación y cómo debe comportarse esa aplicación cuando el modelo falla.
 - Por qué un modelo **[se inventa](../glosario/04-ia-generativa.md#alucinacion)** respuestas y cómo se le hace responder desde los **documentos** de la planta.
 - Qué es un **[agente](../glosario/04-ia-generativa.md#agente)** y cómo se limita lo que puede hacer.
+- Qué **[modelos abiertos](../glosario/06-modelos-abiertos.md#mapa)** existen para cada tarea, cómo se eligen para un equipo de la planta y qué [licencia](../glosario/06-modelos-abiertos.md#licencias) hay que mirar.
 
 | Bloque | Concepto | Laboratorio |
 |--------|----------|-------------|
@@ -18,6 +19,7 @@
 | 2 | Integración en aplicaciones | [M05-02](M05-02-integracion-aplicacion.md) |
 | 3 | Asistente basado en documentación | [M05-03](M05-03-asistente-documentacion.md) |
 | 4 | Agentes con herramientas | [M05-04](M05-04-agentes.md) |
+| 5 | Elegir y servir un modelo abierto | [M05-05](M05-05-modelos-abiertos.md) |
 
 ## Antes de empezar
 
@@ -232,6 +234,59 @@ OK preguntar: respuesta del modelo local
 → **[M05-04 — Automatización mediante agentes](M05-04-agentes.md)**
 
 Verás un agente que lee la temperatura con una herramienta y deja traza, comprobarás que la cifra no es inventada y verás por qué no puede escribir en el automatismo.
+
+---
+
+## Bloque 5 — Elegir y servir un modelo abierto
+
+### Teoría
+
+«Modelo de IA» no es una sola cosa. Hay modelos que **redactan** (de lenguaje), modelos que **encuentran** textos por su significado ([embeddings](../glosario/06-modelos-abiertos.md#comparacion-tipos)), modelos que **transcriben voz**, modelos que **ven** y, para predecir con datos de proceso, el aprendizaje automático clásico del M03. Cada uno se elige por la tarea, por la **licencia** y por el **equipo** donde va a correr: memoria, CPU o GPU y cuántos usuarios a la vez. La hoja de modelos abiertos del glosario reúne el mapa, las familias, las licencias y cómo se sirven.
+
+### Demostración
+
+**Qué se demuestra:** cómo se lee un pedido real de modelos abiertos y qué tiene instalado hoy el puesto. En el laboratorio medirás dos candidatos y construirás la búsqueda por significado.
+
+#### Paso 1 — Leer un pedido real
+
+**Qué vamos a ver:** la lista que un integrador pidió preparar en un servidor de planta, en la sección «Un caso real» de la hoja. Se proyecta y se lee línea a línea con el mapa de tipos.
+
+**Cómo se lee:** un modelo grande para informes, uno MoE para resumir y conversar en volumen, uno de embeddings para buscar y **dos** de voz, de fabricantes distintos, para contrastar. Ninguno hace todo; y todos son Apache 2.0.
+
+> **Qué señalar en pantalla:** «Fijaos en lo que no aparece: ningún modelo para predecir defectos. Eso no lo hace un modelo de lenguaje; lo hace lo del M03».
+
+#### Paso 2 — Qué modelo tiene el puesto
+
+**Qué vamos a ver:** el fichero del modelo que usa el curso y lo que dice de sí mismo el servicio.
+
+```bash
+# El modelo instalado y su tamaño en disco
+ls -lh modelos/
+# Lo que dice el servicio de sí mismo
+curl -s http://localhost:8088/salud
+```
+
+**Resultado esperado** (cambian el usuario y la fecha):
+
+```text
+total 469M
+-rw-rw-r-- 1 david david 469M Oct  6 00:00 qwen2.5-0.5b-instruct-q4_k_m.gguf
+{"estado":"ok","modelo":"qwen2.5-0.5b-instruct-q4_k_m.gguf"}
+```
+
+**Cómo se lee:** el nombre del fichero lo dice todo, si se sabe leer: Qwen 2.5, **0,5 B** de parámetros, versión **Instruct** (para seguir instrucciones), en **Q4** (4 bits), formato **GGUF** ([llama.cpp](../glosario/06-modelos-abiertos.md#servir)). Son las mismas piezas del pedido del paso 1, en pequeño.
+
+> **Qué señalar en pantalla:** «Con 470 MB contesta en un segundo, pero ya habéis visto que se inventa cosas. ¿Compensa uno tres veces más grande?».
+
+#### Paso 3 — La pregunta que abre el laboratorio
+
+> **Si cambiamos el modelo del puesto por uno más grande, ¿qué ganamos, qué nos cuesta en memoria y tiempo, y cómo encontramos el dato cuando el técnico pregunta con sus propias palabras?**
+
+### Ahora tú: M05-05
+
+→ **[M05-05 — Elegir y servir un modelo abierto en planta](M05-05-modelos-abiertos.md)**
+
+Descargarás dos modelos abiertos, leerás su licencia, medirás en tu equipo el de 0,5 B frente a uno de 1,5 B con preguntas de EST-01 y construirás un buscador por significado con un modelo de embeddings.
 
 ---
 

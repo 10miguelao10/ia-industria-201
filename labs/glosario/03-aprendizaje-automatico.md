@@ -198,7 +198,7 @@ Relacionado: [anomalía](#anomalia) · [umbral](#umbral)
 | ✔ Clasificador sobre píxeles | Un peso por píxel | M04-01: 88 % de acierto |
 | ✔ Red neuronal | Capas sobre los píxeles | M04-04 |
 | ○ Red convolucional (CNN) | Aprende formas (bordes, líneas) que se repiten en cualquier zona | Visión industrial real, con GPU |
-| ○ Detección de objetos (YOLO…) | Dice qué hay **y dónde**, con un recuadro | Localizar defectos en fotos grandes |
+| ○ Detección de objetos (YOLO…) | Dice qué hay **y dónde**, con un recuadro | Localizar defectos en fotos grandes; ojo a su [licencia](06-modelos-abiertos.md#licencias) |
 
 **Lo usas en:** <!--usos:vision-pixeles-->[M04](../M04-vision-control-calidad/README.md) · [M04-01](../M04-vision-control-calidad/M04-01-clasificacion-componentes.md) · [M04-03](../M04-vision-control-calidad/M04-03-inspeccion-camara.md) · [M04-04](../M04-vision-control-calidad/M04-04-red-neuronal.md)<!--/usos-->
 

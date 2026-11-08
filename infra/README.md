@@ -103,6 +103,7 @@ En el M05, detén el panel (`docker compose stop panel`) antes de arrancar `llm`
 | M03-04 | `lab` y el `dataset_linea.csv` de M02-04 | ~0,5 GB | el `.joblib` | no |
 | M04-01 a M04-04 | `lab` | ~0,5 GB | ~80 PNG pequeñas | no |
 | M05-01 a M05-04 | `llm` (+ sensor en M05-04) | hasta 2 GB | ~470 MB del GGUF | solo la primera descarga |
+| M05-05 | solo `lab` | hasta 2 GB | ~1,7 GB más (dos modelos abiertos) | descarga en el paso 1 |
 | M01-02 (IA sobre el dato), M02-03 (notas de turno) | además, `llm` | hasta 2 GB más | — | no |
 | M06-01 | `lab` con el modelo de M03 | ~0,4 GB | — | no |
 | M06-02 | `lab` + mosquitto + modbus + sensor | ~0,7 GB | — | no |

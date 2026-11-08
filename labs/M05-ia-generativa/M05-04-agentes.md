@@ -1,6 +1,6 @@
 # M05-04 — Automatización mediante agentes
 
-[← Página anterior](M05-03-asistente-documentacion.md) · [Siguiente página →](../M06-edge-integracion-ot/README.md)
+[← Página anterior](M05-03-asistente-documentacion.md) · [Siguiente página →](M05-05-modelos-abiertos.md)
 
 > Práctica del módulo. La teoría y la demostración están en el [README del módulo](README.md).
 >

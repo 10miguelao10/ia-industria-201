@@ -1188,6 +1188,38 @@ Se usa en [M05-04](M05-ia-generativa/M05-04-agentes.md). El rechazo de escritura
 
 ---
 
+### m05-05
+
+**Qué hace:** carga uno a uno los modelos de texto de `infra/modelos/` (todos menos el de embeddings) y les pasa las mismas cuatro preguntas de EST-01, con el párrafo del procedimiento delante o sin él. Mide el tiempo de carga, la memoria en uso, los tokens por segundo y cuántas respuestas contienen el dato correcto.
+
+| | |
+|--|--|
+| Parámetros | `sin-documento`: pregunta sin darles el párrafo |
+| Necesita en marcha | Nada (solo `lab`); no usa el contenedor `llm` |
+| Lee | los `.gguf` de `infra/modelos/` y `infra/linea/docs/procedimiento-est01.md` |
+| Escribe | nada |
+| `OK` si | hay al menos dos modelos de texto y se han comparado |
+| `FALLO` si | solo hay un modelo de texto |
+
+<details>
+<summary>Código (<code>infra/linea/cli.py</code>, función <code>cmd_m05_05</code>)</summary>
+
+```python
+BANCO_EST01 = [("¿A qué par se aprieta el tornillo de la brida?", "12"), ...]   # pregunta y palabra correcta
+
+for ruta in ficheros:                                     # cada modelo de texto de /modelos
+    llm = Llama(model_path=str(ruta), n_ctx=1024, n_threads=4)          # se carga en el propio contenedor lab
+    for pregunta, clave in BANCO_EST01:
+        texto = f"Texto: {_fragmento(pregunta)}\n\nPregunta: {pregunta}" if con_doc else pregunta
+        r = llm.create_chat_completion(messages=[...], max_tokens=60, temperature=0.1)
+        aciertos += clave in r["choices"][0]["message"]["content"].lower()   # ¿sale el dato correcto?
+    memoria = ...                                         # memoria en uso del proceso, en MB
+    print(...)                                            # tamaño, carga, memoria, tokens/s, acierto
+    del llm                                               # se libera antes de cargar el siguiente
+```
+
+</details>
+
 ## M06 — Edge e integración OT
 
 ### m06-01
